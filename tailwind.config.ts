@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+        display: ['Caveat', 'cursive'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -46,6 +50,22 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        priority: {
+          high: "hsl(var(--priority-high))",
+          "high-bg": "hsl(var(--priority-high-bg))",
+          medium: "hsl(var(--priority-medium))",
+          "medium-bg": "hsl(var(--priority-medium-bg))",
+          low: "hsl(var(--priority-low))",
+          "low-bg": "hsl(var(--priority-low-bg))",
+        },
+        status: {
+          pending: "hsl(var(--status-pending))",
+          "pending-bg": "hsl(var(--status-pending-bg))",
+          progress: "hsl(var(--status-progress))",
+          "progress-bg": "hsl(var(--status-progress-bg))",
+          done: "hsl(var(--status-done))",
+          "done-bg": "hsl(var(--status-done-bg))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
