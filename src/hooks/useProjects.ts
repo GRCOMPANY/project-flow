@@ -1,164 +1,219 @@
-import { useState, useEffect } from 'react';
-import { Project, Task } from '@/types';
-
-const PROJECTS_KEY = 'task-manager-projects';
-const TASKS_KEY = 'task-manager-tasks';
-
-const DEMO_PROJECT_ID = 'demo-project-1';
-
-const defaultProjects: Project[] = [
-  {
-    id: DEMO_PROJECT_ID,
-    name: 'Rediseño Web',
-    description: 'Actualizar el sitio web corporativo con nuevo diseño responsive y mejor UX',
-    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-project-2',
-    name: 'App Móvil',
-    description: 'Desarrollo de aplicación móvil para clientes con funciones de seguimiento',
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-project-3',
-    name: 'Marketing Q1',
-    description: 'Campaña de marketing digital para el primer trimestre del año',
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const defaultTasks: Task[] = [
-  {
-    id: 'demo-task-1',
-    projectId: DEMO_PROJECT_ID,
-    name: 'Diseñar mockups',
-    description: 'Crear wireframes y mockups de alta fidelidad para las páginas principales',
-    status: 'terminada',
-    priority: 'alta',
-    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-task-2',
-    projectId: DEMO_PROJECT_ID,
-    name: 'Desarrollar homepage',
-    description: 'Implementar el diseño de la página principal con animaciones',
-    status: 'en_progreso',
-    priority: 'alta',
-    dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-task-3',
-    projectId: DEMO_PROJECT_ID,
-    name: 'Optimizar imágenes',
-    description: 'Comprimir y optimizar todas las imágenes del sitio',
-    status: 'pendiente',
-    priority: 'media',
-    dueDate: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-task-4',
-    projectId: DEMO_PROJECT_ID,
-    name: 'Testing cross-browser',
-    description: 'Probar compatibilidad en Chrome, Firefox, Safari y Edge',
-    status: 'pendiente',
-    priority: 'baja',
-    dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-task-5',
-    projectId: 'demo-project-2',
-    name: 'Configurar proyecto React Native',
-    description: 'Inicializar el proyecto y configurar dependencias principales',
-    status: 'en_progreso',
-    priority: 'alta',
-    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-task-6',
-    projectId: 'demo-project-3',
-    name: 'Planificar contenido redes',
-    description: 'Crear calendario de publicaciones para Instagram y LinkedIn',
-    status: 'pendiente',
-    priority: 'media',
-    dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-  },
-];
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Project, Task, Status, Priority } from '@/types';
+import { toast } from 'sonner';
 
 export function useProjects() {
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem(PROJECTS_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.length > 0 ? parsed : defaultProjects;
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch projects from Supabase
+  const fetchProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast.error('Error al cargar proyectos');
+      console.error('Error fetching projects:', error);
+      return;
     }
-    return defaultProjects;
-  });
 
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem(TASKS_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.length > 0 ? parsed : defaultTasks;
+    const mappedProjects: Project[] = data.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      dueDate: p.due_date || '',
+      createdAt: p.created_at,
+    }));
+
+    setProjects(mappedProjects);
+  }, []);
+
+  // Fetch tasks from Supabase
+  const fetchTasks = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast.error('Error al cargar tareas');
+      console.error('Error fetching tasks:', error);
+      return;
     }
-    return defaultTasks;
-  });
 
+    const mappedTasks: Task[] = data.map(t => ({
+      id: t.id,
+      projectId: t.project_id,
+      name: t.name,
+      description: t.description || '',
+      status: t.status as Status,
+      priority: t.priority as Priority,
+      dueDate: t.due_date || '',
+      createdAt: t.created_at,
+    }));
+
+    setTasks(mappedTasks);
+  }, []);
+
+  // Initial load
   useEffect(() => {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
-  }, [tasks]);
-
-  const addProject = (project: Omit<Project, 'id' | 'createdAt'>) => {
-    const newProject: Project = {
-      ...project,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchProjects(), fetchTasks()]);
+      setLoading(false);
     };
-    setProjects(prev => [...prev, newProject]);
+    loadData();
+  }, [fetchProjects, fetchTasks]);
+
+  const addProject = async (project: Omit<Project, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        name: project.name,
+        description: project.description,
+        due_date: project.dueDate || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error al crear proyecto');
+      console.error('Error creating project:', error);
+      return null;
+    }
+
+    const newProject: Project = {
+      id: data.id,
+      name: data.name,
+      description: data.description || '',
+      dueDate: data.due_date || '',
+      createdAt: data.created_at,
+    };
+
+    setProjects(prev => [newProject, ...prev]);
+    toast.success('Proyecto creado');
     return newProject;
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate || null;
+
+    const { error } = await supabase
+      .from('projects')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error al actualizar proyecto');
+      console.error('Error updating project:', error);
+      return;
+    }
+
     setProjects(prev =>
       prev.map(p => (p.id === id ? { ...p, ...updates } : p))
     );
+    toast.success('Proyecto actualizado');
   };
 
-  const deleteProject = (id: string) => {
+  const deleteProject = async (id: string) => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error al eliminar proyecto');
+      console.error('Error deleting project:', error);
+      return;
+    }
+
     setProjects(prev => prev.filter(p => p.id !== id));
     setTasks(prev => prev.filter(t => t.projectId !== id));
+    toast.success('Proyecto eliminado');
   };
 
-  const addTask = (task: Omit<Task, 'id' | 'createdAt'>) => {
+  const addTask = async (task: Omit<Task, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        project_id: task.projectId,
+        name: task.name,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.dueDate || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error al crear tarea');
+      console.error('Error creating task:', error);
+      return null;
+    }
+
     const newTask: Task = {
-      ...task,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      projectId: data.project_id,
+      name: data.name,
+      description: data.description || '',
+      status: data.status as Status,
+      priority: data.priority as Priority,
+      dueDate: data.due_date || '',
+      createdAt: data.created_at,
     };
-    setTasks(prev => [...prev, newTask]);
+
+    setTasks(prev => [newTask, ...prev]);
+    toast.success('Tarea creada');
     return newTask;
   };
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
+  const updateTask = async (id: string, updates: Partial<Task>) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate || null;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error al actualizar tarea');
+      console.error('Error updating task:', error);
+      return;
+    }
+
     setTasks(prev =>
       prev.map(t => (t.id === id ? { ...t, ...updates } : t))
     );
+    toast.success('Tarea actualizada');
   };
 
-  const deleteTask = (id: string) => {
+  const deleteTask = async (id: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error al eliminar tarea');
+      console.error('Error deleting task:', error);
+      return;
+    }
+
     setTasks(prev => prev.filter(t => t.id !== id));
+    toast.success('Tarea eliminada');
   };
 
   const getProjectTasks = (projectId: string) => {
@@ -172,6 +227,7 @@ export function useProjects() {
   return {
     projects,
     tasks,
+    loading,
     addProject,
     updateProject,
     deleteProject,
@@ -180,5 +236,6 @@ export function useProjects() {
     deleteTask,
     getProjectTasks,
     getProject,
+    refetch: () => Promise.all([fetchProjects(), fetchTasks()]),
   };
 }
