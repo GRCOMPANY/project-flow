@@ -1,5 +1,6 @@
 export type Priority = 'alta' | 'media' | 'baja';
 export type Status = 'pendiente' | 'en_progreso' | 'terminada';
+export type Role = 'admin' | 'colaborador';
 
 export interface Project {
   id: string;
@@ -18,4 +19,20 @@ export interface Task {
   priority: Priority;
   dueDate: string;
   createdAt: string;
+  assignedTo?: string;
+  assignedUser?: Profile;
+}
+
+export interface Profile {
+  id: string;
+  fullName: string;
+  email: string;
+  avatarUrl?: string;
+  createdAt: string;
+}
+
+export interface UserRole {
+  id: string;
+  userId: string;
+  role: Role;
 }

@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Filter, SortAsc } from 'lucide-react';
+import { ArrowLeft, Plus, Filter, SortAsc, User } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
 import { TaskItem } from '@/components/TaskItem';
 import { TaskForm } from '@/components/TaskForm';
 import { EmptyState } from '@/components/EmptyState';
+import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -18,16 +20,19 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 type SortOption = 'dueDate' | 'priority' | 'createdAt';
+type AssigneeFilter = 'all' | 'mine' | 'unassigned';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
   const { getProject, getProjectTasks, addTask, updateTask, deleteTask } = useProjects();
   
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('dueDate');
 
   const project = id ? getProject(id) : undefined;
@@ -42,6 +47,12 @@ const ProjectDetail = () => {
     
     if (priorityFilter !== 'all') {
       result = result.filter(t => t.priority === priorityFilter);
+    }
+
+    if (assigneeFilter === 'mine') {
+      result = result.filter(t => t.assignedTo === user?.id);
+    } else if (assigneeFilter === 'unassigned') {
+      result = result.filter(t => !t.assignedTo);
     }
     
     const priorityOrder: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
@@ -62,14 +73,17 @@ const ProjectDetail = () => {
     });
     
     return result;
-  }, [allTasks, statusFilter, priorityFilter, sortBy]);
+  }, [allTasks, statusFilter, priorityFilter, assigneeFilter, sortBy, user?.id]);
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-3xl text-foreground mb-4">Proyecto no encontrado</h2>
-          <Button onClick={() => navigate('/')}>Volver a proyectos</Button>
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <h2 className="text-3xl text-foreground mb-4">Proyecto no encontrado</h2>
+            <Button onClick={() => navigate('/')}>Volver a proyectos</Button>
+          </div>
         </div>
       </div>
     );
@@ -80,7 +94,7 @@ const ProjectDetail = () => {
     setFormOpen(true);
   };
 
-  const handleSubmitTask = (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+  const handleSubmitTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'assignedUser'>) => {
     if (editingTask) {
       updateTask(editingTask.id, taskData);
     } else {
@@ -96,6 +110,8 @@ const ProjectDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navbar />
+      
       <div className="container max-w-3xl mx-auto px-4 py-8">
         <button
           onClick={() => navigate('/')}
@@ -118,10 +134,12 @@ const ProjectDetail = () => {
                 </p>
               )}
             </div>
-            <Button onClick={() => setFormOpen(true)} className="gap-2 shrink-0">
-              <Plus className="w-4 h-4" />
-              Nueva tarea
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setFormOpen(true)} className="gap-2 shrink-0">
+                <Plus className="w-4 h-4" />
+                Nueva tarea
+              </Button>
+            )}
           </div>
         </header>
 
@@ -150,6 +168,18 @@ const ProjectDetail = () => {
                   <SelectItem value="alta">Alta</SelectItem>
                   <SelectItem value="media">Media</SelectItem>
                   <SelectItem value="baja">Baja</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={assigneeFilter} onValueChange={(v) => setAssigneeFilter(v as AssigneeFilter)}>
+                <SelectTrigger className="w-[150px] h-9 text-sm">
+                  <User className="w-3.5 h-3.5 mr-1" />
+                  <SelectValue placeholder="Asignación" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="mine">Mis tareas</SelectItem>
+                  <SelectItem value="unassigned">Sin asignar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -187,7 +217,10 @@ const ProjectDetail = () => {
             No hay tareas que coincidan con los filtros seleccionados
           </div>
         ) : (
-          <EmptyState type="tasks" onAction={() => setFormOpen(true)} />
+          <EmptyState 
+            type="tasks" 
+            onAction={isAdmin ? () => setFormOpen(true) : undefined} 
+          />
         )}
       </div>
 

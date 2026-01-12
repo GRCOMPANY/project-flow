@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Task, Priority, Status } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,21 +17,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UserSelect } from '@/components/UserSelect';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TaskFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'assignedUser'>) => void;
   projectId: string;
   initialData?: Task;
 }
 
 export function TaskForm({ open, onOpenChange, onSubmit, projectId, initialData }: TaskFormProps) {
+  const { isAdmin } = useAuth();
+  
   const [name, setName] = useState(initialData?.name || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [priority, setPriority] = useState<Priority>(initialData?.priority || 'media');
   const [status, setStatus] = useState<Status>(initialData?.status || 'pendiente');
   const [dueDate, setDueDate] = useState(initialData?.dueDate || '');
+  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || '');
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (open) {
+      setName(initialData?.name || '');
+      setDescription(initialData?.description || '');
+      setPriority(initialData?.priority || 'media');
+      setStatus(initialData?.status || 'pendiente');
+      setDueDate(initialData?.dueDate || '');
+      setAssignedTo(initialData?.assignedTo || '');
+    }
+  }, [open, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +61,7 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, initialData 
       priority,
       status,
       dueDate,
+      assignedTo: assignedTo === 'unassigned' ? undefined : assignedTo || undefined,
     });
     
     setName('');
@@ -51,6 +69,7 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, initialData 
     setPriority('media');
     setStatus('pendiente');
     setDueDate('');
+    setAssignedTo('');
     onOpenChange(false);
   };
 
@@ -113,6 +132,18 @@ export function TaskForm({ open, onOpenChange, onSubmit, projectId, initialData 
               </Select>
             </div>
           </div>
+          
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label>Asignar a</Label>
+              <UserSelect
+                value={assignedTo}
+                onValueChange={setAssignedTo}
+                placeholder="Seleccionar usuario"
+              />
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="task-dueDate">Fecha límite</Label>
             <Input
