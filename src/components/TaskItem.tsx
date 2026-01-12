@@ -1,5 +1,5 @@
-import { Task, Status, Priority } from '@/types';
-import { Calendar, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Task, Status, Priority, Profile } from '@/types';
+import { Calendar, MoreVertical, Pencil, Trash2, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface TaskItemProps {
   task: Task;
   onUpdate: (updates: Partial<Task>) => void;
   onEdit: () => void;
   onDelete: () => void;
+  showAssignee?: boolean;
 }
 
 const priorityLabels: Record<Priority, string> = {
@@ -35,7 +37,16 @@ const statusLabels: Record<Status, string> = {
   terminada: 'Terminada',
 };
 
-export function TaskItem({ task, onUpdate, onEdit, onDelete }: TaskItemProps) {
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+export function TaskItem({ task, onUpdate, onEdit, onDelete, showAssignee = true }: TaskItemProps) {
   const priorityClass = {
     alta: 'priority-high',
     media: 'priority-medium',
@@ -52,7 +63,7 @@ export function TaskItem({ task, onUpdate, onEdit, onDelete }: TaskItemProps) {
     <div className={`sketch-card p-4 ${task.status === 'terminada' ? 'opacity-60' : ''}`}>
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h4 className={`text-lg font-medium ${task.status === 'terminada' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
               {task.name}
             </h4>
@@ -87,6 +98,29 @@ export function TaskItem({ task, onUpdate, onEdit, onDelete }: TaskItemProps) {
                 <Calendar className="w-3.5 h-3.5" />
                 {format(new Date(task.dueDate), 'dd MMM yyyy', { locale: es })}
               </span>
+            )}
+
+            {showAssignee && (
+              <div className="flex items-center gap-1.5">
+                {task.assignedUser ? (
+                  <>
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={task.assignedUser.avatarUrl} />
+                      <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                        {getInitials(task.assignedUser.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs text-muted-foreground">
+                      {task.assignedUser.fullName}
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <User className="w-3.5 h-3.5" />
+                    Sin asignar
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

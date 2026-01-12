@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Project, Task, Status, Priority } from '@/types';
+import { Project, Task, Status, Priority, Profile } from '@/types';
 import { toast } from 'sonner';
 
 export function useProjects() {
@@ -32,11 +32,20 @@ export function useProjects() {
     setProjects(mappedProjects);
   }, []);
 
-  // Fetch tasks from Supabase
+  // Fetch tasks from Supabase with assigned user profile
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
       .from('tasks')
-      .select('*')
+      .select(`
+        *,
+        assigned_user:profiles!tasks_assigned_to_fkey(
+          id,
+          full_name,
+          email,
+          avatar_url,
+          created_at
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -54,6 +63,14 @@ export function useProjects() {
       priority: t.priority as Priority,
       dueDate: t.due_date || '',
       createdAt: t.created_at,
+      assignedTo: t.assigned_to || undefined,
+      assignedUser: t.assigned_user ? {
+        id: t.assigned_user.id,
+        fullName: t.assigned_user.full_name,
+        email: t.assigned_user.email,
+        avatarUrl: t.assigned_user.avatar_url || undefined,
+        createdAt: t.assigned_user.created_at,
+      } : undefined,
     }));
 
     setTasks(mappedTasks);
@@ -129,7 +146,11 @@ export function useProjects() {
       .eq('id', id);
 
     if (error) {
-      toast.error('Error al eliminar proyecto');
+      if (error.message.includes('row-level security')) {
+        toast.error('Solo los administradores pueden eliminar proyectos');
+      } else {
+        toast.error('Error al eliminar proyecto');
+      }
       console.error('Error deleting project:', error);
       return;
     }
@@ -139,7 +160,7 @@ export function useProjects() {
     toast.success('Proyecto eliminado');
   };
 
-  const addTask = async (task: Omit<Task, 'id' | 'createdAt'>) => {
+  const addTask = async (task: Omit<Task, 'id' | 'createdAt' | 'assignedUser'>) => {
     const { data, error } = await supabase
       .from('tasks')
       .insert({
@@ -149,12 +170,26 @@ export function useProjects() {
         status: task.status,
         priority: task.priority,
         due_date: task.dueDate || null,
+        assigned_to: task.assignedTo || null,
       })
-      .select()
+      .select(`
+        *,
+        assigned_user:profiles!tasks_assigned_to_fkey(
+          id,
+          full_name,
+          email,
+          avatar_url,
+          created_at
+        )
+      `)
       .single();
 
     if (error) {
-      toast.error('Error al crear tarea');
+      if (error.message.includes('row-level security')) {
+        toast.error('Solo los administradores pueden crear tareas');
+      } else {
+        toast.error('Error al crear tarea');
+      }
       console.error('Error creating task:', error);
       return null;
     }
@@ -168,6 +203,14 @@ export function useProjects() {
       priority: data.priority as Priority,
       dueDate: data.due_date || '',
       createdAt: data.created_at,
+      assignedTo: data.assigned_to || undefined,
+      assignedUser: data.assigned_user ? {
+        id: data.assigned_user.id,
+        fullName: data.assigned_user.full_name,
+        email: data.assigned_user.email,
+        avatarUrl: data.assigned_user.avatar_url || undefined,
+        createdAt: data.assigned_user.created_at,
+      } : undefined,
     };
 
     setTasks(prev => [newTask, ...prev]);
@@ -182,6 +225,7 @@ export function useProjects() {
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
     if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate || null;
+    if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo || null;
 
     const { error } = await supabase
       .from('tasks')
@@ -189,14 +233,23 @@ export function useProjects() {
       .eq('id', id);
 
     if (error) {
-      toast.error('Error al actualizar tarea');
+      if (error.message.includes('row-level security')) {
+        toast.error('No tienes permiso para actualizar esta tarea');
+      } else {
+        toast.error('Error al actualizar tarea');
+      }
       console.error('Error updating task:', error);
       return;
     }
 
-    setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, ...updates } : t))
-    );
+    // Refetch to get updated assigned_user
+    if (updates.assignedTo !== undefined) {
+      await fetchTasks();
+    } else {
+      setTasks(prev =>
+        prev.map(t => (t.id === id ? { ...t, ...updates } : t))
+      );
+    }
     toast.success('Tarea actualizada');
   };
 
@@ -207,7 +260,11 @@ export function useProjects() {
       .eq('id', id);
 
     if (error) {
-      toast.error('Error al eliminar tarea');
+      if (error.message.includes('row-level security')) {
+        toast.error('Solo los administradores pueden eliminar tareas');
+      } else {
+        toast.error('Error al eliminar tarea');
+      }
       console.error('Error deleting task:', error);
       return;
     }
