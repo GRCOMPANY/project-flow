@@ -36,3 +36,14 @@ export interface UserRole {
   userId: string;
   role: Role;
 }
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  storeName?: string;
+  imageUrl?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}

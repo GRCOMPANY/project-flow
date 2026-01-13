@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, FolderKanban, LayoutDashboard } from 'lucide-react';
+import { LogOut, FolderKanban, LayoutDashboard, Package } from 'lucide-react';
 
 export function Navbar() {
   const { profile, role, isAdmin, signOut } = useAuth();
@@ -37,6 +37,17 @@ export function Navbar() {
             >
               <FolderKanban className="w-4 h-4" />
               Proyectos
+            </Link>
+            <Link
+              to="/products"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                location.pathname === '/products'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Productos
             </Link>
             <Link
               to="/dashboard"
