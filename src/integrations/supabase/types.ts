@@ -16,36 +16,68 @@ export type Database = {
     Tables: {
       products: {
         Row: {
+          category: string | null
           created_at: string
           description: string | null
           id: string
           image_url: string | null
+          internal_notes: string | null
+          is_featured: boolean
           name: string
           price: number
+          sku: string | null
+          status: Database["public"]["Enums"]["product_status"]
           store_name: string | null
+          suggested_price: number | null
+          supplier_id: string | null
+          supplier_price: number | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
+          internal_notes?: string | null
+          is_featured?: boolean
           name: string
           price?: number
+          sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"]
           store_name?: string | null
+          suggested_price?: number | null
+          supplier_id?: string | null
+          supplier_price?: number | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
+          internal_notes?: string | null
+          is_featured?: boolean
           name?: string
           price?: number
+          sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"]
           store_name?: string | null
+          suggested_price?: number | null
+          supplier_id?: string | null
+          supplier_price?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -92,6 +124,36 @@ export type Database = {
           due_date?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          conditions: string | null
+          contact: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          conditions?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conditions?: string | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -182,6 +244,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador"
+      product_status: "activo" | "pausado" | "agotado"
       task_priority: "alta" | "media" | "baja"
       task_status: "pendiente" | "en_progreso" | "terminada"
     }
@@ -312,6 +375,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador"],
+      product_status: ["activo", "pausado", "agotado"],
       task_priority: ["alta", "media", "baja"],
       task_status: ["pendiente", "en_progreso", "terminada"],
     },
