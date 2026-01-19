@@ -127,6 +127,102 @@ export type Database = {
         }
         Relationships: []
       }
+      sales: {
+        Row: {
+          client_name: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          product_id: string | null
+          quantity: number
+          sale_date: string
+          seller_id: string | null
+          total_amount: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          product_id?: string | null
+          quantity?: number
+          sale_date?: string
+          seller_id?: string | null
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          product_id?: string | null
+          quantity?: number
+          sale_date?: string
+          seller_id?: string | null
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sellers: {
+        Row: {
+          commission: number | null
+          contact: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          status: Database["public"]["Enums"]["seller_status"]
+          updated_at: string
+        }
+        Insert: {
+          commission?: number | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["seller_status"]
+          updated_at?: string
+        }
+        Update: {
+          commission?: number | null
+          contact?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["seller_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           conditions: string | null
@@ -244,7 +340,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador"
+      payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
+      seller_status: "activo" | "inactivo"
       task_priority: "alta" | "media" | "baja"
       task_status: "pendiente" | "en_progreso" | "terminada"
     }
@@ -375,7 +473,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador"],
+      payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
+      seller_status: ["activo", "inactivo"],
       task_priority: ["alta", "media", "baja"],
       task_status: ["pendiente", "en_progreso", "terminada"],
     },
