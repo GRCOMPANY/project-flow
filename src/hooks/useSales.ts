@@ -1,0 +1,169 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Sale, Product, Seller } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+
+export function useSales() {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchSales = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        product:products(*),
+        seller:sellers(*)
+      `)
+      .order('sale_date', { ascending: false });
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las ventas',
+        variant: 'destructive',
+      });
+    } else {
+      setSales(
+        (data || []).map((s) => ({
+          id: s.id,
+          productId: s.product_id || undefined,
+          product: s.product ? {
+            id: s.product.id,
+            name: s.product.name,
+            price: Number(s.product.price),
+            storeName: s.product.store_name || undefined,
+            imageUrl: s.product.image_url || undefined,
+            description: s.product.description || undefined,
+            createdAt: s.product.created_at,
+            updatedAt: s.product.updated_at,
+            supplierPrice: Number(s.product.supplier_price) || 0,
+            suggestedPrice: Number(s.product.suggested_price) || 0,
+            status: s.product.status as Product['status'],
+            isFeatured: s.product.is_featured || false,
+            category: s.product.category || undefined,
+          } : undefined,
+          sellerId: s.seller_id || undefined,
+          seller: s.seller ? {
+            id: s.seller.id,
+            name: s.seller.name,
+            contact: s.seller.contact || undefined,
+            commission: Number(s.seller.commission) || 0,
+            status: s.seller.status as Seller['status'],
+            notes: s.seller.notes || undefined,
+            createdAt: s.seller.created_at,
+            updatedAt: s.seller.updated_at,
+          } : undefined,
+          clientName: s.client_name || undefined,
+          quantity: s.quantity,
+          unitPrice: Number(s.unit_price),
+          totalAmount: Number(s.total_amount),
+          paymentMethod: s.payment_method || undefined,
+          paymentStatus: s.payment_status as Sale['paymentStatus'],
+          saleDate: s.sale_date,
+          notes: s.notes || undefined,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at,
+        }))
+      );
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSales();
+  }, []);
+
+  const addSale = async (sale: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller'>) => {
+    const { data, error } = await supabase
+      .from('sales')
+      .insert({
+        product_id: sale.productId || null,
+        seller_id: sale.sellerId || null,
+        client_name: sale.clientName || null,
+        quantity: sale.quantity,
+        unit_price: sale.unitPrice,
+        total_amount: sale.totalAmount,
+        payment_method: sale.paymentMethod || null,
+        payment_status: sale.paymentStatus || 'pendiente',
+        sale_date: sale.saleDate,
+        notes: sale.notes || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo registrar la venta',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    toast({ title: 'Venta registrada' });
+    fetchSales(); // Refetch to get relations
+    return data;
+  };
+
+  const updateSale = async (id: string, updates: Partial<Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller'>>) => {
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.productId !== undefined) updateData.product_id = updates.productId;
+    if (updates.sellerId !== undefined) updateData.seller_id = updates.sellerId;
+    if (updates.clientName !== undefined) updateData.client_name = updates.clientName;
+    if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
+    if (updates.unitPrice !== undefined) updateData.unit_price = updates.unitPrice;
+    if (updates.totalAmount !== undefined) updateData.total_amount = updates.totalAmount;
+    if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
+    if (updates.paymentStatus !== undefined) updateData.payment_status = updates.paymentStatus;
+    if (updates.saleDate !== undefined) updateData.sale_date = updates.saleDate;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    const { error } = await supabase
+      .from('sales')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la venta',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    toast({ title: 'Venta actualizada' });
+    fetchSales();
+    return true;
+  };
+
+  const deleteSale = async (id: string) => {
+    const { error } = await supabase.from('sales').delete().eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar la venta',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setSales((prev) => prev.filter((s) => s.id !== id));
+    toast({ title: 'Venta eliminada' });
+    return true;
+  };
+
+  return {
+    sales,
+    loading,
+    addSale,
+    updateSale,
+    deleteSale,
+    refetch: fetchSales,
+  };
+}

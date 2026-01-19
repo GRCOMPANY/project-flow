@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Product } from '@/types';
+import { Product, Supplier } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 export function useProducts() {
@@ -12,7 +12,10 @@ export function useProducts() {
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select(`
+        *,
+        supplier:suppliers(*)
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -32,6 +35,23 @@ export function useProducts() {
           description: p.description || undefined,
           createdAt: p.created_at,
           updatedAt: p.updated_at,
+          supplierId: p.supplier_id || undefined,
+          supplier: p.supplier ? {
+            id: p.supplier.id,
+            name: p.supplier.name,
+            contact: p.supplier.contact || undefined,
+            conditions: p.supplier.conditions || undefined,
+            notes: p.supplier.notes || undefined,
+            createdAt: p.supplier.created_at,
+            updatedAt: p.supplier.updated_at,
+          } : undefined,
+          supplierPrice: Number(p.supplier_price) || 0,
+          suggestedPrice: Number(p.suggested_price) || 0,
+          status: p.status as Product['status'],
+          isFeatured: p.is_featured || false,
+          category: p.category || undefined,
+          internalNotes: p.internal_notes || undefined,
+          sku: p.sku || undefined,
         }))
       );
     }
@@ -42,7 +62,7 @@ export function useProducts() {
     fetchProducts();
   }, []);
 
-  const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'supplier'>) => {
     const { data, error } = await supabase
       .from('products')
       .insert({
@@ -51,6 +71,14 @@ export function useProducts() {
         store_name: product.storeName || null,
         image_url: product.imageUrl || null,
         description: product.description || null,
+        supplier_id: product.supplierId || null,
+        supplier_price: product.supplierPrice || 0,
+        suggested_price: product.suggestedPrice || 0,
+        status: product.status || 'activo',
+        is_featured: product.isFeatured || false,
+        category: product.category || null,
+        internal_notes: product.internalNotes || null,
+        sku: product.sku || null,
       })
       .select()
       .single();
@@ -73,6 +101,14 @@ export function useProducts() {
       description: data.description || undefined,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      supplierId: data.supplier_id || undefined,
+      supplierPrice: Number(data.supplier_price) || 0,
+      suggestedPrice: Number(data.suggested_price) || 0,
+      status: data.status as Product['status'],
+      isFeatured: data.is_featured || false,
+      category: data.category || undefined,
+      internalNotes: data.internal_notes || undefined,
+      sku: data.sku || undefined,
     };
 
     setProducts((prev) => [newProduct, ...prev]);
@@ -80,16 +116,26 @@ export function useProducts() {
     return newProduct;
   };
 
-  const updateProduct = async (id: string, updates: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>) => {
+  const updateProduct = async (id: string, updates: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'supplier'>>) => {
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.price !== undefined) updateData.price = updates.price;
+    if (updates.storeName !== undefined) updateData.store_name = updates.storeName;
+    if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.supplierId !== undefined) updateData.supplier_id = updates.supplierId;
+    if (updates.supplierPrice !== undefined) updateData.supplier_price = updates.supplierPrice;
+    if (updates.suggestedPrice !== undefined) updateData.suggested_price = updates.suggestedPrice;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.isFeatured !== undefined) updateData.is_featured = updates.isFeatured;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.internalNotes !== undefined) updateData.internal_notes = updates.internalNotes;
+    if (updates.sku !== undefined) updateData.sku = updates.sku;
+
     const { error } = await supabase
       .from('products')
-      .update({
-        name: updates.name,
-        price: updates.price,
-        store_name: updates.storeName,
-        image_url: updates.imageUrl,
-        description: updates.description,
-      })
+      .update(updateData)
       .eq('id', id);
 
     if (error) {

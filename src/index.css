@@ -2,103 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 45 30% 98%;
-    --foreground: 30 10% 20%;
+    /* GRC IMPORTACIONES - Premium & Professional */
+    --background: 40 20% 98%;
+    --foreground: 0 0% 15%;
 
-    --card: 45 40% 97%;
-    --card-foreground: 30 10% 20%;
+    --card: 40 30% 97%;
+    --card-foreground: 0 0% 15%;
 
-    --popover: 45 40% 97%;
-    --popover-foreground: 30 10% 20%;
+    --popover: 40 30% 97%;
+    --popover-foreground: 0 0% 15%;
 
-    --primary: 30 10% 25%;
-    --primary-foreground: 45 30% 98%;
+    /* Primary: Deep Red (Confianza y fuerza comercial) */
+    --primary: 0 65% 40%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 45 20% 92%;
-    --secondary-foreground: 30 10% 25%;
+    /* Secondary: Gold/Beige (Valor, premium) */
+    --secondary: 40 40% 92%;
+    --secondary-foreground: 0 0% 20%;
 
-    --muted: 45 15% 90%;
-    --muted-foreground: 30 8% 45%;
+    --muted: 40 20% 90%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 45 25% 88%;
-    --accent-foreground: 30 10% 20%;
+    /* Accent: Warm Gold */
+    --accent: 38 70% 50%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 15% 80%;
-    --input: 30 15% 85%;
-    --ring: 30 10% 40%;
+    --border: 40 20% 85%;
+    --input: 40 20% 88%;
+    --ring: 0 65% 40%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
     /* Priority colors */
     --priority-high: 0 84% 60%;
     --priority-high-bg: 0 84% 95%;
-    --priority-medium: 45 93% 47%;
-    --priority-medium-bg: 45 93% 92%;
+    --priority-medium: 38 93% 50%;
+    --priority-medium-bg: 38 93% 92%;
     --priority-low: 142 71% 45%;
     --priority-low-bg: 142 71% 93%;
 
     /* Status colors */
-    --status-pending: 30 10% 55%;
-    --status-pending-bg: 30 10% 92%;
-    --status-progress: 217 91% 60%;
+    --status-pending: 38 70% 50%;
+    --status-pending-bg: 38 70% 92%;
+    --status-progress: 217 91% 55%;
     --status-progress-bg: 217 91% 95%;
     --status-done: 142 71% 45%;
     --status-done-bg: 142 71% 93%;
 
+    /* GRC Brand colors */
+    --grc-red: 0 65% 40%;
+    --grc-red-light: 0 65% 95%;
+    --grc-gold: 38 70% 50%;
+    --grc-gold-light: 38 70% 92%;
+    --grc-success: 142 71% 45%;
+    --grc-warning: 38 93% 50%;
+
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-foreground: 0 0% 26%;
+    --sidebar-primary: 0 65% 40%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 40 30% 95%;
+    --sidebar-accent-foreground: 0 0% 15%;
+    --sidebar-border: 40 20% 91%;
+    --sidebar-ring: 0 65% 40%;
   }
 
   .dark {
-    --background: 30 10% 10%;
-    --foreground: 45 30% 95%;
+    --background: 0 0% 8%;
+    --foreground: 40 20% 95%;
 
-    --card: 30 10% 14%;
-    --card-foreground: 45 30% 95%;
+    --card: 0 0% 12%;
+    --card-foreground: 40 20% 95%;
 
-    --popover: 30 10% 14%;
-    --popover-foreground: 45 30% 95%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 40 20% 95%;
 
-    --primary: 45 30% 90%;
-    --primary-foreground: 30 10% 10%;
+    --primary: 0 55% 55%;
+    --primary-foreground: 0 0% 10%;
 
-    --secondary: 30 10% 20%;
-    --secondary-foreground: 45 30% 90%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 40 20% 90%;
 
-    --muted: 30 10% 20%;
-    --muted-foreground: 45 15% 60%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 40 15% 60%;
 
-    --accent: 30 10% 25%;
-    --accent-foreground: 45 30% 95%;
+    --accent: 38 70% 55%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 10% 25%;
-    --input: 30 10% 25%;
-    --ring: 45 20% 70%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 55% 55%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --grc-red: 0 55% 55%;
+    --grc-red-light: 0 55% 15%;
+    --grc-gold: 38 70% 55%;
+    --grc-gold-light: 38 70% 15%;
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 40 20% 95%;
+    --sidebar-primary: 0 55% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 0 55% 55%;
   }
 }
 
@@ -113,49 +130,59 @@
   }
 
   h1, h2, h3 {
-    font-family: 'Caveat', cursive;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
   }
 }
 
 @layer utilities {
-  .sketch-border {
-    border: 2px solid hsl(var(--border));
-    border-radius: var(--radius);
-    box-shadow: 3px 3px 0 hsl(var(--border));
-  }
-
-  .sketch-card {
-    @apply bg-card border-2 border-border rounded-2xl;
-    box-shadow: 4px 4px 0 hsl(var(--border));
+  .grc-card {
+    @apply bg-card border border-border rounded-lg shadow-sm;
     transition: all 0.2s ease;
   }
 
-  .sketch-card:hover {
-    box-shadow: 6px 6px 0 hsl(var(--border));
-    transform: translate(-2px, -2px);
+  .grc-card:hover {
+    @apply shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .grc-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(0 65% 35%) 100%);
+  }
+
+  .grc-gold-gradient {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(38 70% 45%) 100%);
   }
 
   .priority-high {
-    @apply bg-[hsl(var(--priority-high-bg))] text-[hsl(var(--priority-high))] border-[hsl(var(--priority-high))];
+    @apply bg-priority-high-bg text-priority-high border-priority-high;
   }
 
   .priority-medium {
-    @apply bg-[hsl(var(--priority-medium-bg))] text-[hsl(var(--priority-medium))] border-[hsl(var(--priority-medium))];
+    @apply bg-priority-medium-bg text-priority-medium border-priority-medium;
   }
 
   .priority-low {
-    @apply bg-[hsl(var(--priority-low-bg))] text-[hsl(var(--priority-low))] border-[hsl(var(--priority-low))];
+    @apply bg-priority-low-bg text-priority-low border-priority-low;
   }
 
   .status-pending {
-    @apply bg-[hsl(var(--status-pending-bg))] text-[hsl(var(--status-pending))];
+    @apply bg-status-pending-bg text-status-pending;
   }
 
   .status-progress {
-    @apply bg-[hsl(var(--status-progress-bg))] text-[hsl(var(--status-progress))];
+    @apply bg-status-progress-bg text-status-progress;
   }
 
   .status-done {
-    @apply bg-[hsl(var(--status-done-bg))] text-[hsl(var(--status-done))];
+    @apply bg-status-done-bg text-status-done;
+  }
+
+  .grc-stat-card {
+    @apply grc-card p-6;
+  }
+
+  .grc-section-title {
+    @apply text-2xl font-semibold text-foreground mb-4;
   }
 }
