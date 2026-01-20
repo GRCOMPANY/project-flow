@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      creatives: {
+        Row: {
+          ai_prompt: string | null
+          channel: Database["public"]["Enums"]["creative_channel"]
+          copy: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          learning: string | null
+          objective: Database["public"]["Enums"]["creative_objective"]
+          product_id: string | null
+          published_at: string | null
+          result: Database["public"]["Enums"]["creative_result"]
+          script: string | null
+          status: Database["public"]["Enums"]["creative_status"]
+          title: string | null
+          type: Database["public"]["Enums"]["creative_type"]
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          ai_prompt?: string | null
+          channel?: Database["public"]["Enums"]["creative_channel"]
+          copy?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          learning?: string | null
+          objective?: Database["public"]["Enums"]["creative_objective"]
+          product_id?: string | null
+          published_at?: string | null
+          result?: Database["public"]["Enums"]["creative_result"]
+          script?: string | null
+          status?: Database["public"]["Enums"]["creative_status"]
+          title?: string | null
+          type?: Database["public"]["Enums"]["creative_type"]
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          ai_prompt?: string | null
+          channel?: Database["public"]["Enums"]["creative_channel"]
+          copy?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          learning?: string | null
+          objective?: Database["public"]["Enums"]["creative_objective"]
+          product_id?: string | null
+          published_at?: string | null
+          result?: Database["public"]["Enums"]["creative_result"]
+          script?: string | null
+          status?: Database["public"]["Enums"]["creative_status"]
+          title?: string | null
+          type?: Database["public"]["Enums"]["creative_type"]
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creatives_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -340,6 +408,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador"
+      creative_channel: "whatsapp" | "instagram" | "tiktok" | "facebook" | "web"
+      creative_objective: "vender" | "atraer" | "probar"
+      creative_result: "sin_evaluar" | "funciono" | "no_funciono"
+      creative_status:
+        | "pendiente"
+        | "generando"
+        | "generado"
+        | "publicado"
+        | "descartado"
+      creative_type: "imagen" | "video" | "copy"
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
       seller_status: "activo" | "inactivo"
@@ -473,6 +551,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador"],
+      creative_channel: ["whatsapp", "instagram", "tiktok", "facebook", "web"],
+      creative_objective: ["vender", "atraer", "probar"],
+      creative_result: ["sin_evaluar", "funciono", "no_funciono"],
+      creative_status: [
+        "pendiente",
+        "generando",
+        "generado",
+        "publicado",
+        "descartado",
+      ],
+      creative_type: ["imagen", "video", "copy"],
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
       seller_status: ["activo", "inactivo"],
