@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -6,9 +5,11 @@ import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartTasks } from '@/hooks/useSmartTasks';
 import { useBusinessSummary } from '@/hooks/useBusinessSummary';
+import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { PriorityTaskCard } from '@/components/command-center/PriorityTaskCard';
 import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCard';
+import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
 import { 
   ShoppingCart, 
@@ -32,6 +33,7 @@ export default function CommandCenter() {
 
   const smartTasks = useSmartTasks({ sales, products, creatives });
   const summary = useBusinessSummary({ sales, products, creatives });
+  const smartProducts = useSmartCatalog({ products, sales, creatives });
 
   const handleMarkPaid = async (saleId: string) => {
     await updateSale(saleId, { paymentStatus: 'pagado' });
@@ -101,6 +103,17 @@ export default function CommandCenter() {
           </div>
         </header>
 
+        {/* Daily Insight (AI Command Center MVP) */}
+        {isAdmin && (
+          <section className="mb-8">
+            <DailyInsight 
+              summary={summary}
+              smartProducts={smartProducts}
+              tasks={smartTasks}
+            />
+          </section>
+        )}
+
         {/* NIVEL 1: Priority Actions */}
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
@@ -126,7 +139,7 @@ export default function CommandCenter() {
             </div>
           ) : (
             <div className="grc-card p-8 text-center">
-              <CheckCircle2 className="w-12 h-12 mx-auto text-[hsl(var(--status-done))] mb-3" />
+              <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-3" />
               <h3 className="text-lg font-semibold text-foreground mb-1">
                 ¡Excelente trabajo!
               </h3>

@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/sales', label: 'Ventas', icon: ShoppingCart },
   { path: '/suppliers', label: 'Proveedores', icon: Truck, adminOnly: true },
   { path: '/sellers', label: 'Vendedores', icon: Users },
-  { path: '/ai', label: 'IA', icon: Sparkles },
+  { path: '/ai', label: 'IA', icon: Sparkles, adminOnly: true },
 ];
 
 export function CommandCenterNav() {
