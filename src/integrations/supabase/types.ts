@@ -198,6 +198,7 @@ export type Database = {
       sales: {
         Row: {
           client_name: string | null
+          client_phone: string | null
           created_at: string
           id: string
           notes: string | null
@@ -207,6 +208,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           sale_date: string
+          sales_channel: string | null
           seller_id: string | null
           total_amount: number
           unit_price: number
@@ -214,6 +216,7 @@ export type Database = {
         }
         Insert: {
           client_name?: string | null
+          client_phone?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -223,6 +226,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           sale_date?: string
+          sales_channel?: string | null
           seller_id?: string | null
           total_amount?: number
           unit_price?: number
@@ -230,6 +234,7 @@ export type Database = {
         }
         Update: {
           client_name?: string | null
+          client_phone?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -239,6 +244,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           sale_date?: string
+          sales_channel?: string | null
           seller_id?: string | null
           total_amount?: number
           unit_price?: number

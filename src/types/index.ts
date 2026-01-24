@@ -4,6 +4,8 @@ export type Role = 'admin' | 'colaborador';
 export type ProductStatus = 'activo' | 'pausado' | 'agotado';
 export type SellerStatus = 'activo' | 'inactivo';
 export type PaymentStatus = 'pendiente' | 'pagado';
+export type OrderStatus = 'pendiente' | 'en_progreso' | 'entregado';
+export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' | 'otro';
 
 // Creative types
 export type CreativeType = 'imagen' | 'video' | 'copy';
@@ -92,16 +94,19 @@ export interface Seller {
 
 export interface Sale {
   id: string;
-  productId?: string;
+  productId: string;
   product?: Product;
   sellerId?: string;
   seller?: Seller;
   clientName?: string;
+  clientPhone?: string;
+  salesChannel?: SalesChannel;
   quantity: number;
   unitPrice: number;
   totalAmount: number;
   paymentMethod?: string;
   paymentStatus: PaymentStatus;
+  orderStatus: OrderStatus;
   saleDate: string;
   notes?: string;
   createdAt: string;

@@ -1,31 +1,20 @@
-import { useState } from 'react';
-import { Plus, Trash2, Edit2, ShoppingCart, Calendar, DollarSign, User, Package } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useSales } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
-import { useSellers } from '@/hooks/useSellers';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navbar } from '@/components/Navbar';
+import { Sale, SalesChannel, OrderStatus, PaymentStatus } from '@/types';
+import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Sale, PaymentStatus } from '@/types';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,81 +25,165 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Package,
+  Phone,
+  Calendar,
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  ChevronDown,
+  User,
+  MessageSquare,
+  Truck,
+} from 'lucide-react';
 
-const PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'Tarjeta', 'Nequi', 'Daviplata', 'Otro'];
+const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
+  { value: 'marketplace', label: 'Marketplace' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'otro', label: 'Otro' },
+];
 
-const Sales = () => {
-  const { isAdmin } = useAuth();
+const PAYMENT_METHODS = [
+  { value: 'contra_entrega', label: 'Contra entrega' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'efectivo', label: 'Efectivo' },
+];
+
+const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string; icon: typeof Package }[] = [
+  { value: 'pendiente', label: 'Pendiente', icon: Clock },
+  { value: 'en_progreso', label: 'En proceso', icon: Truck },
+  { value: 'entregado', label: 'Entregado', icon: CheckCircle },
+];
+
+export default function Sales() {
   const { sales, loading, addSale, updateSale, deleteSale } = useSales();
   const { products } = useProducts();
-  const { sellers } = useSellers();
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingSale, setEditingSale] = useState<Sale | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { isAdmin } = useAuth();
 
   // Form state
+  const [showForm, setShowForm] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
+
+  // Form fields
   const [productId, setProductId] = useState('');
-  const [sellerId, setSellerId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [unitPrice, setUnitPrice] = useState(0);
   const [clientName, setClientName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unitPrice, setUnitPrice] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [salesChannel, setSalesChannel] = useState<SalesChannel>('whatsapp');
+  const [paymentMethod, setPaymentMethod] = useState('contra_entrega');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pendiente');
+  const [orderStatus, setOrderStatus] = useState<OrderStatus>('pendiente');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
 
+  // Calculated values
+  const totalAmount = quantity * unitPrice;
+
+  // Dashboard stats
+  const stats = useMemo(() => {
+    const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const pending = sales.filter(s => s.paymentStatus === 'pendiente');
+    const paid = sales.filter(s => s.paymentStatus === 'pagado');
+    const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
+    const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
+
+    return {
+      totalSold,
+      totalSales: sales.length,
+      pendingAmount,
+      pendingCount: pending.length,
+      paidAmount,
+      paidCount: paid.length,
+    };
+  }, [sales]);
+
   const resetForm = () => {
     setProductId('');
-    setSellerId('');
+    setQuantity(1);
+    setUnitPrice(0);
     setClientName('');
-    setQuantity('1');
-    setUnitPrice('');
-    setPaymentMethod('');
+    setClientPhone('');
+    setSalesChannel('whatsapp');
+    setPaymentMethod('contra_entrega');
     setPaymentStatus('pendiente');
+    setOrderStatus('pendiente');
     setSaleDate(new Date().toISOString().split('T')[0]);
     setNotes('');
+    setEditingSale(null);
+  };
+
+  const openNewForm = () => {
+    resetForm();
+    setShowForm(true);
   };
 
   const openEditForm = (sale: Sale) => {
-    setProductId(sale.productId || '');
-    setSellerId(sale.sellerId || '');
+    setEditingSale(sale);
+    setProductId(sale.productId);
+    setQuantity(sale.quantity);
+    setUnitPrice(sale.unitPrice);
     setClientName(sale.clientName || '');
-    setQuantity(sale.quantity.toString());
-    setUnitPrice(sale.unitPrice.toString());
-    setPaymentMethod(sale.paymentMethod || '');
+    setClientPhone(sale.clientPhone || '');
+    setSalesChannel(sale.salesChannel || 'whatsapp');
+    setPaymentMethod(sale.paymentMethod || 'contra_entrega');
     setPaymentStatus(sale.paymentStatus);
+    setOrderStatus(sale.orderStatus);
     setSaleDate(sale.saleDate.split('T')[0]);
     setNotes(sale.notes || '');
-    setEditingSale(sale);
-    setFormOpen(true);
+    setShowForm(true);
   };
 
-  // When product changes, update unit price
-  const handleProductChange = (pid: string) => {
-    setProductId(pid);
-    const product = products.find(p => p.id === pid);
+  const handleProductChange = (id: string) => {
+    setProductId(id);
+    const product = products.find(p => p.id === id);
     if (product) {
-      setUnitPrice(product.price.toString());
+      setUnitPrice(product.price);
     }
   };
 
-  const totalAmount = (parseFloat(quantity) || 0) * (parseFloat(unitPrice) || 0);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!unitPrice || !quantity) return;
+  const handleSubmit = async () => {
+    if (!productId) {
+      return;
+    }
 
     const saleData = {
-      productId: productId || undefined,
-      sellerId: sellerId || undefined,
-      clientName: clientName.trim() || undefined,
-      quantity: parseInt(quantity),
-      unitPrice: parseFloat(unitPrice),
+      productId,
+      quantity,
+      unitPrice,
       totalAmount,
-      paymentMethod: paymentMethod || undefined,
+      clientName: clientName || undefined,
+      clientPhone: clientPhone || undefined,
+      salesChannel,
+      paymentMethod,
       paymentStatus,
+      orderStatus,
       saleDate: new Date(saleDate).toISOString(),
-      notes: notes.trim() || undefined,
+      notes: notes || undefined,
     };
 
     if (editingSale) {
@@ -119,34 +192,32 @@ const Sales = () => {
       await addSale(saleData);
     }
 
+    setShowForm(false);
     resetForm();
-    setEditingSale(null);
-    setFormOpen(false);
   };
 
   const handleDelete = async () => {
-    if (deleteId) {
-      await deleteSale(deleteId);
-      setDeleteId(null);
+    if (deletingSale) {
+      await deleteSale(deletingSale.id);
+      setDeletingSale(null);
     }
   };
 
-  const handleQuickStatusChange = async (sale: Sale, newStatus: PaymentStatus) => {
+  const handleQuickPaymentToggle = async (sale: Sale) => {
+    const newStatus: PaymentStatus = sale.paymentStatus === 'pendiente' ? 'pagado' : 'pendiente';
     await updateSale(sale.id, { paymentStatus: newStatus });
   };
 
-  const pendingSales = sales.filter(s => s.paymentStatus === 'pendiente');
-  const paidSales = sales.filter(s => s.paymentStatus === 'pagado');
-
-  const totalPending = pendingSales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalPaid = paidSales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const handleOrderStatusChange = async (sale: Sale, newStatus: OrderStatus) => {
+    await updateSale(sale.id, { orderStatus: newStatus });
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-pulse text-muted-foreground">Cargando...</div>
+        <CommandCenterNav />
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -154,258 +225,314 @@ const Sales = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <div className="container max-w-5xl mx-auto px-4 py-8">
-        <header className="mb-10">
-          <h1 className="text-5xl font-bold text-foreground mb-2">Ventas</h1>
-          <p className="text-muted-foreground">
-            Registro de ventas y seguimiento de pagos
-          </p>
-        </header>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-          <div className="grc-stat-card">
-            <p className="text-sm text-muted-foreground">Total Ventas</p>
-            <p className="text-2xl font-bold text-foreground">{sales.length}</p>
+      <CommandCenterNav />
+      
+      <main className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Ventas</h1>
+            <p className="text-muted-foreground">Control de ventas y cobros</p>
           </div>
-          <div className="grc-stat-card bg-status-pending-bg">
-            <p className="text-sm text-status-pending">Pendiente</p>
-            <p className="text-2xl font-bold text-status-pending">
-              ${totalPending.toLocaleString('es-MX')}
-            </p>
-          </div>
-          <div className="grc-stat-card bg-status-done-bg">
-            <p className="text-sm text-status-done">Cobrado</p>
-            <p className="text-2xl font-bold text-status-done">
-              ${totalPaid.toLocaleString('es-MX')}
-            </p>
-          </div>
+          {isAdmin && (
+            <Button onClick={openNewForm}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva venta
+            </Button>
+          )}
         </div>
 
-        {sales.length > 0 || isAdmin ? (
-          <>
-            {isAdmin && (
-              <div className="flex justify-end mb-6">
-                <Button onClick={() => { resetForm(); setFormOpen(true); }} className="gap-2">
-                  <Plus className="w-4 h-4" />
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total vendido</p>
+                  <p className="text-2xl font-bold">${stats.totalSold.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{stats.totalSales} ventas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pendiente por cobrar</p>
+                  <p className="text-2xl font-bold text-amber-600">${stats.pendingAmount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{stats.pendingCount} ventas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Cobrado</p>
+                  <p className="text-2xl font-bold text-emerald-600">${stats.paidAmount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{stats.paidCount} ventas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sales List */}
+        {sales.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Sin ventas registradas</h3>
+              <p className="text-muted-foreground mb-4">
+                Comienza registrando tu primera venta
+              </p>
+              {isAdmin && (
+                <Button onClick={openNewForm}>
+                  <Plus className="w-4 h-4 mr-2" />
                   Nueva venta
                 </Button>
-              </div>
-            )}
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {sales.map((sale) => (
+              <SaleCard
+                key={sale.id}
+                sale={sale}
+                isAdmin={isAdmin}
+                onEdit={() => openEditForm(sale)}
+                onDelete={() => setDeletingSale(sale)}
+                onPaymentToggle={() => handleQuickPaymentToggle(sale)}
+                onOrderStatusChange={(status) => handleOrderStatusChange(sale, status)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
 
-            {/* Pending Sales */}
-            {pendingSales.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-lg font-medium text-status-pending mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-status-pending"></span>
-                  Pendientes de cobro ({pendingSales.length})
-                </h2>
-                <div className="grid gap-3">
-                  {pendingSales.map((sale) => (
-                    <SaleCard 
-                      key={sale.id} 
-                      sale={sale} 
-                      isAdmin={isAdmin}
-                      onEdit={() => openEditForm(sale)}
-                      onDelete={() => setDeleteId(sale.id)}
-                      onStatusChange={handleQuickStatusChange}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Paid Sales */}
-            {paidSales.length > 0 && (
-              <div>
-                <h2 className="text-lg font-medium text-status-done mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-status-done"></span>
-                  Cobradas ({paidSales.length})
-                </h2>
-                <div className="grid gap-3">
-                  {paidSales.map((sale) => (
-                    <SaleCard 
-                      key={sale.id} 
-                      sale={sale} 
-                      isAdmin={isAdmin}
-                      onEdit={() => openEditForm(sale)}
-                      onDelete={() => setDeleteId(sale.id)}
-                      onStatusChange={handleQuickStatusChange}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {sales.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6 border-2 border-border">
-                  <ShoppingCart className="w-10 h-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-2xl text-foreground mb-2">Sin ventas aún</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm">
-                  Registra tu primera venta
-                </p>
-              </div>
-            )}
-          </>
-        ) : null}
-      </div>
-
-      {/* Form Dialog */}
-      <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) { resetForm(); setEditingSale(null); } }}>
-        <DialogContent className="sm:max-w-lg">
+      {/* Sale Form Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingSale ? 'Editar venta' : 'Nueva venta'}</DialogTitle>
+            <DialogTitle>
+              {editingSale ? 'Editar venta' : 'Nueva venta'}
+            </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Producto</Label>
+          <div className="space-y-6 py-4">
+            {/* Product Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Producto
+              </h4>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  Producto <span className="text-destructive">*</span>
+                </label>
                 <Select value={productId} onValueChange={handleProductChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar" />
+                    <SelectValue placeholder="Seleccionar producto" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin producto</SelectItem>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    {products.filter(p => p.status === 'activo').map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - ${product.price}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Vendedor</Label>
-                <Select value={sellerId} onValueChange={setSellerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sin vendedor</SelectItem>
-                    {sellers.filter(s => s.status === 'activo').map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Cliente</Label>
-              <Input
-                id="clientName"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Nombre del cliente"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Cantidad</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="unitPrice">Precio Unidad *</Label>
-                <Input
-                  id="unitPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Total</Label>
-                <div className="h-10 flex items-center px-3 rounded-md border bg-secondary font-semibold">
-                  ${totalAmount.toLocaleString('es-MX')}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Cantidad</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Precio unit.</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={unitPrice}
+                    onChange={(e) => setUnitPrice(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Total</label>
+                  <div className="h-10 px-3 py-2 bg-muted rounded-md flex items-center font-medium">
+                    ${totalAmount.toLocaleString()}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Método de pago</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Estado de pago</Label>
-                <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendiente">🟡 Pendiente</SelectItem>
-                    <SelectItem value="pagado">🟢 Pagado</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Client Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Cliente
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Nombre</label>
+                  <Input
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Nombre del cliente"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Teléfono (WhatsApp)</label>
+                  <Input
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    placeholder="+52 123 456 7890"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="saleDate">Fecha de venta</Label>
-              <Input
-                id="saleDate"
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-              />
+            {/* Commercial Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Datos comerciales
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Canal de venta</label>
+                  <Select value={salesChannel} onValueChange={(v) => setSalesChannel(v as SalesChannel)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SALES_CHANNELS.map((channel) => (
+                        <SelectItem key={channel.value} value={channel.value}>
+                          {channel.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Método de pago</label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observaciones..."
-                rows={2}
-              />
+            {/* Status Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                Estados
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Estado de pago</label>
+                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">🟡 Pendiente</SelectItem>
+                      <SelectItem value="pagado">🟢 Pagado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Estado del pedido</label>
+                  <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as OrderStatus)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDER_STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.value === 'pendiente' && '🟡 '}
+                          {status.value === 'en_progreso' && '🔵 '}
+                          {status.value === 'entregado' && '🟢 '}
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={!unitPrice || !quantity}>
-                {editingSale ? 'Guardar cambios' : 'Registrar venta'}
-              </Button>
+            {/* Other Section */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Fecha de venta</label>
+                <Input
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Notas</label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notas adicionales..."
+                  rows={2}
+                />
+              </div>
             </div>
-          </form>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={!productId}>
+              {editingSale ? 'Guardar cambios' : 'Registrar venta'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog open={!!deletingSale} onOpenChange={() => setDeletingSale(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar venta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer.
+              Esta acción no se puede deshacer. Se eliminará permanentemente esta venta.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -418,70 +545,149 @@ const Sales = () => {
       </AlertDialog>
     </div>
   );
-};
+}
 
-function SaleCard({ sale, isAdmin, onEdit, onDelete, onStatusChange }: { 
-  sale: Sale; 
-  isAdmin: boolean; 
-  onEdit: () => void; 
+// Sale Card Component
+interface SaleCardProps {
+  sale: Sale;
+  isAdmin: boolean;
+  onEdit: () => void;
   onDelete: () => void;
-  onStatusChange: (sale: Sale, status: PaymentStatus) => void;
-}) {
+  onPaymentToggle: () => void;
+  onOrderStatusChange: (status: OrderStatus) => void;
+}
+
+function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderStatusChange }: SaleCardProps) {
+  const getChannelLabel = (channel?: SalesChannel) => {
+    return SALES_CHANNELS.find(c => c.value === channel)?.label || channel || '-';
+  };
+
+  const getPaymentMethodLabel = (method?: string) => {
+    return PAYMENT_METHODS.find(m => m.value === method)?.label || method || '-';
+  };
+
+  const getOrderStatusOption = (status: OrderStatus) => {
+    return ORDER_STATUS_OPTIONS.find(s => s.value === status) || ORDER_STATUS_OPTIONS[0];
+  };
+
+  const orderStatusOption = getOrderStatusOption(sale.orderStatus);
+
   return (
-    <div className={`grc-card p-4 ${sale.paymentStatus === 'pagado' ? 'opacity-70' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              {sale.product && (
-                <span className="flex items-center gap-1 text-sm font-medium">
-                  <Package className="w-3 h-3" /> {sale.product.name}
-                </span>
-              )}
-              {sale.clientName && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <User className="w-3 h-3" /> {sale.clientName}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> 
-                {format(new Date(sale.saleDate), "d MMM yyyy", { locale: es })}
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          {/* Main Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium truncate">
+                {sale.product?.name || 'Producto eliminado'}
               </span>
-              {sale.seller && <span>Vendedor: {sale.seller.name}</span>}
-              {sale.paymentMethod && <span>{sale.paymentMethod}</span>}
-              {sale.quantity > 1 && <span>{sale.quantity} uds</span>}
+              <span className="text-muted-foreground">×{sale.quantity}</span>
+              <span className="font-bold text-lg ml-auto">
+                ${sale.totalAmount.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {sale.clientName && (
+                <span className="flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  {sale.clientName}
+                </span>
+              )}
+              {sale.clientPhone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {sale.clientPhone}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {format(new Date(sale.saleDate), 'dd MMM yyyy', { locale: es })}
+              </span>
+              <span className="flex items-center gap-1">
+                <MessageSquare className="w-3 h-3" />
+                {getChannelLabel(sale.salesChannel)}
+              </span>
+              <span className="flex items-center gap-1">
+                <CreditCard className="w-3 h-3" />
+                {getPaymentMethodLabel(sale.paymentMethod)}
+              </span>
             </div>
           </div>
 
-          <div className="text-right">
-            <p className="text-lg font-bold text-foreground">
-              ${sale.totalAmount.toLocaleString('es-MX')}
-            </p>
-            <Badge 
+          {/* Status Badges */}
+          <div className="flex flex-col items-end gap-2">
+            {/* Payment Status - Clickable */}
+            <Badge
               variant={sale.paymentStatus === 'pagado' ? 'default' : 'secondary'}
-              className={`cursor-pointer ${sale.paymentStatus === 'pagado' ? 'bg-status-done' : 'bg-status-pending text-status-pending'}`}
-              onClick={() => onStatusChange(sale, sale.paymentStatus === 'pagado' ? 'pendiente' : 'pagado')}
+              className={`cursor-pointer transition-colors ${
+                sale.paymentStatus === 'pagado'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-amber-500 hover:bg-amber-600 text-white'
+              }`}
+              onClick={isAdmin ? onPaymentToggle : undefined}
             >
-              {sale.paymentStatus === 'pagado' ? '✓ Pagado' : 'Pendiente'}
+              <DollarSign className="w-3 h-3 mr-1" />
+              {sale.paymentStatus === 'pagado' ? 'Pagado' : 'Pendiente'}
             </Badge>
+
+            {/* Order Status - Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className={`cursor-pointer gap-1 ${
+                    sale.orderStatus === 'entregado'
+                      ? 'border-emerald-600 text-emerald-600'
+                      : sale.orderStatus === 'en_progreso'
+                      ? 'border-sky-600 text-sky-600'
+                      : 'border-amber-500 text-amber-600'
+                  }`}
+                >
+                  <orderStatusOption.icon className="w-3 h-3" />
+                  {orderStatusOption.label}
+                  <ChevronDown className="w-3 h-3" />
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ORDER_STATUS_OPTIONS.map((status) => (
+                  <DropdownMenuItem
+                    key={status.value}
+                    onClick={() => onOrderStatusChange(status.value)}
+                    disabled={!isAdmin}
+                  >
+                    <status.icon className="w-4 h-4 mr-2" />
+                    {status.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-        
+
+        {/* Notes */}
+        {sale.notes && (
+          <p className="text-sm text-muted-foreground mt-2 pt-2 border-t">
+            {sale.notes}
+          </p>
+        )}
+
+        {/* Actions */}
         {isAdmin && (
-          <div className="flex gap-1 ml-4">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-              <Edit2 className="w-3 h-3" />
+          <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+            <Button variant="ghost" size="sm" onClick={onEdit}>
+              <Edit2 className="w-4 h-4 mr-1" />
+              Editar
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDelete}>
-              <Trash2 className="w-3 h-3 text-destructive" />
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 mr-1" />
+              Eliminar
             </Button>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
-
-export default Sales;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 export function useSales() {
@@ -29,7 +29,7 @@ export function useSales() {
       setSales(
         (data || []).map((s) => ({
           id: s.id,
-          productId: s.product_id || undefined,
+          productId: s.product_id || '',
           product: s.product ? {
             id: s.product.id,
             name: s.product.name,
@@ -57,11 +57,14 @@ export function useSales() {
             updatedAt: s.seller.updated_at,
           } : undefined,
           clientName: s.client_name || undefined,
+          clientPhone: s.client_phone || undefined,
+          salesChannel: (s.sales_channel as SalesChannel) || undefined,
           quantity: s.quantity,
           unitPrice: Number(s.unit_price),
           totalAmount: Number(s.total_amount),
           paymentMethod: s.payment_method || undefined,
           paymentStatus: s.payment_status as Sale['paymentStatus'],
+          orderStatus: (s.order_status as OrderStatus) || 'pendiente',
           saleDate: s.sale_date,
           notes: s.notes || undefined,
           createdAt: s.created_at,
@@ -80,14 +83,17 @@ export function useSales() {
     const { data, error } = await supabase
       .from('sales')
       .insert({
-        product_id: sale.productId || null,
+        product_id: sale.productId,
         seller_id: sale.sellerId || null,
         client_name: sale.clientName || null,
+        client_phone: sale.clientPhone || null,
+        sales_channel: sale.salesChannel || 'whatsapp',
         quantity: sale.quantity,
         unit_price: sale.unitPrice,
         total_amount: sale.totalAmount,
         payment_method: sale.paymentMethod || null,
         payment_status: sale.paymentStatus || 'pendiente',
+        order_status: sale.orderStatus || 'pendiente',
         sale_date: sale.saleDate,
         notes: sale.notes || null,
       })
@@ -104,7 +110,7 @@ export function useSales() {
     }
 
     toast({ title: 'Venta registrada' });
-    fetchSales(); // Refetch to get relations
+    fetchSales();
     return data;
   };
 
@@ -114,11 +120,14 @@ export function useSales() {
     if (updates.productId !== undefined) updateData.product_id = updates.productId;
     if (updates.sellerId !== undefined) updateData.seller_id = updates.sellerId;
     if (updates.clientName !== undefined) updateData.client_name = updates.clientName;
+    if (updates.clientPhone !== undefined) updateData.client_phone = updates.clientPhone;
+    if (updates.salesChannel !== undefined) updateData.sales_channel = updates.salesChannel;
     if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
     if (updates.unitPrice !== undefined) updateData.unit_price = updates.unitPrice;
     if (updates.totalAmount !== undefined) updateData.total_amount = updates.totalAmount;
     if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
     if (updates.paymentStatus !== undefined) updateData.payment_status = updates.paymentStatus;
+    if (updates.orderStatus !== undefined) updateData.order_status = updates.orderStatus;
     if (updates.saleDate !== undefined) updateData.sale_date = updates.saleDate;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
