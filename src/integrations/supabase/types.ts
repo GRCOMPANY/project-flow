@@ -201,6 +201,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          order_status: Database["public"]["Enums"]["order_status"] | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           product_id: string | null
@@ -216,6 +217,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
@@ -231,6 +233,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
@@ -330,7 +333,12 @@ export type Database = {
           id: string
           name: string
           priority: Database["public"]["Enums"]["task_priority"]
-          project_id: string
+          project_id: string | null
+          reason: string | null
+          related_creative_id: string | null
+          related_product_id: string | null
+          related_sale_id: string | null
+          source: Database["public"]["Enums"]["task_source"] | null
           status: Database["public"]["Enums"]["task_status"]
         }
         Insert: {
@@ -341,7 +349,12 @@ export type Database = {
           id?: string
           name: string
           priority?: Database["public"]["Enums"]["task_priority"]
-          project_id: string
+          project_id?: string | null
+          reason?: string | null
+          related_creative_id?: string | null
+          related_product_id?: string | null
+          related_sale_id?: string | null
+          source?: Database["public"]["Enums"]["task_source"] | null
           status?: Database["public"]["Enums"]["task_status"]
         }
         Update: {
@@ -352,7 +365,12 @@ export type Database = {
           id?: string
           name?: string
           priority?: Database["public"]["Enums"]["task_priority"]
-          project_id?: string
+          project_id?: string | null
+          reason?: string | null
+          related_creative_id?: string | null
+          related_product_id?: string | null
+          related_sale_id?: string | null
+          source?: Database["public"]["Enums"]["task_source"] | null
           status?: Database["public"]["Enums"]["task_status"]
         }
         Relationships: [
@@ -368,6 +386,27 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_related_creative_id_fkey"
+            columns: ["related_creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_related_sale_id_fkey"
+            columns: ["related_sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
@@ -418,10 +457,12 @@ export type Database = {
         | "publicado"
         | "descartado"
       creative_type: "imagen" | "video" | "copy"
+      order_status: "pendiente" | "en_progreso" | "entregado"
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
       seller_status: "activo" | "inactivo"
       task_priority: "alta" | "media" | "baja"
+      task_source: "manual" | "automatic"
       task_status: "pendiente" | "en_progreso" | "terminada"
     }
     CompositeTypes: {
@@ -562,10 +603,12 @@ export const Constants = {
         "descartado",
       ],
       creative_type: ["imagen", "video", "copy"],
+      order_status: ["pendiente", "en_progreso", "entregado"],
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
       seller_status: ["activo", "inactivo"],
       task_priority: ["alta", "media", "baja"],
+      task_source: ["manual", "automatic"],
       task_status: ["pendiente", "en_progreso", "terminada"],
     },
   },
