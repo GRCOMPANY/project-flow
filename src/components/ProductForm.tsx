@@ -283,12 +283,12 @@ export function ProductForm({ open, onOpenChange, onSubmit, onUploadImage, initi
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Proveedor</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+              <Select value={supplierId || '__none__'} onValueChange={(v) => setSupplierId(v === '__none__' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar proveedor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin proveedor</SelectItem>
+                  <SelectItem value="__none__">Sin proveedor</SelectItem>
                   {suppliers.map((s) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
