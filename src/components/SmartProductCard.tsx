@@ -1,8 +1,10 @@
-import { Product } from '@/types';
-import { SmartProduct, ProductPriority } from '@/hooks/useSmartCatalog';
+import { ProductWithMetrics, Priority } from '@/types';
 import { Package, TrendingUp, Image as ImageIcon, Star, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+
+// Re-export SmartProduct for backward compatibility
+export type SmartProduct = ProductWithMetrics;
 
 interface SmartProductCardProps {
   product: SmartProduct;
@@ -10,7 +12,7 @@ interface SmartProductCardProps {
   showCosts?: boolean; // Admin can see costs
 }
 
-const priorityConfig: Record<ProductPriority, { label: string; className: string }> = {
+const priorityConfig: Record<Priority, { label: string; className: string }> = {
   alta: { label: 'Alta', className: 'priority-high border' },
   media: { label: 'Media', className: 'priority-medium border' },
   baja: { label: 'Normal', className: 'priority-low border' },
@@ -86,17 +88,17 @@ export function SmartProductCard({ product, onClick, showCosts = false }: SmartP
         )}
 
         {/* Admin-only: margin info */}
-        {showCosts && product.marginPercent > 0 && (
+        {showCosts && (product.marginPercent ?? 0) > 0 && (
           <div className="pt-2 border-t border-border text-xs text-muted-foreground">
             <span>Margen: </span>
             <span className={cn(
               "font-medium",
-              product.marginPercent > 30 ? "text-success" : "text-foreground"
+              (product.marginPercent ?? 0) > 30 ? "text-success" : "text-foreground"
             )}>
-              {product.marginPercent.toFixed(0)}%
+              {(product.marginPercent ?? 0).toFixed(0)}%
             </span>
             <span className="ml-2">
-              (${product.margin.toLocaleString('es-MX', { minimumFractionDigits: 0 })})
+              (${(product.marginAmount ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 0 })})
             </span>
           </div>
         )}

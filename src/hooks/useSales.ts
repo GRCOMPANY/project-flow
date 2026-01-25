@@ -39,12 +39,20 @@ export function useSales() {
             description: s.product.description || undefined,
             createdAt: s.product.created_at,
             updatedAt: s.product.updated_at,
+            // New pricing fields
+            costPrice: Number(s.product.supplier_price) || 0,
+            wholesalePrice: Number(s.product.wholesale_price) || 0,
+            retailPrice: Number(s.product.suggested_price) || 0,
+            // Legacy fields
             supplierPrice: Number(s.product.supplier_price) || 0,
             suggestedPrice: Number(s.product.suggested_price) || 0,
             status: s.product.status as Product['status'],
             isFeatured: s.product.is_featured || false,
+            autoPromote: s.product.auto_promote || false,
+            mainChannel: (s.product.main_channel as Product['mainChannel']) || 'whatsapp',
+            deliveryType: (s.product.delivery_type as Product['deliveryType']) || 'contra_entrega',
             category: s.product.category || undefined,
-          } : undefined,
+          } as Product : undefined,
           sellerId: s.seller_id || undefined,
           seller: s.seller ? {
             id: s.seller.id,
