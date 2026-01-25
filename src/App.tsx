@@ -9,6 +9,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import CommandCenter from "./pages/CommandCenter";
 import Auth from "./pages/Auth";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
 import Creatives from "./pages/Creatives";
 import Suppliers from "./pages/Suppliers";
 import Sellers from "./pages/Sellers";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+            <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
             <Route path="/creatives" element={<ProtectedRoute><Creatives /></ProtectedRoute>} />
             <Route path="/sellers" element={<ProtectedRoute><Sellers /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />

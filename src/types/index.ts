@@ -7,6 +7,11 @@ export type PaymentStatus = 'pendiente' | 'pagado';
 export type OrderStatus = 'pendiente' | 'en_progreso' | 'entregado';
 export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' | 'otro';
 
+// Product types
+export type ProductChannel = 'whatsapp' | 'marketplace' | 'instagram' | 'tiktok' | 'otro';
+export type DeliveryType = 'contra_entrega' | 'anticipado';
+export type MarginLevel = 'alto' | 'medio' | 'bajo';
+
 // Creative types
 export type CreativeType = 'imagen' | 'video' | 'copy';
 export type CreativeChannel = 'whatsapp' | 'instagram' | 'tiktok' | 'facebook' | 'web';
@@ -53,22 +58,56 @@ export interface UserRole {
 export interface Product {
   id: string;
   name: string;
-  price: number;
-  storeName?: string;
+  sku?: string;
+  category?: string;
+  status: ProductStatus;
+  
+  // Precios
+  costPrice: number;          // Solo admin (supplier_price en DB)
+  wholesalePrice: number;     // Vendedores + admin
+  retailPrice: number;        // Público (suggested_price en DB)
+  
+  // Márgenes (calculados)
+  marginAmount?: number;      // retailPrice - costPrice
+  marginPercent?: number;     // porcentaje de margen
+  marginLevel?: MarginLevel;  // alto / medio / bajo
+  
+  // Automatización
+  mainChannel?: ProductChannel;
+  deliveryType?: DeliveryType;
+  isFeatured: boolean;
+  autoPromote: boolean;
+  
+  // Contenido
   imageUrl?: string;
   description?: string;
-  createdAt: string;
-  updatedAt: string;
-  // GRC fields
+  internalNotes?: string;  // Solo admin
+  
+  // Relaciones
   supplierId?: string;
   supplier?: Supplier;
+  
+  // Legacy - mantener compatibilidad
+  price: number;
+  storeName?: string;
   supplierPrice: number;
   suggestedPrice: number;
-  status: ProductStatus;
-  isFeatured: boolean;
-  category?: string;
-  internalNotes?: string;
-  sku?: string;
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Product con métricas calculadas (Smart Product)
+export interface ProductWithMetrics extends Product {
+  salesLast7Days: number;
+  salesLast30Days: number;
+  revenueGenerated: number;
+  pendingToCollect: number;
+  creativesCount: number;
+  needsCreatives: boolean;
+  lastCreativeDate?: string;
+  priorityScore: Priority;
+  recommendedAction?: string;
 }
 
 export interface Supplier {

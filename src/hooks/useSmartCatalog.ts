@@ -1,17 +1,10 @@
 import { useMemo } from 'react';
-import { Product, Sale, Creative } from '@/types';
+import { Product, Sale, Creative, Priority, ProductWithMetrics } from '@/types';
 
-export type ProductPriority = 'alta' | 'media' | 'baja';
+export type ProductPriority = Priority;
 
-export interface SmartProduct extends Product {
-  salesLast7Days: number;
-  salesLast30Days: number;
-  creativesCount: number;
-  priorityScore: ProductPriority;
-  recommendedAction: string | null;
-  margin: number;
-  marginPercent: number;
-}
+// Re-export for backward compatibility
+export interface SmartProduct extends ProductWithMetrics {}
 
 interface UseSmartCatalogParams {
   products: Product[];
@@ -28,70 +21,101 @@ export function useSmartCatalog({ products, sales, creatives }: UseSmartCatalogP
     return products.map((product) => {
       // Calculate sales metrics
       const productSales = sales.filter(s => s.productId === product.id);
-      const salesLast7Days = productSales.filter(s => 
-        new Date(s.saleDate).getTime() > sevenDaysAgo
-      ).reduce((sum, s) => sum + s.quantity, 0);
       
-      const salesLast30Days = productSales.filter(s => 
-        new Date(s.saleDate).getTime() > thirtyDaysAgo
-      ).reduce((sum, s) => sum + s.quantity, 0);
+      const salesLast7Days = productSales
+        .filter(s => new Date(s.saleDate).getTime() > sevenDaysAgo)
+        .reduce((sum, s) => sum + s.quantity, 0);
+      
+      const salesLast30Days = productSales
+        .filter(s => new Date(s.saleDate).getTime() > thirtyDaysAgo)
+        .reduce((sum, s) => sum + s.quantity, 0);
+
+      // Revenue and pending
+      const revenueGenerated = productSales
+        .filter(s => s.paymentStatus === 'pagado')
+        .reduce((sum, s) => sum + s.totalAmount, 0);
+      
+      const pendingToCollect = productSales
+        .filter(s => s.paymentStatus === 'pendiente')
+        .reduce((sum, s) => sum + s.totalAmount, 0);
 
       // Count creatives
-      const creativesCount = creatives.filter(c => c.productId === product.id).length;
+      const productCreatives = creatives.filter(c => c.productId === product.id);
+      const creativesCount = productCreatives.length;
+      const needsCreatives = creativesCount === 0 || !productCreatives.some(c => c.status === 'publicado');
+      
+      const lastCreative = productCreatives
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      const lastCreativeDate = lastCreative?.createdAt;
 
-      // Calculate margin
-      const margin = product.suggestedPrice - product.supplierPrice;
-      const marginPercent = product.supplierPrice > 0 
-        ? ((margin / product.supplierPrice) * 100) 
-        : 0;
+      // Calculate margin (fallback if not already calculated)
+      const margin = product.marginAmount ?? (product.retailPrice - product.costPrice);
+      const marginPercent = product.marginPercent ?? 
+        (product.costPrice > 0 ? ((margin / product.costPrice) * 100) : 0);
 
       // Determine priority and recommended action
       let priorityScore: ProductPriority = 'baja';
-      let recommendedAction: string | null = null;
+      let recommendedAction: string | undefined = undefined;
 
       // HIGH priority conditions
-      if (product.isFeatured && creativesCount === 0) {
+      if (product.isFeatured && needsCreatives) {
         priorityScore = 'alta';
         recommendedAction = 'Crear creativo urgente';
-      } else if (product.status === 'activo' && salesLast30Days === 0) {
-        priorityScore = 'alta';
-        recommendedAction = 'Promocionar producto';
-      } else if (marginPercent > 50 && creativesCount === 0) {
+      } else if (product.status === 'activo' && salesLast30Days === 0 && product.createdAt) {
+        const productAge = now - new Date(product.createdAt).getTime();
+        if (productAge > 7 * 24 * 60 * 60 * 1000) { // Más de 7 días
+          priorityScore = 'alta';
+          recommendedAction = 'Promocionar producto';
+        }
+      } else if (marginPercent > 50 && needsCreatives) {
         priorityScore = 'alta';
         recommendedAction = 'Lanzar campaña (alto margen)';
+      } else if (pendingToCollect > 0) {
+        priorityScore = 'alta';
+        recommendedAction = `Cobrar $${pendingToCollect.toLocaleString()}`;
       }
       // MEDIUM priority conditions
       else if (salesLast7Days === 0 && salesLast30Days > 0) {
         priorityScore = 'media';
         recommendedAction = 'Revisar rendimiento';
-      } else if (product.status === 'activo' && creativesCount === 0) {
+      } else if (product.status === 'activo' && needsCreatives) {
         priorityScore = 'media';
         recommendedAction = 'Crear creativo';
       } else if (salesLast30Days < salesLast7Days * 4 && salesLast30Days > 0) {
-        // Declining trend
         priorityScore = 'media';
         recommendedAction = 'Revisar precio';
       }
       // LOW priority - product is performing well
-      else if (salesLast7Days > 0 && creativesCount > 0) {
+      else if (salesLast7Days > 0 && !needsCreatives) {
         priorityScore = 'baja';
-        recommendedAction = null;
+        recommendedAction = undefined;
       }
 
-      return {
+      const smartProduct: SmartProduct = {
         ...product,
         salesLast7Days,
         salesLast30Days,
+        revenueGenerated,
+        pendingToCollect,
         creativesCount,
+        needsCreatives,
+        lastCreativeDate,
         priorityScore,
         recommendedAction,
-        margin,
+        // Ensure margin values are set
+        marginAmount: margin,
         marginPercent,
       };
+      
+      return smartProduct;
     }).sort((a, b) => {
-      // Sort by priority
+      // Sort by priority first
       const priorityOrder = { alta: 0, media: 1, baja: 2 };
-      return priorityOrder[a.priorityScore] - priorityOrder[b.priorityScore];
+      const priorityDiff = priorityOrder[a.priorityScore] - priorityOrder[b.priorityScore];
+      if (priorityDiff !== 0) return priorityDiff;
+      
+      // Then by margin (high margin first)
+      return (b.marginPercent ?? 0) - (a.marginPercent ?? 0);
     });
   }, [products, sales, creatives]);
 }
