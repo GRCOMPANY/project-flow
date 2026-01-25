@@ -80,17 +80,27 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "creatives_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_seller_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
         Row: {
+          auto_promote: boolean | null
           category: string | null
           created_at: string
+          delivery_type: string | null
           description: string | null
           id: string
           image_url: string | null
           internal_notes: string | null
           is_featured: boolean
+          main_channel: string | null
           name: string
           price: number
           sku: string | null
@@ -100,15 +110,19 @@ export type Database = {
           supplier_id: string | null
           supplier_price: number | null
           updated_at: string
+          wholesale_price: number | null
         }
         Insert: {
+          auto_promote?: boolean | null
           category?: string | null
           created_at?: string
+          delivery_type?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
           internal_notes?: string | null
           is_featured?: boolean
+          main_channel?: string | null
           name: string
           price?: number
           sku?: string | null
@@ -118,15 +132,19 @@ export type Database = {
           supplier_id?: string | null
           supplier_price?: number | null
           updated_at?: string
+          wholesale_price?: number | null
         }
         Update: {
+          auto_promote?: boolean | null
           category?: string | null
           created_at?: string
+          delivery_type?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
           internal_notes?: string | null
           is_featured?: boolean
+          main_channel?: string | null
           name?: string
           price?: number
           sku?: string | null
@@ -136,6 +154,7 @@ export type Database = {
           supplier_id?: string | null
           supplier_price?: number | null
           updated_at?: string
+          wholesale_price?: number | null
         }
         Relationships: [
           {
@@ -256,6 +275,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_seller_view"
             referencedColumns: ["id"]
           },
           {
@@ -409,6 +435,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_seller_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_related_sale_id_fkey"
             columns: ["related_sale_id"]
             isOneToOne: false
@@ -440,7 +473,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_seller_view: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          delivery_type: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          is_featured: boolean | null
+          main_channel: string | null
+          name: string | null
+          retail_price: number | null
+          sku: string | null
+          status: Database["public"]["Enums"]["product_status"] | null
+          updated_at: string | null
+          wholesale_price: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          delivery_type?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_featured?: boolean | null
+          main_channel?: string | null
+          name?: string | null
+          retail_price?: number | null
+          sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"] | null
+          updated_at?: string | null
+          wholesale_price?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          delivery_type?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          is_featured?: boolean | null
+          main_channel?: string | null
+          name?: string | null
+          retail_price?: number | null
+          sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"] | null
+          updated_at?: string | null
+          wholesale_price?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
