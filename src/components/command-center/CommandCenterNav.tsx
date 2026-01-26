@@ -12,7 +12,8 @@ import {
   LayoutDashboard,
   Image,
   Sparkles,
-  Zap
+  Zap,
+  ListTodo
 } from 'lucide-react';
 
 interface NavItem {
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/products', label: 'Productos', icon: Package },
   { path: '/creatives', label: 'Creativos', icon: Image },
   { path: '/sales', label: 'Ventas', icon: ShoppingCart },
+  { path: '/tasks', label: 'Tareas', icon: ListTodo },
   { path: '/suppliers', label: 'Proveedores', icon: Truck, adminOnly: true },
   { path: '/sellers', label: 'Vendedores', icon: Users },
   { path: '/ai', label: 'IA', icon: Sparkles, adminOnly: true },

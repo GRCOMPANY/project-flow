@@ -15,6 +15,7 @@ import Suppliers from "./pages/Suppliers";
 import Sellers from "./pages/Sellers";
 import Sales from "./pages/Sales";
 import AI from "./pages/AI";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/creatives" element={<ProtectedRoute><Creatives /></ProtectedRoute>} />
             <Route path="/sellers" element={<ProtectedRoute><Sellers /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+            <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
             {/* Admin-only routes */}
             <Route path="/suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
             <Route path="/ai" element={<AdminRoute><AI /></AdminRoute>} />

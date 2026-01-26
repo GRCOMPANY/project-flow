@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, TrendingUp, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
-import { BusinessSummary, SmartTask } from '@/types';
+import { BusinessSummary, OperationalTask } from '@/types';
 import { SmartProduct } from '@/hooks/useSmartCatalog';
 import { Button } from '@/components/ui/button';
 
 interface DailyInsightProps {
   summary: BusinessSummary;
   smartProducts: SmartProduct[];
-  tasks: SmartTask[];
+  tasks: OperationalTask[];
 }
 
 export function DailyInsight({ summary, smartProducts, tasks }: DailyInsightProps) {

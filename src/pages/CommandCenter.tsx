@@ -3,11 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
-import { useSmartTasks } from '@/hooks/useSmartTasks';
+import { useTasks } from '@/hooks/useTasks';
 import { useBusinessSummary } from '@/hooks/useBusinessSummary';
 import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
-import { PriorityTaskCard } from '@/components/command-center/PriorityTaskCard';
+import { TaskCard } from '@/components/tasks/TaskCard';
 import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCard';
 import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import {
   TrendingUp,
   Sparkles,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  ListTodo
 } from 'lucide-react';
 
 export default function CommandCenter() {
@@ -30,15 +31,23 @@ export default function CommandCenter() {
   const { products, loading: productsLoading } = useProducts();
   const { sales, loading: salesLoading, updateSale } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
+  const { todayTasks, loading: tasksLoading, resolveTask, dismissTask, updateTaskStatus } = useTasks();
 
-  const loading = productsLoading || salesLoading || creativesLoading;
+  const loading = productsLoading || salesLoading || creativesLoading || tasksLoading;
 
-  const smartTasks = useSmartTasks({ sales, products, creatives });
   const summary = useBusinessSummary({ sales, products, creatives });
   const smartProducts = useSmartCatalog({ products, sales, creatives });
 
   const handleMarkPaid = async (saleId: string) => {
     await updateSale(saleId, { paymentStatus: 'pagado' });
+  };
+
+  const handleResolveTask = async (id: string) => {
+    await resolveTask(id);
+  };
+
+  const handleDismissTask = async (id: string, reason: string) => {
+    await dismissTask(id, reason);
   };
 
   const getGreeting = () => {
@@ -91,8 +100,8 @@ export default function CommandCenter() {
                 {getGreeting()}, {profile?.fullName?.split(' ')[0]} 👋
               </h1>
               <p className="text-lg text-muted-foreground">
-                {smartTasks.length > 0 
-                  ? `Tienes ${smartTasks.length} acciones prioritarias hoy`
+                {todayTasks.length > 0 
+                  ? `Tienes ${todayTasks.length} acciones prioritarias hoy`
                   : '¡Todo en orden! No hay acciones pendientes'}
               </p>
             </div>
@@ -125,7 +134,7 @@ export default function CommandCenter() {
             <DailyInsight 
               summary={summary}
               smartProducts={smartProducts}
-              tasks={smartTasks}
+              tasks={todayTasks}
             />
           </section>
         )}
@@ -139,24 +148,33 @@ export default function CommandCenter() {
             </h2>
           </div>
 
-          {smartTasks.length > 0 ? (
+          {todayTasks.length > 0 ? (
             <div className="space-y-3">
-              {smartTasks.map((task, index) => (
+              {todayTasks.map((task, index) => (
                 <div 
                   key={task.id} 
                   className="animate-fade-up"
                   style={{ animationDelay: `${0.05 * (index + 1)}s` }}
                 >
-                  <PriorityTaskCard 
+                  <TaskCard 
                     task={task}
-                    onAction={
-                      task.type === 'cobro' && task.relatedSaleId
-                        ? () => handleMarkPaid(task.relatedSaleId!)
-                        : undefined
-                    }
+                    onResolve={handleResolveTask}
+                    onDismiss={handleDismissTask}
+                    onStatusChange={updateTaskStatus}
                   />
                 </div>
               ))}
+              
+              {/* Link to see all tasks */}
+              <Button
+                variant="ghost"
+                className="w-full gap-2 text-muted-foreground hover:text-foreground"
+                onClick={() => navigate('/tasks')}
+              >
+                <ListTodo className="w-4 h-4" />
+                Ver todas las tareas
+                <ArrowRight className="w-4 h-4" />
+              </Button>
             </div>
           ) : (
             <div className="grc-card p-10 text-center">
