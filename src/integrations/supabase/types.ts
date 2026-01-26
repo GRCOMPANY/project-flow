@@ -358,11 +358,17 @@ export type Database = {
       }
       tasks: {
         Row: {
+          action_label: string | null
+          action_path: string | null
           assigned_to: string | null
+          consequence: string | null
+          context: Json | null
           created_at: string
+          dedup_key: string | null
           description: string | null
           due_date: string | null
           id: string
+          impact: Database["public"]["Enums"]["task_impact"] | null
           name: string
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
@@ -370,15 +376,26 @@ export type Database = {
           related_creative_id: string | null
           related_product_id: string | null
           related_sale_id: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           source: Database["public"]["Enums"]["task_source"] | null
           status: Database["public"]["Enums"]["task_status"]
+          trigger_reason: string | null
+          type: Database["public"]["Enums"]["task_type"] | null
         }
         Insert: {
+          action_label?: string | null
+          action_path?: string | null
           assigned_to?: string | null
+          consequence?: string | null
+          context?: Json | null
           created_at?: string
+          dedup_key?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          impact?: Database["public"]["Enums"]["task_impact"] | null
           name: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
@@ -386,15 +403,26 @@ export type Database = {
           related_creative_id?: string | null
           related_product_id?: string | null
           related_sale_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           source?: Database["public"]["Enums"]["task_source"] | null
           status?: Database["public"]["Enums"]["task_status"]
+          trigger_reason?: string | null
+          type?: Database["public"]["Enums"]["task_type"] | null
         }
         Update: {
+          action_label?: string | null
+          action_path?: string | null
           assigned_to?: string | null
+          consequence?: string | null
+          context?: Json | null
           created_at?: string
+          dedup_key?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          impact?: Database["public"]["Enums"]["task_impact"] | null
           name?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
@@ -402,8 +430,13 @@ export type Database = {
           related_creative_id?: string | null
           related_product_id?: string | null
           related_sale_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           source?: Database["public"]["Enums"]["task_source"] | null
           status?: Database["public"]["Enums"]["task_status"]
+          trigger_reason?: string | null
+          type?: Database["public"]["Enums"]["task_type"] | null
         }
         Relationships: [
           {
@@ -550,9 +583,16 @@ export type Database = {
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
       seller_status: "activo" | "inactivo"
+      task_impact: "dinero" | "crecimiento" | "operacion"
       task_priority: "alta" | "media" | "baja"
       task_source: "manual" | "automatic"
       task_status: "pendiente" | "en_progreso" | "terminada"
+      task_type:
+        | "cobro"
+        | "seguimiento_venta"
+        | "creativo"
+        | "operacion"
+        | "estrategia"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -696,9 +736,17 @@ export const Constants = {
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
       seller_status: ["activo", "inactivo"],
+      task_impact: ["dinero", "crecimiento", "operacion"],
       task_priority: ["alta", "media", "baja"],
       task_source: ["manual", "automatic"],
       task_status: ["pendiente", "en_progreso", "terminada"],
+      task_type: [
+        "cobro",
+        "seguimiento_venta",
+        "creativo",
+        "operacion",
+        "estrategia",
+      ],
     },
   },
 } as const
