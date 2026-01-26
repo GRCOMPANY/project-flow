@@ -5,7 +5,7 @@ import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
-import { ProductFormNew } from '@/components/products/ProductFormNew';
+import { ProductForm } from '@/components/products/ProductForm';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -448,7 +448,7 @@ const ProductDetail = () => {
       </div>
 
       {/* Edit Form */}
-      <ProductFormNew
+      <ProductForm
         open={editOpen}
         onOpenChange={setEditOpen}
         onSubmit={handleEdit}

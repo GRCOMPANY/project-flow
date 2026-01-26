@@ -12,7 +12,6 @@ import {
   LayoutDashboard,
   Image,
   Sparkles,
-  Settings,
   Zap
 } from 'lucide-react';
 
@@ -24,7 +23,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Centro de Control', icon: LayoutDashboard },
+  { path: '/', label: 'Centro', icon: LayoutDashboard },
   { path: '/products', label: 'Productos', icon: Package },
   { path: '/creatives', label: 'Creativos', icon: Image },
   { path: '/sales', label: 'Ventas', icon: ShoppingCart },
@@ -44,22 +43,22 @@ export function CommandCenterNav() {
   const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <nav className="border-b border-border bg-card/95 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+    <nav className="border-b border-border/50 bg-background/95 backdrop-blur-md sticky top-0 z-50">
       <div className="container max-w-7xl mx-auto px-4">
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 rounded-lg grc-gradient flex items-center justify-center shadow-md">
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="w-9 h-9 rounded-xl grc-gradient flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="hidden sm:block">
-              <span className="text-lg font-bold text-foreground">GRC</span>
-              <span className="text-xs text-muted-foreground ml-1">AI OS</span>
+              <span className="text-lg font-bold text-foreground tracking-tight">GRC</span>
+              <span className="text-xs text-muted-foreground ml-1.5 font-medium">AI OS</span>
             </div>
           </Link>
           
           {/* Navigation */}
-          <div className="flex items-center gap-0.5 overflow-x-auto hide-scrollbar mx-4">
+          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar mx-4 py-1">
             {visibleItems.map(({ path, label, icon: Icon }) => {
               const isActive = location.pathname === path;
               return (
@@ -67,37 +66,42 @@ export function CommandCenterNav() {
                   key={path}
                   to={path}
                   className={`
-                    flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm 
+                    relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
                     whitespace-nowrap transition-all duration-200
                     ${isActive
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
                     }
                   `}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="hidden lg:inline">{label}</span>
+                  <span className="hidden md:inline">{label}</span>
+                  
+                  {/* Active indicator */}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />
+                  )}
                 </Link>
               );
             })}
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8 ring-2 ring-border">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Avatar className="h-9 w-9 ring-2 ring-border/50 shadow-sm">
                 <AvatarImage src={profile?.avatarUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                   {profile ? getInitials(profile.fullName) : '?'}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden xl:block">
-                <p className="text-sm font-medium text-foreground leading-none mb-0.5">
+                <p className="text-sm font-semibold text-foreground leading-none mb-1">
                   {profile?.fullName?.split(' ')[0]}
                 </p>
                 <Badge 
                   variant={isAdmin ? 'default' : 'secondary'} 
-                  className="text-[10px] h-4 px-1.5"
+                  className="text-[10px] h-4 px-1.5 font-medium"
                 >
                   {role === 'admin' ? '👑 Admin' : '👤 Colaborador'}
                 </Badge>
@@ -108,7 +112,7 @@ export function CommandCenterNav() {
               variant="ghost" 
               size="icon" 
               onClick={signOut} 
-              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 h-9 w-9"
             >
               <LogOut className="w-4 h-4" />
             </Button>

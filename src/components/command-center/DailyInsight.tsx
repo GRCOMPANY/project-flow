@@ -1,7 +1,9 @@
-import { Lightbulb, TrendingUp, AlertCircle, Sparkles } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Lightbulb, TrendingUp, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
 import { BusinessSummary, SmartTask } from '@/types';
 import { SmartProduct } from '@/hooks/useSmartCatalog';
+import { Button } from '@/components/ui/button';
 
 interface DailyInsightProps {
   summary: BusinessSummary;
@@ -10,62 +12,18 @@ interface DailyInsightProps {
 }
 
 export function DailyInsight({ summary, smartProducts, tasks }: DailyInsightProps) {
-  // Generate insights based on business data
-  const generateInsights = (): string[] => {
-    const insights: string[] = [];
+  const navigate = useNavigate();
 
-    // Pending collections insight
-    if (summary.pendingCollections > 0) {
-      insights.push(
-        `Tienes ${summary.pendingCollections} cobro${summary.pendingCollections > 1 ? 's' : ''} pendiente${summary.pendingCollections > 1 ? 's' : ''} por $${summary.pendingCollectionAmount.toLocaleString()}.`
-      );
-    }
-
-    // Products needing attention
-    const highPriorityProducts = smartProducts.filter(p => p.priorityScore === 'alta');
-    if (highPriorityProducts.length > 0) {
-      const productNames = highPriorityProducts.slice(0, 2).map(p => p.name).join(' y ');
-      insights.push(
-        `${highPriorityProducts.length} producto${highPriorityProducts.length > 1 ? 's necesitan' : ' necesita'} atención urgente: ${productNames}.`
-      );
-    }
-
-    // Featured products without creatives
-    const featuredWithoutCreatives = smartProducts.filter(
-      p => p.isFeatured && p.creativesCount === 0
-    );
-    if (featuredWithoutCreatives.length > 0) {
-      insights.push(
-        `${featuredWithoutCreatives.length} producto${featuredWithoutCreatives.length > 1 ? 's destacados no tienen' : ' destacado no tiene'} creativos publicitarios.`
-      );
-    }
-
-    // Sales performance
-    if (summary.salesThisMonth > 0) {
-      insights.push(
-        `Este mes llevas ${summary.salesThisMonth} venta${summary.salesThisMonth > 1 ? 's' : ''} por $${summary.revenueThisMonth.toLocaleString()}.`
-      );
-    } else {
-      insights.push('Aún no hay ventas registradas este mes.');
-    }
-
-    // Creative insights
-    if (summary.creativesPending > 0) {
-      insights.push(
-        `Tienes ${summary.creativesPending} creativo${summary.creativesPending > 1 ? 's' : ''} pendiente${summary.creativesPending > 1 ? 's' : ''} de publicar.`
-      );
-    }
-
-    return insights;
-  };
-
-  // Generate top recommendation
-  const getTopRecommendation = (): { text: string; icon: React.ReactNode } | null => {
-    // Priority 1: Pending payments
+  const insight = useMemo(() => {
+    // Priority 1: Pending collections
     if (summary.pendingCollections > 0) {
       return {
-        text: `Cobra los $${summary.pendingCollectionAmount.toLocaleString()} pendientes para mejorar tu flujo de caja.`,
-        icon: <AlertCircle className="w-5 h-5 text-warning" />,
+        type: 'warning' as const,
+        icon: AlertCircle,
+        title: `Tienes $${summary.pendingCollectionAmount.toLocaleString()} pendientes por cobrar`,
+        description: `${summary.pendingCollections} ventas sin pagar. Recupera tu dinero hoy.`,
+        action: 'Ver cobros pendientes',
+        path: '/sales',
       };
     }
 
@@ -73,74 +31,100 @@ export function DailyInsight({ summary, smartProducts, tasks }: DailyInsightProp
     const featuredNoCreative = smartProducts.find(p => p.isFeatured && p.creativesCount === 0);
     if (featuredNoCreative) {
       return {
-        text: `Crea un creativo para "${featuredNoCreative.name}" — es producto destacado sin contenido.`,
-        icon: <Sparkles className="w-5 h-5 text-primary" />,
+        type: 'info' as const,
+        icon: Sparkles,
+        title: `"${featuredNoCreative.name}" necesita contenido`,
+        description: 'Es un producto destacado sin creativos publicitarios.',
+        action: 'Crear creativo',
+        path: '/creatives',
       };
     }
 
-    // Priority 3: High margin product without promotion
-    const highMarginNoCreative = smartProducts.find(
-      p => p.marginPercent > 40 && p.creativesCount === 0 && p.status === 'activo'
-    );
-    if (highMarginNoCreative) {
+    // Priority 3: High priority products
+    const highPriorityProducts = smartProducts.filter(p => p.priorityScore === 'alta');
+    if (highPriorityProducts.length > 0) {
       return {
-        text: `"${highMarginNoCreative.name}" tiene ${highMarginNoCreative.marginPercent.toFixed(0)}% de margen. Considera promocionarlo.`,
-        icon: <TrendingUp className="w-5 h-5 text-success" />,
+        type: 'warning' as const,
+        icon: AlertCircle,
+        title: `${highPriorityProducts.length} productos necesitan atención`,
+        description: 'Revisa los productos con prioridad alta en tu catálogo.',
+        action: 'Ver productos',
+        path: '/products',
       };
     }
 
-    // Priority 4: Products without sales
-    const noSalesProduct = smartProducts.find(
-      p => p.status === 'activo' && p.salesLast30Days === 0
-    );
-    if (noSalesProduct) {
+    // Priority 4: Sales performance
+    if (summary.salesThisMonth > 0) {
       return {
-        text: `"${noSalesProduct.name}" lleva 30 días sin ventas. Revisa el precio o crea contenido.`,
-        icon: <Lightbulb className="w-5 h-5 text-warning" />,
+        type: 'success' as const,
+        icon: TrendingUp,
+        title: `¡${summary.salesThisMonth} ventas este mes!`,
+        description: `Has generado $${summary.revenueThisMonth.toLocaleString()} en ingresos. ¡Sigue así!`,
+        action: 'Ver ventas',
+        path: '/sales',
       };
     }
 
-    return null;
+    // Default
+    return {
+      type: 'neutral' as const,
+      icon: Lightbulb,
+      title: 'Tu negocio está listo para vender',
+      description: `Tienes ${summary.activeProducts} productos activos esperando clientes.`,
+      action: 'Ver catálogo',
+      path: '/products',
+    };
+  }, [summary, smartProducts]);
+
+  const bgStyles = {
+    warning: 'from-warning/10 via-warning/5 to-transparent border-warning/20',
+    info: 'from-primary/10 via-primary/5 to-transparent border-primary/20',
+    success: 'from-success/10 via-success/5 to-transparent border-success/20',
+    neutral: 'from-secondary via-secondary/50 to-transparent border-border/50',
   };
 
-  const insights = generateInsights();
-  const topRecommendation = getTopRecommendation();
+  const iconStyles = {
+    warning: 'bg-warning/15 text-warning',
+    info: 'bg-primary/15 text-primary',
+    success: 'bg-success/15 text-success',
+    neutral: 'bg-secondary text-muted-foreground',
+  };
+
+  const IconComponent = insight.icon;
 
   return (
-    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Lightbulb className="w-5 h-5 text-primary" />
-          Resumen del Día
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Key Insights */}
-        <div className="space-y-2">
-          {insights.slice(0, 3).map((insight, index) => (
-            <p key={index} className="text-sm text-muted-foreground">
-              • {insight}
-            </p>
-          ))}
+    <div className={`
+      relative overflow-hidden rounded-2xl border p-6
+      bg-gradient-to-br ${bgStyles[insight.type]}
+      animate-fade-up
+    `}>
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 opacity-[0.03] pointer-events-none">
+        <Lightbulb className="w-full h-full" />
+      </div>
+
+      <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className={`p-3 rounded-xl ${iconStyles[insight.type]} shrink-0 self-start`}>
+          <IconComponent className="w-6 h-6" />
         </div>
 
-        {/* Top Recommendation */}
-        {topRecommendation && (
-          <div className="mt-4 p-3 bg-background/80 rounded-lg border border-border/50">
-            <div className="flex items-start gap-3">
-              {topRecommendation.icon}
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Recomendación Principal
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {topRecommendation.text}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-foreground mb-1">
+            {insight.title}
+          </h3>
+          <p className="text-muted-foreground text-sm">
+            {insight.description}
+          </p>
+        </div>
+
+        <Button 
+          onClick={() => navigate(insight.path)}
+          className="shrink-0 gap-2 self-start sm:self-center shadow-lg"
+        >
+          {insight.action}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
   );
 }

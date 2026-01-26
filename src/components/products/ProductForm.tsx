@@ -63,7 +63,7 @@ const STATUS_OPTIONS: { value: ProductStatus; label: string; color: string }[] =
   { value: 'agotado', label: 'Agotado', color: 'bg-destructive text-destructive-foreground' },
 ];
 
-export function ProductFormNew({
+export function ProductForm({
   open,
   onOpenChange,
   onSubmit,

@@ -7,9 +7,11 @@ import {
   TrendingUp, 
   RefreshCw,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface PriorityTaskCardProps {
   task: SmartTask;
@@ -24,10 +26,49 @@ const typeIcons = {
   seguimiento: AlertCircle,
 };
 
+const typeConfig = {
+  cobro: {
+    label: 'COBRO PENDIENTE',
+    bgClass: 'bg-destructive/5',
+    iconClass: 'bg-destructive/10 text-destructive',
+    labelClass: 'text-destructive',
+  },
+  creativo: {
+    label: 'CREAR CONTENIDO',
+    bgClass: 'bg-primary/5',
+    iconClass: 'bg-primary/10 text-primary',
+    labelClass: 'text-primary',
+  },
+  promocion: {
+    label: 'PROMOCIONAR',
+    bgClass: 'bg-warning/5',
+    iconClass: 'bg-warning/10 text-warning',
+    labelClass: 'text-warning',
+  },
+  actualizacion: {
+    label: 'ACTUALIZAR',
+    bgClass: 'bg-secondary',
+    iconClass: 'bg-secondary text-muted-foreground',
+    labelClass: 'text-muted-foreground',
+  },
+  seguimiento: {
+    label: 'SEGUIMIENTO',
+    bgClass: 'bg-secondary',
+    iconClass: 'bg-secondary text-muted-foreground',
+    labelClass: 'text-muted-foreground',
+  },
+};
+
+const priorityStyles = {
+  alta: 'border-l-4 border-l-destructive',
+  media: 'border-l-4 border-l-warning',
+  baja: 'border-l-4 border-l-success',
+};
+
 const impactColors = {
-  cobro: 'bg-[hsl(var(--grc-red-light))] border-[hsl(var(--grc-red))] text-[hsl(var(--grc-red))]',
-  ventas: 'bg-[hsl(var(--grc-gold-light))] border-[hsl(var(--grc-gold))] text-[hsl(var(--grc-gold))]',
-  crecimiento: 'bg-[hsl(var(--status-done-bg))] border-[hsl(var(--status-done))] text-[hsl(var(--status-done))]',
+  cobro: 'bg-destructive/10 text-destructive border-destructive/30',
+  ventas: 'bg-warning/10 text-warning border-warning/30',
+  crecimiento: 'bg-success/10 text-success border-success/30',
 };
 
 const impactLabels = {
@@ -36,15 +77,10 @@ const impactLabels = {
   crecimiento: '🚀 Crecimiento',
 };
 
-const priorityStyles = {
-  alta: 'border-l-[hsl(var(--priority-high))]',
-  media: 'border-l-[hsl(var(--priority-medium))]',
-  baja: 'border-l-[hsl(var(--priority-low))]',
-};
-
 export function PriorityTaskCard({ task, onAction }: PriorityTaskCardProps) {
   const navigate = useNavigate();
   const Icon = typeIcons[task.type];
+  const config = typeConfig[task.type];
 
   const handleAction = () => {
     if (onAction) {
@@ -56,52 +92,56 @@ export function PriorityTaskCard({ task, onAction }: PriorityTaskCardProps) {
 
   return (
     <div 
-      className={`
-        grc-card p-4 border-l-4 ${priorityStyles[task.priority]}
-        flex items-center justify-between gap-4
-        hover:shadow-lg transition-all duration-200
-      `}
+      className={cn(
+        "grc-card p-5 transition-all duration-200 hover:shadow-premium-hover",
+        config.bgClass,
+        priorityStyles[task.priority]
+      )}
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <div className={`
-          p-2.5 rounded-xl 
-          ${task.impact === 'cobro' ? 'bg-[hsl(var(--grc-red-light))]' : ''}
-          ${task.impact === 'ventas' ? 'bg-[hsl(var(--grc-gold-light))]' : ''}
-          ${task.impact === 'crecimiento' ? 'bg-[hsl(var(--status-done-bg))]' : ''}
-        `}>
-          <Icon className={`
-            w-5 h-5
-            ${task.impact === 'cobro' ? 'text-[hsl(var(--grc-red))]' : ''}
-            ${task.impact === 'ventas' ? 'text-[hsl(var(--grc-gold))]' : ''}
-            ${task.impact === 'crecimiento' ? 'text-[hsl(var(--status-done))]' : ''}
-          `} />
+      <div className="flex items-start gap-4">
+        {/* Icon */}
+        <div className={cn("p-3 rounded-xl shrink-0", config.iconClass)}>
+          <Icon className="w-5 h-5" />
         </div>
-        
+
+        {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate">
+          {/* Type label */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn("text-xs font-bold tracking-wide", config.labelClass)}>
+              {config.label}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3 className="text-base font-semibold text-foreground mb-1 line-clamp-1">
             {task.title}
           </h3>
-          <p className="text-sm text-muted-foreground truncate">
+
+          {/* Description */}
+          <p className="text-sm text-muted-foreground line-clamp-1">
             {task.description}
           </p>
         </div>
 
+        {/* Impact badge - hidden on mobile */}
         <Badge 
           variant="outline" 
-          className={`hidden sm:flex shrink-0 ${impactColors[task.impact]}`}
+          className={cn("hidden sm:flex shrink-0", impactColors[task.impact])}
         >
           {impactLabels[task.impact]}
         </Badge>
-      </div>
 
-      <Button 
-        onClick={handleAction}
-        size="sm"
-        className="shrink-0 gap-1.5"
-      >
-        {task.actionLabel}
-        <ArrowRight className="w-3.5 h-3.5" />
-      </Button>
+        {/* Action */}
+        <Button 
+          onClick={handleAction}
+          size="sm"
+          className="shrink-0 gap-1.5 shadow-sm"
+        >
+          {task.actionLabel}
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Button>
+      </div>
     </div>
   );
 }
