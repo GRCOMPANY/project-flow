@@ -1,370 +1,483 @@
 
-# Plan: Limpieza Total y Rediseño Premium del GRC AI OS
 
-## Resumen Ejecutivo
+# Plan: Módulo Definitivo de Tareas para Ecommerce
 
-Este plan aborda tres objetivos principales:
-1. **Limpieza técnica**: Eliminar código legacy y corregir errores de tipos
-2. **Unificación del módulo de Productos**: Consolidar como núcleo único del sistema
-3. **Rediseño visual premium**: Transformar la app en una herramienta enterprise-grade
+## Diagnóstico del Estado Actual
 
----
+### Lo que existe:
+- Tabla `tasks` con campos básicos (`name`, `description`, `status`, `priority`, `source`)
+- Hook `useSmartTasks` que genera tareas efímeras en memoria
+- Estados limitados: `pendiente | en_progreso | terminada`
+- Sources: `manual | automatic`
+- No hay página `/tasks` dedicada
+- Command Center consume tareas efímeras, no persistidas
 
-## Fase 1: Limpieza de Código Legacy
-
-### 1.1 Archivos a Eliminar
-
-| Archivo | Razón |
-|---------|-------|
-| `src/components/ProductForm.tsx` | Reemplazado por `ProductFormNew.tsx`, ya no tiene imports activos |
-| `src/components/ProductCard.tsx` | Reemplazado por `SmartProductCardNew.tsx` |
-| `src/components/SmartProductCard.tsx` | Versión anterior, usar solo la nueva |
-| `src/components/Navbar.tsx` | Reemplazado por `CommandCenterNav` |
-| `src/components/ProjectCard.tsx` | Legacy del sistema de proyectos, no usado |
-| `src/components/ProjectForm.tsx` | Legacy del sistema de proyectos, no usado |
-| `src/components/TaskForm.tsx` | Legacy, tareas ahora son automáticas |
-| `src/components/TaskItem.tsx` | Legacy, tareas ahora son automáticas |
-| `src/pages/Index.tsx` | Redirigir a CommandCenter |
-| `src/pages/Dashboard.tsx` | Reemplazado por CommandCenter |
-| `src/pages/ProjectDetail.tsx` | Legacy del sistema de proyectos |
-
-### 1.2 Corrección del Error de Tipos
-
-El error en `ProductForm.tsx` línea 117 se resuelve al eliminar el archivo completo, ya que no está siendo utilizado por ningún componente activo.
+### Problemas identificados:
+1. Las tareas automáticas no se persisten - se pierden al recargar
+2. No hay deduplicación - la misma tarea puede aparecer repetidamente
+3. Estados insuficientes para operación real (falta `esperando_respuesta`, `programada`, etc.)
+4. No hay registro del "por qué" ni del "qué pasa si no actúo"
+5. No hay historial de acciones tomadas
 
 ---
 
-## Fase 2: Refactorización de Componentes de Productos
+## Fase 1: Migración de Base de Datos
 
-### 2.1 Renombrar y Consolidar
+### 1.1 Nuevos Tipos Enum
 
-```text
-ACTUAL                                    NUEVO
-src/components/products/ProductFormNew.tsx     src/components/products/ProductForm.tsx
-src/components/products/SmartProductCardNew.tsx     src/components/products/ProductCard.tsx
+```sql
+-- Estados extendidos para operación real
+CREATE TYPE task_status_v2 AS ENUM (
+  'pendiente',
+  'en_progreso', 
+  'esperando_respuesta',
+  'programada',
+  'completada',
+  'cancelada',
+  'resuelta_automaticamente'
+);
+
+-- Tipos de tarea por impacto operativo
+CREATE TYPE task_type AS ENUM (
+  'cobro',
+  'seguimiento_venta',
+  'creativo',
+  'operacion',
+  'estrategia'
+);
+
+-- Impacto económico
+CREATE TYPE task_impact AS ENUM (
+  'dinero',
+  'crecimiento',
+  'operacion'
+);
+
+-- Fuentes extendidas
+CREATE TYPE task_source_v2 AS ENUM (
+  'manual',
+  'automatic',
+  'ai_suggested',
+  'external'
+);
 ```
 
-### 2.2 Actualizar Imports
+### 1.2 Nueva Estructura de Tabla `tasks`
 
-Archivos que necesitan actualización de imports:
-- `src/pages/Products.tsx`
-- `src/pages/ProductDetail.tsx`
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS type task_type;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS impact task_impact;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS trigger_reason TEXT; -- Por qué existe
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS consequence TEXT;    -- Qué pasa si no actúo
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS action_label TEXT;   -- Texto del botón
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS action_path TEXT;    -- Ruta de navegación
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS context JSONB;       -- Datos adicionales
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_by UUID REFERENCES auth.users(id);
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolution_notes TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS dedup_key TEXT UNIQUE; -- Para evitar duplicados
+```
+
+### 1.3 Índices para Performance
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_type ON tasks(type);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_related_sale ON tasks(related_sale_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_related_product ON tasks(related_product_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_dedup ON tasks(dedup_key);
+```
 
 ---
 
-## Fase 3: Design System Premium
+## Fase 2: Tipos TypeScript
 
-### 3.1 Actualizar Variables CSS (`src/index.css`)
-
-**Paleta refinada:**
-
-```css
-:root {
-  /* Background: Más limpio, casi blanco */
-  --background: 0 0% 99%;
-  
-  /* Cards con sombras más pronunciadas */
-  --card: 0 0% 100%;
-  
-  /* Primary: Deep Red más saturado */
-  --primary: 0 72% 38%;
-  
-  /* Accent: Gold más elegante */
-  --accent: 42 85% 52%;
-  
-  /* Borders más sutiles */
-  --border: 220 13% 91%;
-}
-```
-
-### 3.2 Nuevas Clases de Utilidad
-
-```css
-/* Sombras premium */
-.shadow-premium {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 
-              0 4px 12px rgba(0,0,0,0.04);
-}
-
-.shadow-premium-hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 
-              0 8px 24px rgba(0,0,0,0.08);
-}
-
-/* Cards interactivas */
-.interactive-card {
-  @apply bg-card rounded-xl border border-border/50 
-         shadow-premium transition-all duration-200 
-         hover:shadow-premium-hover hover:border-border;
-}
-
-/* Headers de sección */
-.section-header {
-  @apply flex items-center gap-3 mb-6;
-}
-
-.section-indicator {
-  @apply w-1 h-8 rounded-full bg-primary;
-}
-```
-
-### 3.3 Animaciones Mejoradas (`tailwind.config.ts`)
+### 2.1 Nuevas Interfaces en `src/types/index.ts`
 
 ```typescript
-keyframes: {
-  "fade-up": {
-    "0%": { opacity: "0", transform: "translateY(8px)" },
-    "100%": { opacity: "1", transform: "translateY(0)" }
-  },
-  "scale-in": {
-    "0%": { opacity: "0", transform: "scale(0.96)" },
-    "100%": { opacity: "1", transform: "scale(1)" }
-  }
-},
-animation: {
-  "fade-up": "fade-up 0.3s ease-out",
-  "scale-in": "scale-in 0.2s ease-out"
+// Estados de tarea reales
+export type TaskStatus = 
+  | 'pendiente' 
+  | 'en_progreso' 
+  | 'esperando_respuesta'
+  | 'programada'
+  | 'completada'
+  | 'cancelada'
+  | 'resuelta_automaticamente';
+
+// Tipos por impacto operativo
+export type TaskType = 
+  | 'cobro' 
+  | 'seguimiento_venta' 
+  | 'creativo' 
+  | 'operacion' 
+  | 'estrategia';
+
+// Impacto económico
+export type TaskImpact = 'dinero' | 'crecimiento' | 'operacion';
+
+// Origen de la tarea
+export type TaskSource = 'manual' | 'automatic' | 'ai_suggested' | 'external';
+
+// Tarea completa del sistema
+export interface OperationalTask {
+  id: string;
+  
+  // Identificación
+  name: string;
+  description?: string;
+  type: TaskType;
+  
+  // Estado y prioridad
+  status: TaskStatus;
+  priority: Priority;
+  
+  // Contexto operativo (CRÍTICO)
+  triggerReason: string;    // "Existe porque..."
+  consequence?: string;      // "Si no actúas..."
+  impact: TaskImpact;
+  
+  // Acción
+  actionLabel: string;
+  actionPath?: string;
+  
+  // Relaciones
+  relatedSaleId?: string;
+  relatedSale?: Sale;
+  relatedProductId?: string;
+  relatedProduct?: Product;
+  relatedCreativeId?: string;
+  relatedCreative?: Creative;
+  
+  // Origen y deduplicación
+  source: TaskSource;
+  dedupKey?: string;
+  
+  // Resolución
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNotes?: string;
+  
+  // Programación
+  dueDate?: string;
+  assignedTo?: string;
+  assignedUser?: Profile;
+  
+  // Metadata
+  context?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Regla de generación automática
+export interface TaskRule {
+  id: string;
+  name: string;
+  type: TaskType;
+  priority: Priority;
+  impact: TaskImpact;
+  condition: (data: TaskRuleContext) => boolean;
+  generateTask: (data: TaskRuleContext) => Partial<OperationalTask>;
+  dedupKey: (data: TaskRuleContext) => string;
+}
+
+export interface TaskRuleContext {
+  sales: Sale[];
+  products: Product[];
+  creatives: Creative[];
+  existingTasks: OperationalTask[];
 }
 ```
 
 ---
 
-## Fase 4: Rediseño del Command Center
+## Fase 3: Motor de Reglas Automáticas
 
-### 4.1 Nueva Estructura Visual
+### 3.1 Crear `src/lib/taskRules.ts`
 
-```text
-+----------------------------------------------------------+
-|  [Logo GRC AI OS]    Nav Pills    [Avatar + Role Badge]  |
-+----------------------------------------------------------+
+Archivo central con las reglas de negocio para generación automática:
 
-+----------------------------------------------------------+
-|                                                          |
-|  Buenos días, Juan 👋                                     |
-|  Tienes 3 acciones prioritarias hoy                      |
-|                                                          |
-|  [+ Nueva venta]  [Crear creativo]                       |
-+----------------------------------------------------------+
+```typescript
+// Reglas implementadas:
 
-+----------------------------------------------------------+
-|  ▌ INSIGHT DEL DÍA                                       |
-|  ┌────────────────────────────────────────────────────┐  |
-|  │ 💡 "Tienes $2,400 pendientes por cobrar.           │  |
-|  │     3 ventas de hace más de 5 días sin pagar."     │  |
-|  │                                                    │  |
-|  │ [Ver pagos pendientes →]                           │  |
-|  └────────────────────────────────────────────────────┘  |
-+----------------------------------------------------------+
+// 1. COBROS
+// - Venta con pago pendiente > 10 días → "Cobrar a {cliente}"
+// - Contra entrega entregada pero no pagada → "Confirmar cobro"
 
-+----------------------------------------------------------+
-|  ▌ ACCIONES PRIORITARIAS                                 |
-|  ┌──────────────────┐ ┌──────────────────┐               |
-|  │ 🔴 COBRO         │ │ 🟡 CREATIVO       │               |
-|  │ Cliente: María   │ │ Audífonos Pro    │               |
-|  │ Monto: $450      │ │ Sin contenido    │               |
-|  │ 7 días pendiente │ │ Alto margen      │               |
-|  │ [Marcar pagado]  │ │ [Crear →]        │               |
-|  └──────────────────┘ └──────────────────┘               |
-+----------------------------------------------------------+
+// 2. VENTAS  
+// - Pedido en progreso sin avance en 3 días → "Dar seguimiento"
+// - Cliente sin respuesta en 5 días → "Recontactar cliente"
 
-+----------------------------------------------------------+
-|  ▌ ESTADO DEL NEGOCIO                                    |
-|  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     |
-|  │   12     │ │  $2,400  │ │   38     │ │   5      │     |
-|  │ Ventas   │ │ Pendiente│ │ Productos│ │Creativos │     |
-|  │ este mes │ │ de cobro │ │ activos  │ │pendientes│     |
-|  └──────────┘ └──────────┘ └──────────┘ └──────────┘     |
-+----------------------------------------------------------+
+// 3. CREATIVOS
+// - Producto activo sin creativos → "Crear creativo para {producto}"
+// - Creativo exitoso no replicado → "Repetir creativo exitoso"
+// - Producto destacado sin contenido → "Priorizar contenido"
+
+// 4. OPERACIÓN
+// - Producto nuevo (< 7 días) sin comunicar → "Enviar a vendedores"
+// - Stock agotado con ventas recientes → "Revisar restock"
+
+// 5. ESTRATEGIA
+// - Producto sin ventas en 30 días → "Revisar precio/contenido"
+// - Canal con baja conversión → "Analizar rendimiento"
 ```
 
-### 4.2 Componentes Nuevos
+### 3.2 Crear `src/hooks/useTasks.ts`
 
-**DailyInsight mejorado:**
-- Fondo con gradiente sutil
-- Icono animado
-- Call-to-action claro
-- Contexto de negocio
+Hook principal que:
+1. Carga tareas de la base de datos
+2. Ejecuta el motor de reglas
+3. Sincroniza tareas automáticas (crear nuevas, cerrar resueltas)
+4. Expone CRUD completo
 
-**PriorityTaskCard mejorado:**
-- Indicador de color por tipo (cobro/creativo/promoción)
-- Información contextual relevante
-- Botón de acción primario
-- Tiempo transcurrido visible
-
-**BusinessMetricCard mejorado:**
-- Iconos con fondos coloreados
-- Tendencia vs periodo anterior
-- Hover con detalle expandido
-
----
-
-## Fase 5: Rediseño del Catálogo de Productos
-
-### 5.1 Header con KPIs Visuales
-
-```text
-+----------------------------------------------------------+
-|  CATÁLOGO INTELIGENTE              [+ Nuevo producto]     |
-|  45 productos activos                                     |
-|                                                          |
-|  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐         |
-|  │ ✓ 38    │ │ ⭐ 8    │ │ ⚠️ 12   │ │ ⏸️ 7    │         |
-|  │ Activos │ │Destacado│ │Sin foto │ │Pausados │         |
-|  └─────────┘ └─────────┘ └─────────┘ └─────────┘         |
-|                                                          |
-|  Filtros: [Todos ▾] [Prioridad ▾] [Margen ▾] [🔍 Buscar] |
-+----------------------------------------------------------+
-```
-
-### 5.2 Product Card Premium
-
-```text
-┌────────────────────────────────────┐
-│ ┌──────────────────────────────┐   │
-│ │        [IMAGEN]              │   │
-│ │                              │   │
-│ │  🟢            [PRIORIDAD]   │   │
-│ │  ⭐ (si destacado)            │   │
-│ └──────────────────────────────┘   │
-│                                    │
-│ GRC-001                            │
-│ Audífonos Pro Max                  │
-│                                    │
-│ $280 MXN                           │
-│ Mayorista: $200                    │
-│                                    │
-│ ┌─────────────────────────────┐    │
-│ │ 📈 15 ventas  │  🎨 3 fotos │    │
-│ └─────────────────────────────┘    │
-│                                    │
-│ (Admin) Margen: 87% [████████▌]    │
-│                                    │
-│ ⚠️ "Crear creativo para impulsar"  │
-│                                    │
-├────────────────────────────────────┤
-│ [🎨 Creativo]  [🛒 Venta]          │
-└────────────────────────────────────┘
-```
-
-### 5.3 Vista de Detalle del Producto
-
-Mantener estructura actual pero mejorar:
-- Sombras más pronunciadas en cards
-- Separación visual más clara entre secciones
-- Animaciones de entrada para cada sección
-- Tooltips informativos en métricas
-
----
-
-## Fase 6: Mejoras en Navegación
-
-### 6.1 CommandCenterNav Actualizado
-
-- Pills más grandes y legibles
-- Indicador activo más pronunciado (línea inferior)
-- Transiciones suaves entre estados
-- Badge de notificaciones para acciones pendientes
-- Responsive: menú hamburguesa en móvil
-
-### 6.2 Breadcrumbs en Páginas de Detalle
-
-```text
-Centro de Control › Productos › Audífonos Pro Max
+```typescript
+export function useTasks() {
+  // Estados
+  const [tasks, setTasks] = useState<OperationalTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Funciones principales
+  const fetchTasks = async () => {...}
+  const syncAutomaticTasks = async () => {...}
+  const createTask = async (task: CreateTaskInput) => {...}
+  const updateTaskStatus = async (id: string, status: TaskStatus) => {...}
+  const resolveTask = async (id: string, notes?: string) => {...}
+  const dismissTask = async (id: string, reason: string) => {...}
+  
+  // Filtros útiles
+  const todayTasks = useMemo(() => 
+    tasks.filter(t => t.status === 'pendiente')
+         .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+         .slice(0, 5),
+    [tasks]
+  );
+  
+  const pendingCollections = useMemo(() =>
+    tasks.filter(t => t.type === 'cobro' && t.status === 'pendiente'),
+    [tasks]
+  );
+  
+  return {
+    tasks,
+    todayTasks,
+    pendingCollections,
+    loading,
+    createTask,
+    updateTaskStatus,
+    resolveTask,
+    dismissTask,
+    refetch: fetchTasks,
+  };
+}
 ```
 
 ---
 
-## Fase 7: Mejoras en Ventas y Creativos
+## Fase 4: Página de Tareas `/tasks`
 
-### 7.1 Sales Dashboard
+### 4.1 Crear `src/pages/Tasks.tsx`
 
-- Cards de métricas más grandes
-- Gráfico simple de ventas últimos 7 días
-- Lista de ventas con mejor jerarquía visual
-- Filtros rápidos: Pendientes | Pagados | Todos
+**Estructura de la página:**
 
-### 7.2 Creatives Gallery
+```
+┌─────────────────────────────────────────────────────────┐
+│  [CommandCenterNav]                                      │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  TAREAS                              [+ Nueva tarea]    │
+│  Tu lista de acciones prioritarias                      │
+│                                                         │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │
+│  │ 🔴 5    │ │ ⏳ 2    │ │ ✅ 12   │ │ 🚫 3    │       │
+│  │Pendiente│ │En prog. │ │Completad│ │Cancelad │       │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘       │
+│                                                         │
+│  [Tabs: Hoy | Todas | Por tipo]                        │
+│                                                         │
+│  Filtros: [Tipo ▾] [Prioridad ▾] [Origen ▾] [🔍]       │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│  ▌ ACCIONES DE HOY (máx 5)                             │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │ 🔴 COBRO PENDIENTE                   💰 Dinero    │ │
+│  │                                                   │ │
+│  │ Cobrar a María García                             │ │
+│  │                                                   │ │
+│  │ 📌 Existe porque: Venta de $450 pendiente hace   │ │
+│  │    12 días (Aspiradora Pro - WhatsApp)           │ │
+│  │                                                   │ │
+│  │ ⚠️ Si no actúas: Riesgo de pérdida. El cliente   │ │
+│  │    puede olvidar o desistir de la compra.        │ │
+│  │                                                   │ │
+│  │ [Marcar cobrado]  [Programar]  [···]              │ │
+│  └───────────────────────────────────────────────────┘ │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │ 🟡 CREAR CONTENIDO                   🚀 Crecimient│ │
+│  │                                                   │ │
+│  │ Crear creativo para Audífonos Pro                 │ │
+│  │                                                   │ │
+│  │ 📌 Existe porque: Producto destacado sin         │ │
+│  │    creativos. Margen alto (67%).                 │ │
+│  │                                                   │ │
+│  │ [Crear creativo →]  [Descartar]  [···]            │ │
+│  └───────────────────────────────────────────────────┘ │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-- Vista de galería con masonry layout
-- Preview de imagen/video en hover
-- Indicadores de performance claros
-- Acceso rápido a producto vinculado
+### 4.2 Componentes de Tareas
+
+**`src/components/tasks/TaskCard.tsx`**
+- Card expandible con contexto completo
+- Muestra "por qué existe" y "qué pasa si no actúo"
+- Acciones rápidas según tipo
+- Indicador visual de prioridad e impacto
+
+**`src/components/tasks/TaskForm.tsx`**
+- Modal para crear tarea manual
+- Selector de tipo, prioridad, impacto
+- Relación con entidades (producto, venta, creativo)
+- Campo de motivo obligatorio
+
+**`src/components/tasks/TaskFilters.tsx`**
+- Filtros por tipo, prioridad, estado, origen
+- Búsqueda por texto
+- Ordenamiento
 
 ---
 
-## Fase 8: Optimizaciones de Performance
+## Fase 5: Integración con Command Center
 
-### 8.1 Lazy Loading
+### 5.1 Actualizar `CommandCenter.tsx`
 
-- Imágenes de productos con loading="lazy"
-- Páginas secundarias con React.lazy()
-- Skeleton loaders consistentes
+Cambiar de `useSmartTasks` (efímero) a `useTasks` (persistido):
 
-### 8.2 Consistencia de Estados
+```typescript
+// ANTES
+const smartTasks = useSmartTasks({ sales, products, creatives });
 
-- Loading states unificados
-- Empty states con ilustraciones
-- Error states con acciones de recuperación
+// DESPUÉS
+const { todayTasks, loading: tasksLoading } = useTasks();
+```
+
+### 5.2 Mantener Compatibilidad
+
+- `PriorityTaskCard` debe aceptar `OperationalTask`
+- `DailyInsight` debe consumir las tareas persistidas
+- Link a `/tasks` para ver todas
 
 ---
 
-## Resumen de Archivos
+## Fase 6: Reglas Automáticas Iniciales
 
-### Eliminar (11 archivos)
-1. `src/components/ProductForm.tsx`
-2. `src/components/ProductCard.tsx`
-3. `src/components/SmartProductCard.tsx`
-4. `src/components/Navbar.tsx`
-5. `src/components/ProjectCard.tsx`
-6. `src/components/ProjectForm.tsx`
-7. `src/components/TaskForm.tsx`
-8. `src/components/TaskItem.tsx`
-9. `src/pages/Index.tsx`
-10. `src/pages/Dashboard.tsx`
-11. `src/pages/ProjectDetail.tsx`
+Implementar estas reglas desde el inicio:
 
-### Modificar (8 archivos)
-1. `src/index.css` - Design system actualizado
-2. `tailwind.config.ts` - Animaciones y colores
-3. `src/App.tsx` - Limpiar rutas legacy
-4. `src/pages/Products.tsx` - Renombrar imports
-5. `src/pages/ProductDetail.tsx` - Renombrar imports
-6. `src/pages/CommandCenter.tsx` - Mejoras visuales
-7. `src/pages/Sales.tsx` - Mejoras visuales
-8. `src/pages/Creatives.tsx` - Mejoras visuales
+| Regla | Condición | Tarea Generada | Prioridad |
+|-------|-----------|----------------|-----------|
+| Cobro urgente | Venta pendiente > 10 días | "Cobrar a {cliente}" | Alta |
+| Cobro normal | Venta pendiente 5-10 días | "Cobrar a {cliente}" | Media |
+| Entrega sin cobro | Entregado + no pagado | "Confirmar cobro" | Alta |
+| Sin creativos | Producto activo sin creativos | "Crear creativo" | Media |
+| Destacado sin contenido | Featured + sin creativos | "Priorizar contenido" | Alta |
+| Sin ventas | Producto activo sin ventas 30d | "Revisar precio" | Baja |
+| Producto nuevo | Creado < 7 días | "Comunicar a vendedores" | Media |
 
-### Renombrar (2 archivos)
-1. `ProductFormNew.tsx` → `ProductForm.tsx`
-2. `SmartProductCardNew.tsx` → `ProductCard.tsx`
+---
 
-### Crear (0 archivos nuevos)
-- Todos los cambios se realizan en archivos existentes
+## Fase 7: Sincronización y Deduplicación
+
+### 7.1 Lógica de Deduplicación
+
+Cada tarea automática tiene un `dedupKey` único:
+
+```typescript
+// Ejemplos de dedupKey:
+"cobro:sale:abc123"           // Tarea de cobro para venta abc123
+"creativo:product:xyz789"     // Tarea de creativo para producto xyz789
+"sin_ventas:product:def456"   // Tarea de revisar producto sin ventas
+```
+
+### 7.2 Resolución Automática
+
+Cuando la condición deja de aplicar:
+- Venta marcada como pagada → Cerrar tarea de cobro
+- Creativo creado para producto → Cerrar tarea de "crear creativo"
+- Producto desactivado → Cerrar todas las tareas relacionadas
+
+```typescript
+// En syncAutomaticTasks:
+for (const existingTask of automaticTasks) {
+  const stillApplies = checkConditionStillApplies(existingTask);
+  if (!stillApplies) {
+    await updateTaskStatus(existingTask.id, 'resuelta_automaticamente');
+  }
+}
+```
+
+---
+
+## Fase 8: Navegación y Rutas
+
+### 8.1 Actualizar `App.tsx`
+
+```typescript
+<Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+```
+
+### 8.2 Actualizar `CommandCenterNav`
+
+Agregar link a Tareas en la navegación:
+- Mostrar badge con número de tareas pendientes
+- Resaltar si hay tareas de alta prioridad
+
+---
+
+## Archivos a Crear/Modificar
+
+| Acción | Archivo |
+|--------|---------|
+| MIGRAR | Base de datos (nuevos enums, columnas, índices) |
+| MODIFICAR | `src/types/index.ts` (nuevas interfaces) |
+| CREAR | `src/lib/taskRules.ts` (motor de reglas) |
+| CREAR | `src/hooks/useTasks.ts` (hook principal) |
+| CREAR | `src/pages/Tasks.tsx` (página de tareas) |
+| CREAR | `src/components/tasks/TaskCard.tsx` |
+| CREAR | `src/components/tasks/TaskForm.tsx` |
+| CREAR | `src/components/tasks/TaskFilters.tsx` |
+| MODIFICAR | `src/pages/CommandCenter.tsx` (usar nuevo hook) |
+| MODIFICAR | `src/components/command-center/PriorityTaskCard.tsx` |
+| MODIFICAR | `src/App.tsx` (agregar ruta /tasks) |
+| MODIFICAR | `src/components/command-center/CommandCenterNav.tsx` |
+| ELIMINAR | `src/hooks/useSmartTasks.ts` (reemplazado) |
 
 ---
 
 ## Orden de Implementación
 
-1. **Eliminar archivos legacy** (resolver error de build)
-2. **Renombrar componentes nuevos**
-3. **Actualizar imports en páginas**
-4. **Actualizar design system (CSS/Tailwind)**
-5. **Mejorar CommandCenterNav**
-6. **Mejorar CommandCenter**
-7. **Mejorar Products page**
-8. **Mejorar ProductDetail**
-9. **Mejorar Sales**
-10. **Mejorar Creatives**
-11. **Limpiar App.tsx**
+1. **Migración de BD** - Nuevos enums y columnas
+2. **Tipos TypeScript** - Interfaces actualizadas
+3. **Motor de reglas** - `taskRules.ts`
+4. **Hook useTasks** - CRUD + sincronización
+5. **Página Tasks** - UI completa
+6. **Componentes** - TaskCard, TaskForm, TaskFilters
+7. **Integración Command Center** - Consumir nuevo sistema
+8. **Navegación** - Ruta y nav link
+9. **Cleanup** - Eliminar código legacy
 
 ---
 
 ## Resultado Esperado
 
-Una aplicación que:
-- Compila sin errores ni warnings
-- Se ve premium y profesional
-- Tiene un único flujo de productos unificado
-- Es clara y jerárquica visualmente
-- Facilita la toma de decisiones diarias
-- Está lista para escalar con IA y automatización
+Al finalizar, el usuario:
+
+1. **Abre la app** y ve exactamente qué hacer hoy
+2. **Entiende el por qué** de cada tarea (no es una lista arbitraria)
+3. **Sabe el impacto** económico de cada acción
+4. **Puede actuar** directamente desde la tarea
+5. **No olvida nada** - el sistema genera tareas automáticamente
+6. **Tiene historial** de qué hizo y cuándo
+
+Este módulo convierte a GRC AI OS en un copiloto operativo indispensable.
 
