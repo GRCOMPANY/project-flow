@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Edit2, Users, Phone, Percent } from 'lucide-react';
 import { useSellers } from '@/hooks/useSellers';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navbar } from '@/components/Navbar';
+import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,7 +105,7 @@ const Sellers = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
+        <CommandCenterNav />
         <div className="flex items-center justify-center py-20">
           <div className="animate-pulse text-muted-foreground">Cargando...</div>
         </div>
@@ -115,7 +115,7 @@ const Sellers = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <CommandCenterNav />
 
       <div className="container max-w-5xl mx-auto px-4 py-8">
         <header className="mb-10">

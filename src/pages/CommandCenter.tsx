@@ -11,6 +11,7 @@ import { PriorityTaskCard } from '@/components/command-center/PriorityTaskCard';
 import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCard';
 import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ShoppingCart, 
   DollarSign, 
@@ -19,7 +20,8 @@ import {
   Plus,
   TrendingUp,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  ArrowRight
 } from 'lucide-react';
 
 export default function CommandCenter() {
@@ -50,10 +52,26 @@ export default function CommandCenter() {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-muted-foreground">Cargando centro de control...</p>
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="space-y-8">
+            {/* Header skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-80" />
+              <Skeleton className="h-6 w-48" />
+            </div>
+            {/* Insight skeleton */}
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            {/* Tasks skeleton */}
+            <div className="space-y-3">
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
+            {/* Metrics skeleton */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-28 rounded-xl" />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -66,10 +84,10 @@ export default function CommandCenter() {
       
       <div className="container max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
-        <header className="mb-8">
+        <header className="mb-8 animate-fade-up">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-1">
+              <h1 className="text-foreground mb-2">
                 {getGreeting()}, {profile?.fullName?.split(' ')[0]} 👋
               </h1>
               <p className="text-lg text-muted-foreground">
@@ -83,17 +101,15 @@ export default function CommandCenter() {
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
-                  size="sm" 
                   onClick={() => navigate('/sales')}
-                  className="gap-1.5"
+                  className="gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">Nueva venta</span>
                 </Button>
                 <Button 
-                  size="sm" 
                   onClick={() => navigate('/creatives')}
-                  className="gap-1.5"
+                  className="gap-2 shadow-lg shadow-primary/20"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span className="hidden sm:inline">Crear creativo</span>
@@ -103,7 +119,7 @@ export default function CommandCenter() {
           </div>
         </header>
 
-        {/* Daily Insight (AI Command Center MVP) */}
+        {/* Daily Insight */}
         {isAdmin && (
           <section className="mb-8">
             <DailyInsight 
@@ -114,10 +130,10 @@ export default function CommandCenter() {
           </section>
         )}
 
-        {/* NIVEL 1: Priority Actions */}
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-6 rounded-full grc-gradient" />
+        {/* Priority Actions */}
+        <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+          <div className="section-header">
+            <div className="section-indicator grc-gradient" />
             <h2 className="text-xl font-semibold text-foreground">
               Acciones Prioritarias
             </h2>
@@ -125,55 +141,64 @@ export default function CommandCenter() {
 
           {smartTasks.length > 0 ? (
             <div className="space-y-3">
-              {smartTasks.map((task) => (
-                <PriorityTaskCard 
+              {smartTasks.map((task, index) => (
+                <div 
                   key={task.id} 
-                  task={task}
-                  onAction={
-                    task.type === 'cobro' && task.relatedSaleId
-                      ? () => handleMarkPaid(task.relatedSaleId!)
-                      : undefined
-                  }
-                />
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${0.05 * (index + 1)}s` }}
+                >
+                  <PriorityTaskCard 
+                    task={task}
+                    onAction={
+                      task.type === 'cobro' && task.relatedSaleId
+                        ? () => handleMarkPaid(task.relatedSaleId!)
+                        : undefined
+                    }
+                  />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="grc-card p-8 text-center">
-              <CheckCircle2 className="w-12 h-12 mx-auto text-success mb-3" />
-              <h3 className="text-lg font-semibold text-foreground mb-1">
+            <div className="grc-card p-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-success" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 ¡Excelente trabajo!
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground max-w-sm mx-auto">
                 No hay acciones pendientes. El negocio está al día.
               </p>
             </div>
           )}
         </section>
 
-        {/* NIVEL 2: Business Status */}
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-6 rounded-full grc-gold-gradient" />
+        {/* Business Status */}
+        <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.2s' }}>
+          <div className="section-header">
+            <div className="section-indicator grc-gold-gradient" />
             <h2 className="text-xl font-semibold text-foreground">
               Estado del Negocio
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <BusinessMetricCard
               icon={<ShoppingCart className="w-5 h-5" />}
               label="Ventas del mes"
               value={summary.salesThisMonth}
               sublabel={`$${summary.revenueThisMonth.toLocaleString()}`}
               variant="success"
+              onClick={() => navigate('/sales')}
             />
             
             <BusinessMetricCard
               icon={<DollarSign className="w-5 h-5" />}
-              label="Pagos pendientes"
+              label="Pendiente de cobro"
               value={summary.pendingCollections}
               sublabel={`$${summary.pendingCollectionAmount.toLocaleString()}`}
               variant={summary.pendingCollections > 0 ? 'danger' : 'default'}
+              onClick={() => navigate('/sales')}
             />
             
             <BusinessMetricCard
@@ -182,6 +207,7 @@ export default function CommandCenter() {
               value={summary.activeProducts}
               sublabel={`${summary.featuredProducts} destacados`}
               variant="default"
+              onClick={() => navigate('/products')}
             />
             
             <BusinessMetricCard
@@ -190,55 +216,56 @@ export default function CommandCenter() {
               value={summary.creativesPublished}
               sublabel={`${summary.creativesPending} pendientes`}
               variant={summary.creativesPending > 0 ? 'warning' : 'default'}
+              onClick={() => navigate('/creatives')}
             />
           </div>
         </section>
 
         {/* Quick Actions */}
         {isAdmin && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-6 rounded-full bg-secondary" />
+          <section className="animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            <div className="section-header">
+              <div className="section-indicator bg-secondary" />
               <h2 className="text-xl font-semibold text-foreground">
                 Acceso Rápido
               </h2>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Button
                 variant="outline"
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
                 onClick={() => navigate('/products')}
               >
-                <Package className="w-5 h-5" />
-                <span className="text-sm">Productos</span>
+                <Package className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium">Productos</span>
               </Button>
               
               <Button
                 variant="outline"
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
                 onClick={() => navigate('/creatives')}
               >
-                <ImageIcon className="w-5 h-5" />
-                <span className="text-sm">Creativos</span>
+                <ImageIcon className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium">Creativos</span>
               </Button>
               
               <Button
                 variant="outline"
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
                 onClick={() => navigate('/sales')}
               >
-                <TrendingUp className="w-5 h-5" />
-                <span className="text-sm">Ventas</span>
+                <TrendingUp className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium">Ventas</span>
               </Button>
               
               <Button
                 variant="outline"
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
                 onClick={() => navigate('/ai')}
               >
-                <Sparkles className="w-5 h-5" />
-                <span className="text-sm">IA</span>
+                <Sparkles className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium">Inteligencia IA</span>
               </Button>
             </div>
           </section>
