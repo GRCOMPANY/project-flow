@@ -4,6 +4,7 @@ import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskFilters } from '@/components/tasks/TaskFilters';
 import { TaskForm } from '@/components/tasks/TaskForm';
+import { TaskCloseModal } from '@/components/tasks/TaskCloseModal';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +17,7 @@ import {
   XCircle,
   ListTodo
 } from 'lucide-react';
-import { TaskType, Priority, TaskSource, TaskStatus } from '@/types';
+import { TaskType, Priority, TaskSource, TaskStatus, OperationalTask } from '@/types';
 import { cn } from '@/lib/utils';
 
 export default function Tasks() {
@@ -31,10 +32,12 @@ export default function Tasks() {
     resolveTask,
     dismissTask,
     updateTaskStatus,
+    completeWithOutcome,
     syncNow,
   } = useTasks();
 
   const [showForm, setShowForm] = useState(false);
+  const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TaskType | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
@@ -76,8 +79,12 @@ export default function Tasks() {
     setSourceFilter('all');
   };
 
-  const handleResolve = async (id: string) => {
-    await resolveTask(id);
+  // Open the close modal instead of resolving directly
+  const handleResolve = (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      setCloseModalTask(task);
+    }
   };
 
   const handleDismiss = async (id: string, reason: string) => {
@@ -323,6 +330,14 @@ export default function Tasks() {
         open={showForm}
         onOpenChange={setShowForm}
         onSubmit={createTask}
+      />
+
+      {/* Task Close Modal */}
+      <TaskCloseModal
+        task={closeModalTask}
+        open={!!closeModalTask}
+        onOpenChange={(open) => !open && setCloseModalTask(null)}
+        onSubmit={completeWithOutcome}
       />
     </div>
   );

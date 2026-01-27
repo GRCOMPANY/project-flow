@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OperationalTask, TaskStatus } from '@/types';
+import { OperationalTask, TaskStatus, TaskOutcomeResult } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,7 +24,9 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  Lightbulb
+  Lightbulb,
+  RefreshCw,
+  Ban
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -90,6 +92,30 @@ const priorityConfig = {
   alta: 'border-l-4',
   media: 'border-l-4',
   baja: 'border-l-4',
+};
+
+// Outcome display config
+const outcomeConfig: Record<TaskOutcomeResult, { label: string; icon: React.ReactNode; className: string }> = {
+  exitoso: { 
+    label: 'Exitoso', 
+    icon: <CheckCircle2 className="w-3 h-3" />,
+    className: 'bg-success/10 text-success border-success/30'
+  },
+  fallido: { 
+    label: 'Fallido', 
+    icon: <XCircle className="w-3 h-3" />,
+    className: 'bg-destructive/10 text-destructive border-destructive/30'
+  },
+  reprogramado: { 
+    label: 'Reprogramado', 
+    icon: <RefreshCw className="w-3 h-3" />,
+    className: 'bg-warning/10 text-warning border-warning/30'
+  },
+  cancelado: { 
+    label: 'Cancelado', 
+    icon: <Ban className="w-3 h-3" />,
+    className: 'bg-muted text-muted-foreground border-border'
+  },
 };
 
 export function TaskCard({ 
@@ -165,7 +191,7 @@ export function TaskCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={cn("text-xs font-bold tracking-wide", config.labelClass)}>
               {typeLabels[task.type]}
             </span>
@@ -176,6 +202,20 @@ export function TaskCard({
               <Badge variant="secondary" className="text-[10px] h-5">
                 ⚡ Auto
               </Badge>
+            )}
+            {/* Outcome badges */}
+            {task.outcome && (
+              <>
+                <Badge variant="outline" className={cn("text-[10px] h-5 gap-1", outcomeConfig[task.outcome.result].className)}>
+                  {outcomeConfig[task.outcome.result].icon}
+                  {outcomeConfig[task.outcome.result].label}
+                </Badge>
+                {task.outcome.generatedIncome && task.outcome.incomeAmount > 0 && (
+                  <Badge variant="outline" className="text-[10px] h-5 gap-1 bg-success/10 text-success border-success/30">
+                    💰 ${task.outcome.incomeAmount.toLocaleString()}
+                  </Badge>
+                )}
+              </>
             )}
           </div>
 

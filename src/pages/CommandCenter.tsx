@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -8,10 +9,12 @@ import { useBusinessSummary } from '@/hooks/useBusinessSummary';
 import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { TaskCard } from '@/components/tasks/TaskCard';
+import { TaskCloseModal } from '@/components/tasks/TaskCloseModal';
 import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCard';
 import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { OperationalTask } from '@/types';
 import { 
   ShoppingCart, 
   DollarSign, 
@@ -22,7 +25,8 @@ import {
   Sparkles,
   CheckCircle2,
   ArrowRight,
-  ListTodo
+  ListTodo,
+  Trophy
 } from 'lucide-react';
 
 export default function CommandCenter() {
@@ -31,19 +35,35 @@ export default function CommandCenter() {
   const { products, loading: productsLoading } = useProducts();
   const { sales, loading: salesLoading, updateSale } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
-  const { todayTasks, loading: tasksLoading, resolveTask, dismissTask, updateTaskStatus } = useTasks();
+  const { 
+    todayTasks, 
+    tasks,
+    outcomeStats,
+    loading: tasksLoading, 
+    resolveTask, 
+    dismissTask, 
+    updateTaskStatus,
+    completeWithOutcome
+  } = useTasks();
 
   const loading = productsLoading || salesLoading || creativesLoading || tasksLoading;
 
   const summary = useBusinessSummary({ sales, products, creatives });
   const smartProducts = useSmartCatalog({ products, sales, creatives });
 
+  // State for close modal
+  const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
+
   const handleMarkPaid = async (saleId: string) => {
     await updateSale(saleId, { paymentStatus: 'pagado' });
   };
 
-  const handleResolveTask = async (id: string) => {
-    await resolveTask(id);
+  // Open modal instead of resolving directly
+  const handleResolveTask = (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      setCloseModalTask(task);
+    }
   };
 
   const handleDismissTask = async (id: string, reason: string) => {
@@ -239,6 +259,50 @@ export default function CommandCenter() {
           </div>
         </section>
 
+        {/* Today's Results - Only show if there are completed tasks today */}
+        {outcomeStats.completedToday > 0 && (
+          <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.25s' }}>
+            <div className="section-header">
+              <div className="section-indicator bg-success" />
+              <h2 className="text-xl font-semibold text-foreground">
+                Resultados de Hoy
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grc-card p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-success/10">
+                  <CheckCircle2 className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{outcomeStats.completedToday}</p>
+                  <p className="text-xs text-muted-foreground">Cerradas</p>
+                </div>
+              </div>
+              
+              <div className="grc-card p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <Trophy className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{outcomeStats.withIncome}</p>
+                  <p className="text-xs text-muted-foreground">Con ingreso</p>
+                </div>
+              </div>
+              
+              <div className="grc-card p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-success/10">
+                  <DollarSign className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-success">${outcomeStats.totalRecovered.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Recuperado hoy</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Quick Actions */}
         {isAdmin && (
           <section className="animate-fade-up" style={{ animationDelay: '0.3s' }}>
@@ -289,6 +353,14 @@ export default function CommandCenter() {
           </section>
         )}
       </div>
+
+      {/* Task Close Modal */}
+      <TaskCloseModal
+        task={closeModalTask}
+        open={!!closeModalTask}
+        onOpenChange={(open) => !open && setCloseModalTask(null)}
+        onSubmit={completeWithOutcome}
+      />
     </div>
   );
 }

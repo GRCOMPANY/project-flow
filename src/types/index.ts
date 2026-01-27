@@ -250,6 +250,9 @@ export interface OperationalTask {
   context?: Record<string, unknown>;
   createdAt: string;
   updatedAt?: string;
+  
+  // Outcome (si la tarea fue cerrada)
+  outcome?: TaskOutcome;
 }
 
 // Input para crear tarea manual
@@ -285,6 +288,35 @@ export interface SmartTask {
   actionPath?: string;
 }
 
+// ====================================
+// TASK OUTCOME SYSTEM (Cierre de Ciclo)
+// ====================================
+
+// Resultado del cierre de tarea
+export type TaskOutcomeResult = 'exitoso' | 'fallido' | 'reprogramado' | 'cancelado';
+
+// Registro de resultado de tarea
+export interface TaskOutcome {
+  id: string;
+  taskId: string;
+  result: TaskOutcomeResult;
+  generatedIncome: boolean;
+  incomeAmount: number;
+  notes?: string;
+  completedBy?: string;
+  completedAt: string;
+  createdAt: string;
+}
+
+// Input para crear outcome
+export interface CreateTaskOutcomeInput {
+  taskId: string;
+  result: TaskOutcomeResult;
+  generatedIncome: boolean;
+  incomeAmount?: number;
+  notes?: string;
+}
+
 // Dashboard KPIs
 export interface DashboardStats {
   totalSales: number;
@@ -307,4 +339,11 @@ export interface BusinessSummary {
   creativesTotal: number;
   creativesPending: number;
   creativesPublished: number;
+}
+
+// Outcome Stats
+export interface OutcomeStats {
+  completedToday: number;
+  withIncome: number;
+  totalRecovered: number;
 }
