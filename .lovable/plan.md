@@ -1,483 +1,382 @@
 
 
-# Plan: Módulo Definitivo de Tareas para Ecommerce
+# Plan: Cierre de Ciclo de Tareas con Task Outcomes
 
-## Diagnóstico del Estado Actual
+## Resumen
 
-### Lo que existe:
-- Tabla `tasks` con campos básicos (`name`, `description`, `status`, `priority`, `source`)
-- Hook `useSmartTasks` que genera tareas efímeras en memoria
-- Estados limitados: `pendiente | en_progreso | terminada`
-- Sources: `manual | automatic`
-- No hay página `/tasks` dedicada
-- Command Center consume tareas efímeras, no persistidas
-
-### Problemas identificados:
-1. Las tareas automáticas no se persisten - se pierden al recargar
-2. No hay deduplicación - la misma tarea puede aparecer repetidamente
-3. Estados insuficientes para operación real (falta `esperando_respuesta`, `programada`, etc.)
-4. No hay registro del "por qué" ni del "qué pasa si no actúo"
-5. No hay historial de acciones tomadas
+Este plan implementa un sistema de registro de resultados al completar tareas, permitiendo al sistema aprender y priorizar mejor en el futuro. Se crea una nueva entidad `task_outcomes` relacionada 1:1 con `tasks`.
 
 ---
 
 ## Fase 1: Migración de Base de Datos
 
-### 1.1 Nuevos Tipos Enum
+### 1.1 Crear tabla `task_outcomes`
 
 ```sql
--- Estados extendidos para operación real
-CREATE TYPE task_status_v2 AS ENUM (
-  'pendiente',
-  'en_progreso', 
-  'esperando_respuesta',
-  'programada',
-  'completada',
-  'cancelada',
-  'resuelta_automaticamente'
+-- Enum para resultados
+CREATE TYPE task_outcome_result AS ENUM (
+  'exitoso',
+  'fallido', 
+  'reprogramado',
+  'cancelado'
 );
 
--- Tipos de tarea por impacto operativo
-CREATE TYPE task_type AS ENUM (
-  'cobro',
-  'seguimiento_venta',
-  'creativo',
-  'operacion',
-  'estrategia'
+-- Tabla de resultados
+CREATE TABLE task_outcomes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  
+  -- Resultado operativo
+  result task_outcome_result NOT NULL,
+  
+  -- Impacto económico
+  generated_income BOOLEAN NOT NULL DEFAULT false,
+  income_amount NUMERIC DEFAULT 0,
+  
+  -- Nota
+  notes TEXT,
+  
+  -- Metadata
+  completed_by UUID REFERENCES auth.users(id),
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Impacto económico
-CREATE TYPE task_impact AS ENUM (
-  'dinero',
-  'crecimiento',
-  'operacion'
-);
+-- Índices
+CREATE INDEX idx_task_outcomes_task_id ON task_outcomes(task_id);
+CREATE INDEX idx_task_outcomes_result ON task_outcomes(result);
+CREATE INDEX idx_task_outcomes_completed_at ON task_outcomes(completed_at);
+CREATE INDEX idx_task_outcomes_generated_income ON task_outcomes(generated_income);
 
--- Fuentes extendidas
-CREATE TYPE task_source_v2 AS ENUM (
-  'manual',
-  'automatic',
-  'ai_suggested',
-  'external'
-);
-```
+-- RLS
+ALTER TABLE task_outcomes ENABLE ROW LEVEL SECURITY;
 
-### 1.2 Nueva Estructura de Tabla `tasks`
+CREATE POLICY "Authenticated users can view outcomes"
+  ON task_outcomes FOR SELECT
+  USING (auth.uid() IS NOT NULL);
 
-```sql
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS type task_type;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS impact task_impact;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS trigger_reason TEXT; -- Por qué existe
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS consequence TEXT;    -- Qué pasa si no actúo
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS action_label TEXT;   -- Texto del botón
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS action_path TEXT;    -- Ruta de navegación
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS context JSONB;       -- Datos adicionales
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_by UUID REFERENCES auth.users(id);
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolution_notes TEXT;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS dedup_key TEXT UNIQUE; -- Para evitar duplicados
-```
+CREATE POLICY "Admins can insert outcomes"
+  ON task_outcomes FOR INSERT
+  WITH CHECK (has_role(auth.uid(), 'admin'));
 
-### 1.3 Índices para Performance
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_type ON tasks(type);
-CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
-CREATE INDEX IF NOT EXISTS idx_tasks_related_sale ON tasks(related_sale_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_related_product ON tasks(related_product_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_dedup ON tasks(dedup_key);
+CREATE POLICY "Admins can update outcomes"
+  ON task_outcomes FOR UPDATE
+  USING (has_role(auth.uid(), 'admin'));
 ```
 
 ---
 
 ## Fase 2: Tipos TypeScript
 
-### 2.1 Nuevas Interfaces en `src/types/index.ts`
+### 2.1 Nuevos tipos en `src/types/index.ts`
 
 ```typescript
-// Estados de tarea reales
-export type TaskStatus = 
-  | 'pendiente' 
-  | 'en_progreso' 
-  | 'esperando_respuesta'
-  | 'programada'
-  | 'completada'
-  | 'cancelada'
-  | 'resuelta_automaticamente';
+// Resultado del cierre de tarea
+export type TaskOutcomeResult = 'exitoso' | 'fallido' | 'reprogramado' | 'cancelado';
 
-// Tipos por impacto operativo
-export type TaskType = 
-  | 'cobro' 
-  | 'seguimiento_venta' 
-  | 'creativo' 
-  | 'operacion' 
-  | 'estrategia';
-
-// Impacto económico
-export type TaskImpact = 'dinero' | 'crecimiento' | 'operacion';
-
-// Origen de la tarea
-export type TaskSource = 'manual' | 'automatic' | 'ai_suggested' | 'external';
-
-// Tarea completa del sistema
-export interface OperationalTask {
+// Registro de resultado de tarea
+export interface TaskOutcome {
   id: string;
-  
-  // Identificación
-  name: string;
-  description?: string;
-  type: TaskType;
-  
-  // Estado y prioridad
-  status: TaskStatus;
-  priority: Priority;
-  
-  // Contexto operativo (CRÍTICO)
-  triggerReason: string;    // "Existe porque..."
-  consequence?: string;      // "Si no actúas..."
-  impact: TaskImpact;
-  
-  // Acción
-  actionLabel: string;
-  actionPath?: string;
-  
-  // Relaciones
-  relatedSaleId?: string;
-  relatedSale?: Sale;
-  relatedProductId?: string;
-  relatedProduct?: Product;
-  relatedCreativeId?: string;
-  relatedCreative?: Creative;
-  
-  // Origen y deduplicación
-  source: TaskSource;
-  dedupKey?: string;
-  
-  // Resolución
-  resolvedAt?: string;
-  resolvedBy?: string;
-  resolutionNotes?: string;
-  
-  // Programación
-  dueDate?: string;
-  assignedTo?: string;
-  assignedUser?: Profile;
-  
-  // Metadata
-  context?: Record<string, unknown>;
+  taskId: string;
+  result: TaskOutcomeResult;
+  generatedIncome: boolean;
+  incomeAmount: number;
+  notes?: string;
+  completedBy?: string;
+  completedAt: string;
   createdAt: string;
-  updatedAt?: string;
 }
 
-// Regla de generación automática
-export interface TaskRule {
-  id: string;
-  name: string;
-  type: TaskType;
-  priority: Priority;
-  impact: TaskImpact;
-  condition: (data: TaskRuleContext) => boolean;
-  generateTask: (data: TaskRuleContext) => Partial<OperationalTask>;
-  dedupKey: (data: TaskRuleContext) => string;
+// Input para crear outcome
+export interface CreateTaskOutcomeInput {
+  taskId: string;
+  result: TaskOutcomeResult;
+  generatedIncome: boolean;
+  incomeAmount?: number;
+  notes?: string;
 }
 
-export interface TaskRuleContext {
-  sales: Sale[];
-  products: Product[];
-  creatives: Creative[];
-  existingTasks: OperationalTask[];
+// Extensión de OperationalTask para incluir outcome
+export interface OperationalTask {
+  // ... campos existentes ...
+  outcome?: TaskOutcome; // Nuevo campo
 }
 ```
 
 ---
 
-## Fase 3: Motor de Reglas Automáticas
+## Fase 3: Hook de Task Outcomes
 
-### 3.1 Crear `src/lib/taskRules.ts`
-
-Archivo central con las reglas de negocio para generación automática:
+### 3.1 Crear `src/hooks/useTaskOutcomes.ts`
 
 ```typescript
-// Reglas implementadas:
-
-// 1. COBROS
-// - Venta con pago pendiente > 10 días → "Cobrar a {cliente}"
-// - Contra entrega entregada pero no pagada → "Confirmar cobro"
-
-// 2. VENTAS  
-// - Pedido en progreso sin avance en 3 días → "Dar seguimiento"
-// - Cliente sin respuesta en 5 días → "Recontactar cliente"
-
-// 3. CREATIVOS
-// - Producto activo sin creativos → "Crear creativo para {producto}"
-// - Creativo exitoso no replicado → "Repetir creativo exitoso"
-// - Producto destacado sin contenido → "Priorizar contenido"
-
-// 4. OPERACIÓN
-// - Producto nuevo (< 7 días) sin comunicar → "Enviar a vendedores"
-// - Stock agotado con ventas recientes → "Revisar restock"
-
-// 5. ESTRATEGIA
-// - Producto sin ventas en 30 días → "Revisar precio/contenido"
-// - Canal con baja conversión → "Analizar rendimiento"
-```
-
-### 3.2 Crear `src/hooks/useTasks.ts`
-
-Hook principal que:
-1. Carga tareas de la base de datos
-2. Ejecuta el motor de reglas
-3. Sincroniza tareas automáticas (crear nuevas, cerrar resueltas)
-4. Expone CRUD completo
-
-```typescript
-export function useTasks() {
-  // Estados
-  const [tasks, setTasks] = useState<OperationalTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Funciones principales
-  const fetchTasks = async () => {...}
-  const syncAutomaticTasks = async () => {...}
-  const createTask = async (task: CreateTaskInput) => {...}
-  const updateTaskStatus = async (id: string, status: TaskStatus) => {...}
-  const resolveTask = async (id: string, notes?: string) => {...}
-  const dismissTask = async (id: string, reason: string) => {...}
-  
-  // Filtros útiles
-  const todayTasks = useMemo(() => 
-    tasks.filter(t => t.status === 'pendiente')
-         .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
-         .slice(0, 5),
-    [tasks]
-  );
-  
-  const pendingCollections = useMemo(() =>
-    tasks.filter(t => t.type === 'cobro' && t.status === 'pendiente'),
-    [tasks]
-  );
+export function useTaskOutcomes() {
+  // createOutcome: crea el resultado Y marca la tarea como completada
+  // getOutcomeByTaskId: obtiene el outcome de una tarea
+  // getTodayStats: estadísticas de hoy (completadas, con ingreso, total)
   
   return {
-    tasks,
-    todayTasks,
-    pendingCollections,
+    createOutcome,
+    getOutcomeByTaskId,
+    todayStats: {
+      completedToday: number,
+      withIncome: number,
+      totalRecovered: number,
+    },
     loading,
-    createTask,
-    updateTaskStatus,
-    resolveTask,
-    dismissTask,
-    refetch: fetchTasks,
   };
 }
 ```
 
 ---
 
-## Fase 4: Página de Tareas `/tasks`
+## Fase 4: Modal de Cierre de Tarea
 
-### 4.1 Crear `src/pages/Tasks.tsx`
+### 4.1 Crear `src/components/tasks/TaskCloseModal.tsx`
 
-**Estructura de la página:**
+Estructura del modal:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  [CommandCenterNav]                                      │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  TAREAS                              [+ Nueva tarea]    │
-│  Tu lista de acciones prioritarias                      │
-│                                                         │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │ 🔴 5    │ │ ⏳ 2    │ │ ✅ 12   │ │ 🚫 3    │       │
-│  │Pendiente│ │En prog. │ │Completad│ │Cancelad │       │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘       │
-│                                                         │
-│  [Tabs: Hoy | Todas | Por tipo]                        │
-│                                                         │
-│  Filtros: [Tipo ▾] [Prioridad ▾] [Origen ▾] [🔍]       │
-│                                                         │
-├─────────────────────────────────────────────────────────┤
-│  ▌ ACCIONES DE HOY (máx 5)                             │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ 🔴 COBRO PENDIENTE                   💰 Dinero    │ │
-│  │                                                   │ │
-│  │ Cobrar a María García                             │ │
-│  │                                                   │ │
-│  │ 📌 Existe porque: Venta de $450 pendiente hace   │ │
-│  │    12 días (Aspiradora Pro - WhatsApp)           │ │
-│  │                                                   │ │
-│  │ ⚠️ Si no actúas: Riesgo de pérdida. El cliente   │ │
-│  │    puede olvidar o desistir de la compra.        │ │
-│  │                                                   │ │
-│  │ [Marcar cobrado]  [Programar]  [···]              │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ 🟡 CREAR CONTENIDO                   🚀 Crecimient│ │
-│  │                                                   │ │
-│  │ Crear creativo para Audífonos Pro                 │ │
-│  │                                                   │ │
-│  │ 📌 Existe porque: Producto destacado sin         │ │
-│  │    creativos. Margen alto (67%).                 │ │
-│  │                                                   │ │
-│  │ [Crear creativo →]  [Descartar]  [···]            │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  ✓ Cerrar Tarea                         │
+│  {nombre de la tarea}                   │
+├─────────────────────────────────────────┤
+│                                         │
+│  ¿Cuál fue el resultado?                │
+│  ┌─────────────────────────────────┐    │
+│  │ ✓ Exitoso                       │    │
+│  │ ✗ Fallido                       │    │
+│  │ 🔄 Reprogramado                 │    │
+│  │ ⊘ Cancelado                     │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  ¿Generó ingreso?                       │
+│  ○ Sí   ○ No                            │
+│                                         │
+│  (Si aplica)                            │
+│  Monto generado                         │
+│  ┌─────────────────────────────────┐    │
+│  │ $                               │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  Nota (opcional - máx 200 caracteres)   │
+│  ┌─────────────────────────────────┐    │
+│  │                                 │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+├─────────────────────────────────────────┤
+│           [Cancelar]  [Guardar]         │
+└─────────────────────────────────────────┘
 ```
 
-### 4.2 Componentes de Tareas
-
-**`src/components/tasks/TaskCard.tsx`**
-- Card expandible con contexto completo
-- Muestra "por qué existe" y "qué pasa si no actúo"
-- Acciones rápidas según tipo
-- Indicador visual de prioridad e impacto
-
-**`src/components/tasks/TaskForm.tsx`**
-- Modal para crear tarea manual
-- Selector de tipo, prioridad, impacto
-- Relación con entidades (producto, venta, creativo)
-- Campo de motivo obligatorio
-
-**`src/components/tasks/TaskFilters.tsx`**
-- Filtros por tipo, prioridad, estado, origen
-- Búsqueda por texto
-- Ordenamiento
+**Características:**
+- Selección de resultado con radio buttons estilizados
+- Toggle para indicar si generó ingreso
+- Campo numérico para monto (solo si generó ingreso)
+- Textarea con contador de caracteres (máx 200)
+- Validación obligatoria del resultado
+- UX rápida y sin fricción
 
 ---
 
-## Fase 5: Integración con Command Center
+## Fase 5: Actualizar TaskCard
 
-### 5.1 Actualizar `CommandCenter.tsx`
+### 5.1 Modificar `src/components/tasks/TaskCard.tsx`
 
-Cambiar de `useSmartTasks` (efímero) a `useTasks` (persistido):
+**Cambios:**
+1. Mostrar badge visual si la tarea tiene outcome
+2. Mostrar indicador de ingreso generado (💰)
+3. Para tareas completadas: mostrar resumen del resultado
 
 ```typescript
-// ANTES
-const smartTasks = useSmartTasks({ sales, products, creatives });
-
-// DESPUÉS
-const { todayTasks, loading: tasksLoading } = useTasks();
+// Si la tarea tiene outcome, mostrar badge
+{task.outcome && (
+  <div className="flex items-center gap-2">
+    <Badge variant={outcomeVariant[task.outcome.result]}>
+      {outcomeLabels[task.outcome.result]}
+    </Badge>
+    {task.outcome.generatedIncome && (
+      <Badge variant="success">
+        💰 ${task.outcome.incomeAmount.toLocaleString()}
+      </Badge>
+    )}
+  </div>
+)}
 ```
 
-### 5.2 Mantener Compatibilidad
-
-- `PriorityTaskCard` debe aceptar `OperationalTask`
-- `DailyInsight` debe consumir las tareas persistidas
-- Link a `/tasks` para ver todas
+**Variantes visuales:**
+- Exitoso: Verde/Success
+- Fallido: Rojo/Destructive  
+- Reprogramado: Amarillo/Warning
+- Cancelado: Gris/Muted
 
 ---
 
-## Fase 6: Reglas Automáticas Iniciales
+## Fase 6: Actualizar useTasks
 
-Implementar estas reglas desde el inicio:
+### 6.1 Modificar `src/hooks/useTasks.ts`
 
-| Regla | Condición | Tarea Generada | Prioridad |
-|-------|-----------|----------------|-----------|
-| Cobro urgente | Venta pendiente > 10 días | "Cobrar a {cliente}" | Alta |
-| Cobro normal | Venta pendiente 5-10 días | "Cobrar a {cliente}" | Media |
-| Entrega sin cobro | Entregado + no pagado | "Confirmar cobro" | Alta |
-| Sin creativos | Producto activo sin creativos | "Crear creativo" | Media |
-| Destacado sin contenido | Featured + sin creativos | "Priorizar contenido" | Alta |
-| Sin ventas | Producto activo sin ventas 30d | "Revisar precio" | Baja |
-| Producto nuevo | Creado < 7 días | "Comunicar a vendedores" | Media |
+**Cambios:**
+
+1. Cargar outcomes junto con las tareas:
+```typescript
+const { data, error } = await supabase
+  .from('tasks')
+  .select(`
+    *,
+    related_product:products(...),
+    related_sale:sales(...),
+    outcome:task_outcomes(*)  // NUEVO
+  `)
+```
+
+2. Nueva función `completeWithOutcome`:
+```typescript
+const completeWithOutcome = async (input: CreateTaskOutcomeInput) => {
+  // 1. Crear el outcome
+  await supabase.from('task_outcomes').insert({
+    task_id: input.taskId,
+    result: input.result,
+    generated_income: input.generatedIncome,
+    income_amount: input.incomeAmount || 0,
+    notes: input.notes,
+  });
+  
+  // 2. Marcar tarea como completada
+  await supabase.from('tasks').update({
+    status: 'terminada',
+    resolved_at: new Date().toISOString(),
+  }).eq('id', input.taskId);
+  
+  // 3. Refrescar
+  await fetchTasks();
+};
+```
+
+3. Nuevas estadísticas:
+```typescript
+const outcomeStats = useMemo(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const completedToday = tasks.filter(t => 
+    t.outcome && new Date(t.outcome.completedAt) >= today
+  );
+  
+  const withIncome = completedToday.filter(t => 
+    t.outcome?.generatedIncome
+  );
+  
+  const totalRecovered = withIncome.reduce((sum, t) => 
+    sum + (t.outcome?.incomeAmount || 0), 0
+  );
+  
+  return { completedToday: completedToday.length, withIncome: withIncome.length, totalRecovered };
+}, [tasks]);
+```
 
 ---
 
-## Fase 7: Sincronización y Deduplicación
+## Fase 7: Actualizar Command Center
 
-### 7.1 Lógica de Deduplicación
+### 7.1 Modificar `src/pages/CommandCenter.tsx`
 
-Cada tarea automática tiene un `dedupKey` único:
+**Agregar sección de resultados del día:**
 
-```typescript
-// Ejemplos de dedupKey:
-"cobro:sale:abc123"           // Tarea de cobro para venta abc123
-"creativo:product:xyz789"     // Tarea de creativo para producto xyz789
-"sin_ventas:product:def456"   // Tarea de revisar producto sin ventas
+```
+┌─────────────────────────────────────────────────┐
+│  ▌ RESULTADOS DE HOY                            │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
+│  │   ✓ 5    │ │  💰 3    │ │   $2,450         │ │
+│  │ Cerradas │ │Con ingreso│ │ Recuperado hoy  │ │
+│  └──────────┘ └──────────┘ └──────────────────┘ │
+└─────────────────────────────────────────────────┘
 ```
 
-### 7.2 Resolución Automática
+**Ubicación:** Después de "Estado del Negocio", solo si hay tareas cerradas hoy.
 
-Cuando la condición deja de aplicar:
-- Venta marcada como pagada → Cerrar tarea de cobro
-- Creativo creado para producto → Cerrar tarea de "crear creativo"
-- Producto desactivado → Cerrar todas las tareas relacionadas
+---
+
+## Fase 8: Integrar Modal en Flujo
+
+### 8.1 Actualizar TaskCard y Tasks.tsx
+
+**Flujo del botón "Completar":**
+
+1. Usuario hace clic en "Completar"
+2. Se abre `TaskCloseModal` con la tarea seleccionada
+3. Usuario llena el formulario obligatorio
+4. Al guardar:
+   - Se crea el outcome
+   - Se marca la tarea como completada
+   - Se cierra el modal
+   - Se actualiza la UI
 
 ```typescript
-// En syncAutomaticTasks:
-for (const existingTask of automaticTasks) {
-  const stillApplies = checkConditionStillApplies(existingTask);
-  if (!stillApplies) {
-    await updateTaskStatus(existingTask.id, 'resuelta_automaticamente');
+// En Tasks.tsx
+const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
+
+const handleResolve = (id: string) => {
+  const task = tasks.find(t => t.id === id);
+  if (task) {
+    setCloseModalTask(task); // Abre el modal
   }
-}
+};
+
+// Modal
+<TaskCloseModal
+  task={closeModalTask}
+  open={!!closeModalTask}
+  onOpenChange={(open) => !open && setCloseModalTask(null)}
+  onSubmit={completeWithOutcome}
+/>
 ```
 
 ---
 
-## Fase 8: Navegación y Rutas
-
-### 8.1 Actualizar `App.tsx`
-
-```typescript
-<Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-```
-
-### 8.2 Actualizar `CommandCenterNav`
-
-Agregar link a Tareas en la navegación:
-- Mostrar badge con número de tareas pendientes
-- Resaltar si hay tareas de alta prioridad
-
----
-
-## Archivos a Crear/Modificar
+## Resumen de Archivos
 
 | Acción | Archivo |
 |--------|---------|
-| MIGRAR | Base de datos (nuevos enums, columnas, índices) |
-| MODIFICAR | `src/types/index.ts` (nuevas interfaces) |
-| CREAR | `src/lib/taskRules.ts` (motor de reglas) |
-| CREAR | `src/hooks/useTasks.ts` (hook principal) |
-| CREAR | `src/pages/Tasks.tsx` (página de tareas) |
-| CREAR | `src/components/tasks/TaskCard.tsx` |
-| CREAR | `src/components/tasks/TaskForm.tsx` |
-| CREAR | `src/components/tasks/TaskFilters.tsx` |
-| MODIFICAR | `src/pages/CommandCenter.tsx` (usar nuevo hook) |
-| MODIFICAR | `src/components/command-center/PriorityTaskCard.tsx` |
-| MODIFICAR | `src/App.tsx` (agregar ruta /tasks) |
-| MODIFICAR | `src/components/command-center/CommandCenterNav.tsx` |
-| ELIMINAR | `src/hooks/useSmartTasks.ts` (reemplazado) |
+| MIGRAR | Nueva tabla `task_outcomes` |
+| MODIFICAR | `src/types/index.ts` - Nuevos tipos |
+| CREAR | `src/components/tasks/TaskCloseModal.tsx` |
+| MODIFICAR | `src/components/tasks/TaskCard.tsx` - Badge de outcome |
+| MODIFICAR | `src/hooks/useTasks.ts` - Cargar outcomes + nueva función |
+| MODIFICAR | `src/pages/Tasks.tsx` - Integrar modal |
+| MODIFICAR | `src/pages/CommandCenter.tsx` - Stats del día |
 
 ---
 
 ## Orden de Implementación
 
-1. **Migración de BD** - Nuevos enums y columnas
-2. **Tipos TypeScript** - Interfaces actualizadas
-3. **Motor de reglas** - `taskRules.ts`
-4. **Hook useTasks** - CRUD + sincronización
-5. **Página Tasks** - UI completa
-6. **Componentes** - TaskCard, TaskForm, TaskFilters
-7. **Integración Command Center** - Consumir nuevo sistema
-8. **Navegación** - Ruta y nav link
-9. **Cleanup** - Eliminar código legacy
+1. **Migración BD** - Crear tabla `task_outcomes`
+2. **Tipos TypeScript** - Nuevas interfaces
+3. **TaskCloseModal** - Componente del modal
+4. **useTasks** - Cargar outcomes + completeWithOutcome
+5. **TaskCard** - Mostrar badges de resultado
+6. **Tasks.tsx** - Integrar modal en flujo
+7. **CommandCenter** - Mostrar estadísticas del día
 
 ---
 
 ## Resultado Esperado
 
-Al finalizar, el usuario:
+Al finalizar:
 
-1. **Abre la app** y ve exactamente qué hacer hoy
-2. **Entiende el por qué** de cada tarea (no es una lista arbitraria)
-3. **Sabe el impacto** económico de cada acción
-4. **Puede actuar** directamente desde la tarea
-5. **No olvida nada** - el sistema genera tareas automáticamente
-6. **Tiene historial** de qué hizo y cuándo
+1. **Cada tarea completada** tiene un registro de su resultado
+2. **Datos económicos** quedan registrados para análisis futuro
+3. **Visualización clara** del estado final de cada tarea
+4. **Command Center** muestra resumen diario de productividad
+5. **Base lista** para futuras decisiones automáticas e IA
 
-Este módulo convierte a GRC AI OS en un copiloto operativo indispensable.
+---
+
+## Notas Técnicas
+
+- La relación `task_outcomes` es 1:1 con `tasks` (constraint UNIQUE en `task_id`)
+- El outcome se crea ANTES de marcar la tarea completada (transacción lógica)
+- Los outcomes no se eliminan aunque se elimine la tarea (ON DELETE CASCADE opcional)
+- El campo `notes` tiene límite de 200 caracteres validado en frontend
+- Compatible 100% con el motor de reglas existente
 
