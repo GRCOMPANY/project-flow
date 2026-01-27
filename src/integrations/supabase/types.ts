@@ -356,6 +356,50 @@ export type Database = {
         }
         Relationships: []
       }
+      task_outcomes: {
+        Row: {
+          completed_at: string
+          completed_by: string | null
+          created_at: string
+          generated_income: boolean
+          id: string
+          income_amount: number | null
+          notes: string | null
+          result: Database["public"]["Enums"]["task_outcome_result"]
+          task_id: string
+        }
+        Insert: {
+          completed_at?: string
+          completed_by?: string | null
+          created_at?: string
+          generated_income?: boolean
+          id?: string
+          income_amount?: number | null
+          notes?: string | null
+          result: Database["public"]["Enums"]["task_outcome_result"]
+          task_id: string
+        }
+        Update: {
+          completed_at?: string
+          completed_by?: string | null
+          created_at?: string
+          generated_income?: boolean
+          id?: string
+          income_amount?: number | null
+          notes?: string | null
+          result?: Database["public"]["Enums"]["task_outcome_result"]
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_outcomes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: true
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           action_label: string | null
@@ -584,6 +628,7 @@ export type Database = {
       product_status: "activo" | "pausado" | "agotado"
       seller_status: "activo" | "inactivo"
       task_impact: "dinero" | "crecimiento" | "operacion"
+      task_outcome_result: "exitoso" | "fallido" | "reprogramado" | "cancelado"
       task_priority: "alta" | "media" | "baja"
       task_source: "manual" | "automatic"
       task_status: "pendiente" | "en_progreso" | "terminada"
@@ -737,6 +782,7 @@ export const Constants = {
       product_status: ["activo", "pausado", "agotado"],
       seller_status: ["activo", "inactivo"],
       task_impact: ["dinero", "crecimiento", "operacion"],
+      task_outcome_result: ["exitoso", "fallido", "reprogramado", "cancelado"],
       task_priority: ["alta", "media", "baja"],
       task_source: ["manual", "automatic"],
       task_status: ["pendiente", "en_progreso", "terminada"],

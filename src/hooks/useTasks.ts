@@ -14,9 +14,12 @@ import type { Json } from '@/integrations/supabase/types';
 import { 
   OperationalTask, 
   CreateTaskInput, 
+  CreateTaskOutcomeInput,
   TaskStatus, 
   TaskType,
   TaskImpact,
+  TaskOutcome,
+  OutcomeStats,
   Priority,
   Sale,
   Product,
@@ -79,43 +82,61 @@ export function useTasks() {
           related_product:products(id, name, image_url, status),
           related_sale:sales(id, client_name, total_amount, payment_status),
           related_creative:creatives(id, title, type, status),
-          assigned_user:profiles(id, full_name, avatar_url)
+          assigned_user:profiles(id, full_name, avatar_url),
+          outcome:task_outcomes(*)
         `)
         .order('priority', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const mappedTasks: OperationalTask[] = (data || []).map((task: any) => ({
-        id: task.id,
-        name: task.name,
-        description: task.description,
-        type: (task.type as TaskType) || 'operacion',
-        status: mapDbStatus(task.status),
-        priority: task.priority as Priority,
-        triggerReason: task.trigger_reason || task.reason || 'Tarea del sistema',
-        consequence: task.consequence,
-        impact: (task.impact as TaskImpact) || 'operacion',
-        actionLabel: task.action_label || 'Completar',
-        actionPath: task.action_path,
-        relatedSaleId: task.related_sale_id,
-        relatedSale: task.related_sale,
-        relatedProductId: task.related_product_id,
-        relatedProduct: task.related_product,
-        relatedCreativeId: task.related_creative_id,
-        relatedCreative: task.related_creative,
-        source: task.source || 'manual',
-        dedupKey: task.dedup_key,
-        resolvedAt: task.resolved_at,
-        resolvedBy: task.resolved_by,
-        resolutionNotes: task.resolution_notes,
-        dueDate: task.due_date,
-        assignedTo: task.assigned_to,
-        assignedUser: task.assigned_user,
-        context: task.context,
-        createdAt: task.created_at,
-        updatedAt: task.updated_at,
-      }));
+      const mappedTasks: OperationalTask[] = (data || []).map((task: any) => {
+        // Map outcome if exists (it's an array from the join, take first)
+        const outcomeData = task.outcome?.[0];
+        const outcome: TaskOutcome | undefined = outcomeData ? {
+          id: outcomeData.id,
+          taskId: outcomeData.task_id,
+          result: outcomeData.result,
+          generatedIncome: outcomeData.generated_income,
+          incomeAmount: parseFloat(outcomeData.income_amount) || 0,
+          notes: outcomeData.notes,
+          completedBy: outcomeData.completed_by,
+          completedAt: outcomeData.completed_at,
+          createdAt: outcomeData.created_at,
+        } : undefined;
+
+        return {
+          id: task.id,
+          name: task.name,
+          description: task.description,
+          type: (task.type as TaskType) || 'operacion',
+          status: mapDbStatus(task.status),
+          priority: task.priority as Priority,
+          triggerReason: task.trigger_reason || task.reason || 'Tarea del sistema',
+          consequence: task.consequence,
+          impact: (task.impact as TaskImpact) || 'operacion',
+          actionLabel: task.action_label || 'Completar',
+          actionPath: task.action_path,
+          relatedSaleId: task.related_sale_id,
+          relatedSale: task.related_sale,
+          relatedProductId: task.related_product_id,
+          relatedProduct: task.related_product,
+          relatedCreativeId: task.related_creative_id,
+          relatedCreative: task.related_creative,
+          source: task.source || 'manual',
+          dedupKey: task.dedup_key,
+          resolvedAt: task.resolved_at,
+          resolvedBy: task.resolved_by,
+          resolutionNotes: task.resolution_notes,
+          dueDate: task.due_date,
+          assignedTo: task.assigned_to,
+          assignedUser: task.assigned_user,
+          context: task.context,
+          createdAt: task.created_at,
+          updatedAt: task.updated_at,
+          outcome,
+        };
+      });
 
       setTasks(mappedTasks);
     } catch (error) {
@@ -335,6 +356,54 @@ export function useTasks() {
     }
   };
 
+  // Completar tarea con outcome
+  const completeWithOutcome = async (input: CreateTaskOutcomeInput): Promise<boolean> => {
+    try {
+      // 1. Crear el outcome
+      const { error: outcomeError } = await supabase
+        .from('task_outcomes')
+        .insert({
+          task_id: input.taskId,
+          result: input.result,
+          generated_income: input.generatedIncome,
+          income_amount: input.incomeAmount || 0,
+          notes: input.notes,
+        });
+
+      if (outcomeError) throw outcomeError;
+
+      // 2. Marcar tarea como completada
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .update({
+          status: 'terminada',
+          resolved_at: new Date().toISOString(),
+          resolution_notes: input.notes || `Cerrada: ${input.result}`,
+        })
+        .eq('id', input.taskId);
+
+      if (taskError) throw taskError;
+
+      toast({
+        title: 'Tarea completada',
+        description: input.generatedIncome 
+          ? `Registrado ingreso de $${(input.incomeAmount || 0).toLocaleString()}`
+          : 'El resultado ha sido registrado',
+      });
+
+      await fetchTasks();
+      return true;
+    } catch (error) {
+      console.error('Error completing task with outcome:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo completar la tarea',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   // Cargar tareas al montar
   useEffect(() => {
     fetchTasks();
@@ -394,6 +463,30 @@ export function useTasks() {
     highPriority: activeTasks.filter(t => t.priority === 'alta').length,
   }), [tasks, activeTasks]);
 
+  // Estadísticas de outcomes del día
+  const outcomeStats = useMemo((): OutcomeStats => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const completedToday = tasks.filter(t => 
+      t.outcome && new Date(t.outcome.completedAt) >= today
+    );
+    
+    const withIncome = completedToday.filter(t => 
+      t.outcome?.generatedIncome
+    );
+    
+    const totalRecovered = withIncome.reduce((sum, t) => 
+      sum + (t.outcome?.incomeAmount || 0), 0
+    );
+    
+    return { 
+      completedToday: completedToday.length, 
+      withIncome: withIncome.length, 
+      totalRecovered 
+    };
+  }, [tasks]);
+
   return {
     // Data
     tasks,
@@ -402,6 +495,7 @@ export function useTasks() {
     pendingCollections,
     tasksByType,
     stats,
+    outcomeStats,
     
     // State
     loading,
@@ -412,6 +506,7 @@ export function useTasks() {
     updateTaskStatus,
     resolveTask,
     dismissTask,
+    completeWithOutcome,
     refetch: fetchTasks,
     syncNow: syncAutomaticTasks,
   };
