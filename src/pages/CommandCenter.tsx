@@ -6,12 +6,12 @@ import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
-import { TensionCard } from '@/components/command-center/TensionCard';
-import { BusinessRadar, generateRadarAlerts } from '@/components/command-center/BusinessRadar';
-import { TrendSparklines, calculateTrendData } from '@/components/command-center/TrendSparklines';
-import { KeyProductCards, identifyKeyProducts } from '@/components/command-center/KeyProductCards';
-import { DailyInsightCard, generateDailyInsight } from '@/components/command-center/DailyInsightCard';
-import { SmartActions, generateSmartActions } from '@/components/command-center/SmartActions';
+import { HeroFinancialCard } from '@/components/command-center/HeroFinancialCard';
+import { AIRadarPanel, generateRadarAlerts } from '@/components/command-center/AIRadarPanel';
+import { MetricsDashboard, calculateTrendData } from '@/components/command-center/MetricsDashboard';
+import { ProductSpotlight, identifyKeyProducts } from '@/components/command-center/ProductSpotlight';
+import { AIInsightBanner, generateDailyInsight } from '@/components/command-center/AIInsightBanner';
+import { QuickActionsBar, generateSmartActions } from '@/components/command-center/QuickActionsBar';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to calculate days since a date
@@ -35,7 +35,7 @@ export default function CommandCenter() {
   // DATA CALCULATIONS
   // =========================================
 
-  // Tension Card data
+  // Hero Financial Card data
   const tensionData = useMemo(() => {
     const pendingAmount = sales
       .filter(s => s.paymentStatus === 'pendiente')
@@ -97,15 +97,17 @@ export default function CommandCenter() {
     );
   }, [tensionData, productMetrics]);
 
-  // Trend sparklines data
+  // Trend metrics data
   const trendData = useMemo(() => {
     return calculateTrendData(sales);
   }, [sales]);
 
-  // Key products
+  // Key products (get the most important one for spotlight)
   const keyProducts = useMemo(() => {
     return identifyKeyProducts(smartProducts, sales);
   }, [smartProducts, sales]);
+
+  const spotlightProduct = keyProducts[0] || null;
 
   // Daily insight
   const dailyInsight = useMemo(() => {
@@ -161,21 +163,31 @@ export default function CommandCenter() {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
-        <div className="container max-w-5xl mx-auto px-4 py-8">
+        <div className="container max-w-6xl mx-auto px-4 py-8">
           <div className="space-y-8">
+            {/* Header skeleton */}
             <div className="space-y-2">
-              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-8 w-64" />
             </div>
-            <Skeleton className="h-44 w-full rounded-2xl" />
-            <div className="space-y-2">
+            
+            {/* Hero skeleton */}
+            <Skeleton className="h-52 w-full rounded-2xl" />
+            
+            {/* Radar skeleton */}
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-32" />
               <Skeleton className="h-16 w-full rounded-xl" />
               <Skeleton className="h-16 w-full rounded-xl" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Skeleton className="h-28 rounded-xl" />
-              <Skeleton className="h-28 rounded-xl" />
-              <Skeleton className="h-28 rounded-xl" />
+            
+            {/* Metrics skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-36 rounded-2xl" />
+              <Skeleton className="h-36 rounded-2xl" />
             </div>
+            
+            {/* Spotlight skeleton */}
+            <Skeleton className="h-48 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -190,17 +202,23 @@ export default function CommandCenter() {
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
 
-      <div className="container max-w-5xl mx-auto px-4 py-6 space-y-8">
-        {/* Header - Compact */}
+      <div className="container max-w-6xl mx-auto px-4 py-6 space-y-8">
+        {/* Header */}
         <header className="animate-fade-up">
-          <h1 className="text-2xl font-semibold text-foreground">
-            {getGreeting()}, {profile?.fullName?.split(' ')[0]} 👋
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Sistema Activo
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mt-2">
+            {getGreeting()}, {profile?.fullName?.split(' ')[0]}
           </h1>
         </header>
 
-        {/* BLOQUE 1: Tension Card (Hero) */}
+        {/* BLOQUE 1: Hero Financial Card */}
         <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
-          <TensionCard
+          <HeroFinancialCard
             montoEnRiesgo={tensionData.montoEnRiesgo}
             ventasSinConfirmar={tensionData.unconfirmedOld}
             ventasEnRiesgo={tensionData.atRisk}
@@ -208,39 +226,43 @@ export default function CommandCenter() {
           />
         </section>
 
-        {/* BLOQUE 2: Business Radar */}
-        {radarAlerts.length > 0 && (
-          <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
-            <BusinessRadar alerts={radarAlerts} />
+        {/* Two Column Layout for Radar + Metrics */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* BLOQUE 2: AI Radar Panel */}
+          {radarAlerts.length > 0 && (
+            <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
+              <AIRadarPanel alerts={radarAlerts} />
+            </section>
+          )}
+
+          {/* BLOQUE 3: Metrics Dashboard */}
+          <section 
+            className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`} 
+            style={{ animationDelay: '0.15s' }}
+          >
+            <MetricsDashboard
+              salesData={trendData.salesData}
+              profitData={trendData.profitData}
+            />
           </section>
-        )}
+        </div>
 
-        {/* BLOQUE 3: Trend Sparklines */}
-        <section className="animate-fade-up" style={{ animationDelay: '0.15s' }}>
-          <TrendSparklines
-            salesData={trendData.salesData}
-            profitData={trendData.profitData}
-          />
-        </section>
-
-        {/* BLOQUE 4: Key Products */}
-        {keyProducts.length > 0 && (
+        {/* BLOQUE 4: Product Spotlight */}
+        {spotlightProduct && (
           <section className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
-            <KeyProductCards products={keyProducts} />
+            <ProductSpotlight keyProduct={spotlightProduct} />
           </section>
         )}
 
-        {/* BLOQUE 5: Daily Insight */}
+        {/* BLOQUE 5: AI Insight Banner */}
         <section className="animate-fade-up" style={{ animationDelay: '0.25s' }}>
-          <DailyInsightCard insight={dailyInsight} />
+          <AIInsightBanner insight={dailyInsight} />
         </section>
 
-        {/* BLOQUE 6: Smart Actions */}
-        {smartActions.length > 0 && (
-          <section className="animate-fade-up pb-8" style={{ animationDelay: '0.3s' }}>
-            <SmartActions actions={smartActions} />
-          </section>
-        )}
+        {/* BLOQUE 6: Quick Actions Bar */}
+        <section className="animate-fade-up pb-8" style={{ animationDelay: '0.3s' }}>
+          <QuickActionsBar actions={smartActions} />
+        </section>
       </div>
     </div>
   );

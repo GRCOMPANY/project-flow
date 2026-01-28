@@ -323,59 +323,74 @@
   }
 
   /* ============================================= */
-  /* PREMIUM DASHBOARD COMPONENTS                 */
+  /* PREMIUM DASHBOARD COMPONENTS (Enterprise)    */
   /* ============================================= */
 
-  /* Tension Card (Hero) */
-  .tension-card {
-    background: linear-gradient(135deg, 
-      hsl(var(--warning) / 0.08) 0%, 
-      hsl(var(--warning) / 0.02) 100%
-    );
-    border: 1px solid hsl(var(--warning) / 0.2);
+  /* Hero Financial Card */
+  .hero-financial-card {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08),
+                0 2px 8px -2px rgba(0, 0, 0, 0.04);
   }
 
-  .tension-card-success {
-    background: linear-gradient(135deg, 
-      hsl(var(--success) / 0.05) 0%, 
-      hsl(var(--success) / 0.01) 100%
-    );
-    border: 1px solid hsl(var(--success) / 0.15);
+  .hero-financial-number {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
+  /* Tension Chips */
   .tension-chip {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold;
     @apply transition-all cursor-pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .tension-chip-warning {
-    @apply bg-warning/10 text-warning hover:bg-warning/20;
+    @apply bg-warning/10 text-warning border border-warning/20 hover:bg-warning/20 hover:border-warning/30;
   }
 
   .tension-chip-danger {
-    @apply bg-destructive/10 text-destructive hover:bg-destructive/20;
+    @apply bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 hover:border-destructive/30;
   }
 
   .tension-chip-primary {
-    @apply bg-primary/10 text-primary hover:bg-primary/20;
+    @apply bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/30;
   }
 
-  /* Radar Alerts */
+  /* Radar Alerts - Premium */
   .radar-alert {
     @apply flex items-center gap-3 p-4 rounded-xl transition-all bg-card;
-    @apply hover:bg-muted/50 cursor-pointer border border-transparent;
+    @apply hover:bg-muted/30 cursor-pointer border border-transparent;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   }
 
   .radar-alert-critical {
-    @apply border-l-4 border-l-destructive bg-destructive/5;
+    @apply border-l-4 border-l-destructive bg-destructive/5 border-t border-r border-b border-destructive/10;
   }
 
   .radar-alert-warning {
-    @apply border-l-4 border-l-warning bg-warning/5;
+    @apply border-l-4 border-l-warning bg-warning/5 border-t border-r border-b border-warning/10;
   }
 
   .radar-alert-opportunity {
-    @apply border-l-4 border-l-success bg-success/5;
+    @apply border-l-4 border-l-success bg-success/5 border-t border-r border-b border-success/10;
+  }
+
+  /* Metric Cards */
+  .metric-card {
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.06),
+                0 4px 16px -4px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Product Spotlight */
+  .product-spotlight {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08),
+                0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  /* AI Insight Banner */
+  .ai-insight-banner {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.06);
   }
 
   /* Sparkline Card */
