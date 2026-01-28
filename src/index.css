@@ -321,6 +321,89 @@
   .action-card-operacion {
     @apply border-l-muted-foreground bg-secondary/50;
   }
+
+  /* ============================================= */
+  /* PREMIUM DASHBOARD COMPONENTS                 */
+  /* ============================================= */
+
+  /* Tension Card (Hero) */
+  .tension-card {
+    background: linear-gradient(135deg, 
+      hsl(var(--warning) / 0.08) 0%, 
+      hsl(var(--warning) / 0.02) 100%
+    );
+    border: 1px solid hsl(var(--warning) / 0.2);
+  }
+
+  .tension-card-success {
+    background: linear-gradient(135deg, 
+      hsl(var(--success) / 0.05) 0%, 
+      hsl(var(--success) / 0.01) 100%
+    );
+    border: 1px solid hsl(var(--success) / 0.15);
+  }
+
+  .tension-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium;
+    @apply transition-all cursor-pointer;
+  }
+
+  .tension-chip-warning {
+    @apply bg-warning/10 text-warning hover:bg-warning/20;
+  }
+
+  .tension-chip-danger {
+    @apply bg-destructive/10 text-destructive hover:bg-destructive/20;
+  }
+
+  .tension-chip-primary {
+    @apply bg-primary/10 text-primary hover:bg-primary/20;
+  }
+
+  /* Radar Alerts */
+  .radar-alert {
+    @apply flex items-center gap-3 p-4 rounded-xl transition-all bg-card;
+    @apply hover:bg-muted/50 cursor-pointer border border-transparent;
+  }
+
+  .radar-alert-critical {
+    @apply border-l-4 border-l-destructive bg-destructive/5;
+  }
+
+  .radar-alert-warning {
+    @apply border-l-4 border-l-warning bg-warning/5;
+  }
+
+  .radar-alert-opportunity {
+    @apply border-l-4 border-l-success bg-success/5;
+  }
+
+  /* Sparkline Card */
+  .sparkline-card {
+    @apply p-4 rounded-xl bg-card border border-border/50;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  /* Key Product Card */
+  .key-product-card {
+    @apply relative overflow-hidden rounded-2xl border border-border/50 bg-card p-4;
+    @apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+
+  /* Insight Card */
+  .insight-card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+
+  /* Smart Actions */
+  .smart-actions {
+    @apply flex flex-wrap items-center justify-center gap-3;
+  }
+
+  .smart-action-primary {
+    @apply shadow-lg;
+  }
 }
 
 @layer utilities {
