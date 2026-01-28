@@ -311,6 +311,198 @@ export function generateEstrategiaTasks(
 }
 
 // ====================================
+// REGLAS DE SEGUIMIENTO POST-VENTA
+// ====================================
+
+export function generateSeguimientoTasks(sales: Sale[]): GeneratedTask[] {
+  const tasks: GeneratedTask[] = [];
+
+  for (const sale of sales) {
+    // Skip ventas en estado final
+    if (sale.orderStatus === 'entregado' && sale.paymentStatus === 'pagado') continue;
+    if (sale.operationalStatus === 'entregado') continue;
+    
+    const daysSinceStatus = daysSince(sale.statusUpdatedAt || sale.saleDate);
+    const isContraEntrega = sale.paymentMethod === 'contra_entrega';
+    const isTransferencia = sale.paymentMethod === 'transferencia';
+    const clientName = sale.clientName || 'Cliente';
+    const amount = sale.totalAmount.toLocaleString();
+
+    // === CONTRA ENTREGA ===
+    if (isContraEntrega) {
+      // Regla 1: Confirmar pedido nuevo
+      if (sale.operationalStatus === 'nuevo' && daysSinceStatus <= 1) {
+        tasks.push({
+          name: `Confirmar pedido: ${clientName}`,
+          description: `$${amount} - llamar para confirmar`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Venta contra entrega registrada. Confirmar disponibilidad del cliente.`,
+          consequence: 'Sin confirmación, el pedido puede perderse o generar devolución.',
+          actionLabel: 'Marcar contactado',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:confirmar:${sale.id}`,
+        });
+      }
+      
+      // Regla 2: Recordar confirmación si no hay respuesta
+      if (sale.operationalStatus === 'nuevo' && daysSinceStatus > 2) {
+        tasks.push({
+          name: `Recordar confirmación: ${clientName}`,
+          description: `Sin respuesta hace ${daysSinceStatus} días`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente no ha confirmado pedido después de ${daysSinceStatus} días`,
+          consequence: 'Alto riesgo de pérdida de venta o devolución.',
+          actionLabel: 'Contactar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:recordar:${sale.id}`,
+        });
+      }
+      
+      // Regla 3: Marcar riesgo
+      if (sale.operationalStatus === 'sin_respuesta' && daysSinceStatus > 3) {
+        tasks.push({
+          name: `Venta en riesgo: ${clientName}`,
+          description: `Sin respuesta - considerar cancelación`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente sin respuesta por ${daysSinceStatus} días`,
+          consequence: 'Probable pérdida de venta y costos de envío si se despacha.',
+          actionLabel: 'Evaluar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:riesgo:${sale.id}`,
+        });
+      }
+
+      // Regla 4: Preparar envío (confirmado pero sin despachar)
+      if (sale.operationalStatus === 'confirmado' && daysSinceStatus > 2) {
+        tasks.push({
+          name: `Preparar envío: ${clientName}`,
+          description: `Confirmado hace ${daysSinceStatus} días sin despachar`,
+          type: 'seguimiento_venta',
+          priority: 'media',
+          impact: 'operacion',
+          triggerReason: `Pedido confirmado esperando despacho hace ${daysSinceStatus} días`,
+          consequence: 'Demoras pueden generar cancelaciones.',
+          actionLabel: 'Despachar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:despachar:${sale.id}`,
+        });
+      }
+    }
+
+    // === TRANSFERENCIA ===
+    if (isTransferencia) {
+      // Regla 1: Enviar datos de pago
+      if (sale.operationalStatus === 'nuevo' && sale.paymentStatus === 'pendiente') {
+        tasks.push({
+          name: `Enviar datos de pago: ${clientName}`,
+          description: `$${amount} pendiente`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Venta por transferencia sin datos de pago enviados`,
+          consequence: 'El cliente no puede pagar sin los datos bancarios.',
+          actionLabel: 'Marcar contactado',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:datos:${sale.id}`,
+        });
+      }
+      
+      // Regla 2: Recordar pago
+      if (sale.operationalStatus === 'contactado' && sale.paymentStatus === 'pendiente' && daysSinceStatus > 2) {
+        tasks.push({
+          name: `Recordar pago: ${clientName}`,
+          description: `$${amount} - ${daysSinceStatus} días sin pagar`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente contactado pero sin transferir después de ${daysSinceStatus} días`,
+          consequence: 'Riesgo de pérdida de venta.',
+          actionLabel: 'Recordar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:recordar_pago:${sale.id}`,
+        });
+      }
+
+      // Regla 3: Riesgo de no pago
+      if (sale.operationalStatus === 'contactado' && sale.paymentStatus === 'pendiente' && daysSinceStatus > 5) {
+        tasks.push({
+          name: `Riesgo no pago: ${clientName}`,
+          description: `$${amount} sin transferir hace ${daysSinceStatus} días`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Transferencia pendiente por más de 5 días`,
+          consequence: 'Alta probabilidad de venta perdida.',
+          actionLabel: 'Evaluar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          relatedProductId: sale.productId || undefined,
+          dedupKey: `seguimiento:riesgo_no_pago:${sale.id}`,
+        });
+      }
+    }
+
+    // === REGLAS GENERALES ===
+    
+    // En ruta sin entrega > 3 días
+    if (sale.operationalStatus === 'en_ruta' && daysSinceStatus > 3) {
+      tasks.push({
+        name: `Verificar entrega: ${clientName}`,
+        description: `En ruta hace ${daysSinceStatus} días`,
+        type: 'seguimiento_venta',
+        priority: 'media',
+        impact: 'operacion',
+        triggerReason: `Pedido marcado en ruta hace ${daysSinceStatus} días sin confirmación de entrega`,
+        consequence: 'Posible problema logístico o devolución no reportada.',
+        actionLabel: 'Verificar',
+        actionPath: '/sales',
+        relatedSaleId: sale.id,
+        relatedProductId: sale.productId || undefined,
+        dedupKey: `seguimiento:verificar_entrega:${sale.id}`,
+      });
+    }
+    
+    // Riesgo de devolución
+    if (sale.operationalStatus === 'riesgo_devolucion') {
+      tasks.push({
+        name: `Resolver riesgo: ${clientName}`,
+        description: `$${amount} en riesgo`,
+        type: 'seguimiento_venta',
+        priority: 'alta',
+        impact: 'dinero',
+        triggerReason: `Venta marcada con riesgo de devolución o pérdida`,
+        consequence: 'Pérdida directa de la venta y posibles costos adicionales.',
+        actionLabel: 'Resolver',
+        actionPath: '/sales',
+        relatedSaleId: sale.id,
+        relatedProductId: sale.productId || undefined,
+        dedupKey: `seguimiento:resolver_riesgo:${sale.id}`,
+      });
+    }
+  }
+
+  return tasks;
+}
+
+// ====================================
 // GENERADOR PRINCIPAL
 // ====================================
 
@@ -323,6 +515,7 @@ export function generateAllTasks(
 
   // Generar tareas de cada categoría
   allTasks.push(...generateCobroTasks(sales));
+  allTasks.push(...generateSeguimientoTasks(sales));
   allTasks.push(...generateCreativoTasks(products, creatives));
   allTasks.push(...generateEstrategiaTasks(products, sales));
 

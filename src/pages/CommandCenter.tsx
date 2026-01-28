@@ -14,7 +14,7 @@ import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCa
 import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { OperationalTask } from '@/types';
+import { OperationalTask, OperationalStatus } from '@/types';
 import { 
   ShoppingCart, 
   DollarSign, 
@@ -26,7 +26,10 @@ import {
   CheckCircle2,
   ArrowRight,
   ListTodo,
-  Trophy
+  Trophy,
+  AlertTriangle,
+  ShieldAlert,
+  PhoneCall,
 } from 'lucide-react';
 
 export default function CommandCenter() {
@@ -50,6 +53,23 @@ export default function CommandCenter() {
 
   const summary = useBusinessSummary({ sales, products, creatives });
   const smartProducts = useSmartCatalog({ products, sales, creatives });
+
+  // Calcular alertas de seguimiento
+  const seguimientoAlerts = {
+    sinConfirmar: sales.filter(s => s.operationalStatus === 'nuevo').length,
+    sinConfirmarViejo: sales.filter(s => {
+      if (s.operationalStatus !== 'nuevo') return false;
+      const days = Math.floor((Date.now() - new Date(s.statusUpdatedAt || s.saleDate).getTime()) / (1000 * 60 * 60 * 24));
+      return days > 2;
+    }).length,
+    enRiesgo: sales.filter(s => 
+      s.operationalStatus === 'riesgo_devolucion' || s.operationalStatus === 'sin_respuesta'
+    ).length,
+    pendienteAccion: sales.filter(s => 
+      s.operationalStatus !== 'entregado' && 
+      !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
+    ).length,
+  };
 
   // State for close modal
   const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
@@ -156,6 +176,62 @@ export default function CommandCenter() {
               smartProducts={smartProducts}
               tasks={todayTasks}
             />
+          </section>
+        )}
+
+        {/* Seguimiento Alerts */}
+        {isAdmin && (seguimientoAlerts.sinConfirmarViejo > 0 || seguimientoAlerts.enRiesgo > 0) && (
+          <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.15s' }}>
+            <div className="section-header">
+              <div className="section-indicator bg-amber-500" />
+              <h2 className="text-xl font-semibold text-foreground">
+                Alertas de Seguimiento
+              </h2>
+            </div>
+
+            <div className="grc-card p-4 space-y-3">
+              {seguimientoAlerts.sinConfirmarViejo > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-amber-500/10 rounded-lg">
+                  <PhoneCall className="w-5 h-5 text-amber-600" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      {seguimientoAlerts.sinConfirmarViejo} ventas sin confirmar &gt;2 días
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Requieren contacto inmediato
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigate('/sales')}
+                  >
+                    Ver ventas
+                  </Button>
+                </div>
+              )}
+              
+              {seguimientoAlerts.enRiesgo > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-lg">
+                  <ShieldAlert className="w-5 h-5 text-destructive" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      {seguimientoAlerts.enRiesgo} ventas en riesgo
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Posible pérdida o devolución
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => navigate('/sales')}
+                  >
+                    Atender ahora
+                  </Button>
+                </div>
+              )}
+            </div>
           </section>
         )}
 
