@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useSales } from '@/hooks/useSales';
+import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sale, SalesChannel, OrderStatus, PaymentStatus } from '@/types';
+import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,11 @@ import {
   AlertTriangle,
   Percent,
   Wallet,
+  CircleDot,
+  PhoneCall,
+  ThumbsUp,
+  PhoneOff,
+  ShieldAlert,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
@@ -81,8 +86,18 @@ const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string; icon: typeof Pa
   { value: 'entregado', label: 'Entregado', icon: CheckCircle },
 ];
 
+const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; icon: typeof CircleDot; color: string }[] = [
+  { value: 'nuevo', label: 'Nuevo', icon: CircleDot, color: 'text-muted-foreground border-muted-foreground/50' },
+  { value: 'contactado', label: 'Contactado', icon: PhoneCall, color: 'text-sky-600 border-sky-600' },
+  { value: 'confirmado', label: 'Confirmado', icon: ThumbsUp, color: 'text-emerald-600 border-emerald-600' },
+  { value: 'sin_respuesta', label: 'Sin respuesta', icon: PhoneOff, color: 'text-amber-600 border-amber-600' },
+  { value: 'en_ruta', label: 'En ruta', icon: Truck, color: 'text-violet-600 border-violet-600' },
+  { value: 'entregado', label: 'Entregado', icon: CheckCircle, color: 'text-emerald-600 border-emerald-600' },
+  { value: 'riesgo_devolucion', label: 'En riesgo', icon: ShieldAlert, color: 'text-destructive border-destructive' },
+];
+
 export default function Sales() {
-  const { sales, loading, addSale, updateSale, deleteSale } = useSales();
+  const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
   const { products } = useProducts();
   const { isAdmin } = useAuth();
 
@@ -128,6 +143,16 @@ export default function Sales() {
       : 0;
     const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
 
+    // KPIs de seguimiento operativo
+    const sinConfirmar = sales.filter(s => s.operationalStatus === 'nuevo').length;
+    const enRiesgo = sales.filter(s => 
+      s.operationalStatus === 'riesgo_devolucion' || s.operationalStatus === 'sin_respuesta'
+    ).length;
+    const pendienteAccion = sales.filter(s => 
+      s.operationalStatus !== 'entregado' && 
+      !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
+    ).length;
+
     return {
       totalSold,
       totalSales: sales.length,
@@ -139,6 +164,10 @@ export default function Sales() {
       netProfit,
       avgMargin,
       salesWithLoss,
+      // Seguimiento
+      sinConfirmar,
+      enRiesgo,
+      pendienteAccion,
     };
   }, [sales]);
 
@@ -365,6 +394,55 @@ export default function Sales() {
           </div>
         )}
 
+        {/* Dashboard Stats - Row 3: Seguimiento (solo admin) */}
+        {isAdmin && (stats.sinConfirmar > 0 || stats.enRiesgo > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-muted rounded-lg">
+                    <CircleDot className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sin confirmar</p>
+                    <p className="text-2xl font-bold">{stats.sinConfirmar}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={stats.enRiesgo > 0 ? 'border-destructive/50' : ''}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${stats.enRiesgo > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
+                    <ShieldAlert className={`w-5 h-5 ${stats.enRiesgo > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">En riesgo</p>
+                    <p className={`text-2xl font-bold ${stats.enRiesgo > 0 ? 'text-destructive' : ''}`}>
+                      {stats.enRiesgo}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <PhoneCall className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pendiente acción</p>
+                    <p className="text-2xl font-bold">{stats.pendienteAccion}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Sales List */}
         {sales.length === 0 ? (
           <Card>
@@ -393,6 +471,7 @@ export default function Sales() {
                 onDelete={() => setDeletingSale(sale)}
                 onPaymentToggle={() => handleQuickPaymentToggle(sale)}
                 onOrderStatusChange={(status) => handleOrderStatusChange(sale, status)}
+                onOperationalStatusChange={(status) => updateOperationalStatus(sale.id, status)}
               />
             ))}
           </div>
@@ -630,9 +709,10 @@ interface SaleCardProps {
   onDelete: () => void;
   onPaymentToggle: () => void;
   onOrderStatusChange: (status: OrderStatus) => void;
+  onOperationalStatusChange: (status: OperationalStatus) => void;
 }
 
-function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderStatusChange }: SaleCardProps) {
+function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderStatusChange, onOperationalStatusChange }: SaleCardProps) {
   const getChannelLabel = (channel?: SalesChannel) => {
     return SALES_CHANNELS.find(c => c.value === channel)?.label || channel || '-';
   };
@@ -645,7 +725,12 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
     return ORDER_STATUS_OPTIONS.find(s => s.value === status) || ORDER_STATUS_OPTIONS[0];
   };
 
+  const getOperationalStatusOption = (status: OperationalStatus) => {
+    return OPERATIONAL_STATUS_OPTIONS.find(s => s.value === status) || OPERATIONAL_STATUS_OPTIONS[0];
+  };
+
   const orderStatusOption = getOrderStatusOption(sale.orderStatus);
+  const operationalStatusOption = getOperationalStatusOption(sale.operationalStatus);
 
   // Cálculos de margen (usando campos congelados)
   const totalCost = (sale.costAtSale || 0) * sale.quantity;
@@ -760,6 +845,32 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
                     disabled={!isAdmin}
                   >
                     <status.icon className="w-4 h-4 mr-2" />
+                    {status.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Operational Status - Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className={`cursor-pointer gap-1 ${operationalStatusOption.color}`}
+                >
+                  <operationalStatusOption.icon className="w-3 h-3" />
+                  {operationalStatusOption.label}
+                  <ChevronDown className="w-3 h-3" />
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {OPERATIONAL_STATUS_OPTIONS.map((status) => (
+                  <DropdownMenuItem
+                    key={status.value}
+                    onClick={() => onOperationalStatusChange(status.value)}
+                    disabled={!isAdmin}
+                  >
+                    <status.icon className={`w-4 h-4 mr-2 ${status.color.split(' ')[0]}`} />
                     {status.label}
                   </DropdownMenuItem>
                 ))}

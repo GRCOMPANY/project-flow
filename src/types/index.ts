@@ -5,6 +5,16 @@ export type ProductStatus = 'activo' | 'pausado' | 'agotado';
 export type SellerStatus = 'activo' | 'inactivo';
 export type PaymentStatus = 'pendiente' | 'pagado';
 export type OrderStatus = 'pendiente' | 'en_progreso' | 'entregado';
+
+// Estados operativos de venta (ciclo post-venta)
+export type OperationalStatus = 
+  | 'nuevo'
+  | 'contactado'
+  | 'confirmado'
+  | 'sin_respuesta'
+  | 'en_ruta'
+  | 'entregado'
+  | 'riesgo_devolucion';
 export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' | 'otro';
 
 // Product types
@@ -156,6 +166,10 @@ export interface Sale {
   marginAtSale?: number;         // Margen calculado y congelado
   marginPercentAtSale?: number;  // Porcentaje de margen congelado
   relatedCreativeId?: string;    // Creativo que originó la venta
+  
+  // Seguimiento operativo (Fase 2)
+  operationalStatus: OperationalStatus;
+  statusUpdatedAt?: string;
 }
 
 // Creative Intelligence

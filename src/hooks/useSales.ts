@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller, OrderStatus, SalesChannel } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
+// Labels para estados operativos
+export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  confirmado: 'Confirmado',
+  sin_respuesta: 'Sin respuesta',
+  en_ruta: 'En ruta',
+  entregado: 'Entregado',
+  riesgo_devolucion: 'En riesgo',
+};
+
 // Tipo para input de venta con campos de congelado financiero opcionales
-interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller'> {
+interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt'> {
   relatedCreativeId?: string;
+  operationalStatus?: OperationalStatus;
 }
 
 export function useSales() {
@@ -87,6 +99,9 @@ export function useSales() {
           marginAtSale: Number(s.margin_at_sale) || 0,
           marginPercentAtSale: Number(s.margin_percent_at_sale) || 0,
           relatedCreativeId: s.related_creative_id || undefined,
+          // Operational tracking fields
+          operationalStatus: (s.operational_status as OperationalStatus) || 'nuevo',
+          statusUpdatedAt: s.status_updated_at || undefined,
         }))
       );
     }
@@ -245,12 +260,39 @@ export function useSales() {
     return true;
   };
 
+  const updateOperationalStatus = async (
+    id: string, 
+    newStatus: OperationalStatus
+  ): Promise<boolean> => {
+    const { error } = await supabase
+      .from('sales')
+      .update({
+        operational_status: newStatus,
+        status_updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el estado',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    toast({ title: `Estado: ${OPERATIONAL_STATUS_LABELS[newStatus]}` });
+    fetchSales();
+    return true;
+  };
+
   return {
     sales,
     loading,
     addSale,
     updateSale,
     deleteSale,
+    updateOperationalStatus,
     refetch: fetchSales,
   };
 }

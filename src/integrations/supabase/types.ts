@@ -224,6 +224,9 @@ export type Database = {
           margin_at_sale: number | null
           margin_percent_at_sale: number | null
           notes: string | null
+          operational_status:
+            | Database["public"]["Enums"]["operational_status"]
+            | null
           order_status: Database["public"]["Enums"]["order_status"] | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
@@ -233,6 +236,7 @@ export type Database = {
           sale_date: string
           sales_channel: string | null
           seller_id: string | null
+          status_updated_at: string | null
           total_amount: number
           unit_price: number
           updated_at: string
@@ -246,6 +250,9 @@ export type Database = {
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
           notes?: string | null
+          operational_status?:
+            | Database["public"]["Enums"]["operational_status"]
+            | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -255,6 +262,7 @@ export type Database = {
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
+          status_updated_at?: string | null
           total_amount?: number
           unit_price?: number
           updated_at?: string
@@ -268,6 +276,9 @@ export type Database = {
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
           notes?: string | null
+          operational_status?:
+            | Database["public"]["Enums"]["operational_status"]
+            | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -277,6 +288,7 @@ export type Database = {
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
+          status_updated_at?: string | null
           total_amount?: number
           unit_price?: number
           updated_at?: string
@@ -642,6 +654,14 @@ export type Database = {
         | "publicado"
         | "descartado"
       creative_type: "imagen" | "video" | "copy"
+      operational_status:
+        | "nuevo"
+        | "contactado"
+        | "confirmado"
+        | "sin_respuesta"
+        | "en_ruta"
+        | "entregado"
+        | "riesgo_devolucion"
       order_status: "pendiente" | "en_progreso" | "entregado"
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
@@ -796,6 +816,15 @@ export const Constants = {
         "descartado",
       ],
       creative_type: ["imagen", "video", "copy"],
+      operational_status: [
+        "nuevo",
+        "contactado",
+        "confirmado",
+        "sin_respuesta",
+        "en_ruta",
+        "entregado",
+        "riesgo_devolucion",
+      ],
       order_status: ["pendiente", "en_progreso", "entregado"],
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
