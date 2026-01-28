@@ -3,6 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Sale, Product, Seller, OrderStatus, SalesChannel } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
+// Tipo para input de venta con campos de congelado financiero opcionales
+interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller'> {
+  relatedCreativeId?: string;
+}
+
 export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,17 +82,67 @@ export function useSales() {
           notes: s.notes || undefined,
           createdAt: s.created_at,
           updatedAt: s.updated_at,
+          // Financial freeze fields
+          costAtSale: Number(s.cost_at_sale) || 0,
+          marginAtSale: Number(s.margin_at_sale) || 0,
+          marginPercentAtSale: Number(s.margin_percent_at_sale) || 0,
+          relatedCreativeId: s.related_creative_id || undefined,
         }))
       );
     }
     setLoading(false);
   };
 
+  // Helper: Obtener producto para congelado financiero
+  const getProductForFreeze = async (productId: string): Promise<Product | null> => {
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .maybeSingle();
+    
+    if (!data) return null;
+    
+    return {
+      id: data.id,
+      name: data.name,
+      costPrice: Number(data.supplier_price) || 0,
+      wholesalePrice: Number(data.wholesale_price) || 0,
+      retailPrice: Number(data.suggested_price) || 0,
+      price: Number(data.price),
+      supplierPrice: Number(data.supplier_price) || 0,
+      suggestedPrice: Number(data.suggested_price) || 0,
+      status: data.status,
+      isFeatured: data.is_featured || false,
+      autoPromote: data.auto_promote || false,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    } as Product;
+  };
+
   useEffect(() => {
     fetchSales();
   }, []);
 
-  const addSale = async (sale: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller'>) => {
+  const addSale = async (sale: SaleInput) => {
+    // CONGELADO FINANCIERO: Capturar costo del producto al momento de la venta
+    let costAtSale = 0;
+    let marginAtSale = 0;
+    let marginPercentAtSale = 0;
+
+    if (sale.productId) {
+      const product = await getProductForFreeze(sale.productId);
+      if (product) {
+        costAtSale = product.costPrice || 0;
+        // Calcular margen usando el precio unitario de la venta
+        marginAtSale = sale.unitPrice - costAtSale;
+        // Calcular porcentaje (evitar división por cero)
+        marginPercentAtSale = costAtSale > 0 
+          ? Math.round(((sale.unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+          : 0;
+      }
+    }
+
     const { data, error } = await supabase
       .from('sales')
       .insert({
@@ -104,6 +159,11 @@ export function useSales() {
         order_status: sale.orderStatus || 'pendiente',
         sale_date: sale.saleDate,
         notes: sale.notes || null,
+        // Campos de congelado financiero
+        cost_at_sale: costAtSale,
+        margin_at_sale: marginAtSale,
+        margin_percent_at_sale: marginPercentAtSale,
+        related_creative_id: sale.relatedCreativeId || null,
       })
       .select()
       .single();
@@ -117,7 +177,17 @@ export function useSales() {
       return null;
     }
 
-    toast({ title: 'Venta registrada' });
+    // Mostrar alerta si la venta tiene margen negativo
+    if (marginAtSale < 0) {
+      toast({
+        title: '⚠️ Venta con pérdida',
+        description: `Margen negativo: $${marginAtSale.toLocaleString()}`,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Venta registrada' });
+    }
+
     fetchSales();
     return data;
   };

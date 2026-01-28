@@ -119,6 +119,29 @@ export function generateCobroTasks(sales: Sale[]): GeneratedTask[] {
         },
       });
     }
+
+    // Regla 4: Venta con margen negativo (pérdida)
+    if ((sale.marginAtSale ?? 0) < 0) {
+      tasks.push({
+        name: `Revisar precio: ${productName}`,
+        description: `Venta con pérdida de $${Math.abs(sale.marginAtSale || 0).toLocaleString()}`,
+        type: 'estrategia',
+        priority: 'alta',
+        impact: 'dinero',
+        triggerReason: `Venta registrada con margen negativo ($${sale.marginAtSale?.toLocaleString()}). El precio de venta fue menor al costo.`,
+        consequence: 'Cada venta de este producto a este precio genera pérdida directa.',
+        actionLabel: 'Revisar producto',
+        actionPath: `/products/${sale.productId}`,
+        relatedSaleId: sale.id,
+        relatedProductId: sale.productId || undefined,
+        dedupKey: `venta_perdida:sale:${sale.id}`,
+        context: {
+          costAtSale: sale.costAtSale,
+          unitPrice: sale.unitPrice,
+          marginAtSale: sale.marginAtSale,
+        },
+      });
+    }
   }
 
   return tasks;
