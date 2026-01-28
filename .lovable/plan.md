@@ -1,382 +1,363 @@
 
+# Plan Maestro: GRC AI OS - Evolución a Sistema Operativo Completo
 
-# Plan: Cierre de Ciclo de Tareas con Task Outcomes
+## Diagnóstico del Estado Actual
 
-## Resumen
+### Lo que YA existe y funciona bien:
 
-Este plan implementa un sistema de registro de resultados al completar tareas, permitiendo al sistema aprender y priorizar mejor en el futuro. Se crea una nueva entidad `task_outcomes` relacionada 1:1 con `tasks`.
+| Módulo | Estado | Funcionalidades |
+|--------|--------|-----------------|
+| **Productos** | 70% | CRUD, precios (costo/mayoreo/retail), márgenes calculados, Smart Catalog con prioridades |
+| **Ventas** | 60% | CRUD, estados de pago/entrega, canales de venta, relación con productos |
+| **Creativos** | 65% | Tipos/canales/objetivos, estados, resultados (funcionó/no), learning |
+| **Tareas** | 90% | Sistema operativo completo, reglas automáticas, cierre con outcomes |
+| **Command Center** | 75% | Acciones del día, métricas de negocio, Daily Insight |
+
+### Gaps Críticos Identificados:
+
+```text
+PRODUCTOS
+┌─────────────────────────────────────────────────────────────────────┐
+│ FALTA: Estado Comercial (Frío/Tibio/Caliente)                       │
+│ FALTA: Sistema de Activaciones (historial de promociones)           │
+│ FALTA: Rentabilidad REAL acumulada desde ventas                     │
+│ FALTA: Días sin activación                                          │
+└─────────────────────────────────────────────────────────────────────┘
+
+VENTAS
+┌─────────────────────────────────────────────────────────────────────┐
+│ FALTA: Congelado financiero (cost_at_sale, margin_at_sale)          │
+│ FALTA: Detección de ventas con pérdida                              │
+│ FALTA: Relación con activación/creativo que generó la venta         │
+└─────────────────────────────────────────────────────────────────────┘
+
+CREATIVOS
+┌─────────────────────────────────────────────────────────────────────┐
+│ FALTA: Métricas manuales (mensajes recibidos, ventas generadas)     │
+│ FALTA: Comparación con creativo anterior                            │
+│ FALTA: Tareas automáticas por bajo rendimiento                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+VENDEDORES
+┌─────────────────────────────────────────────────────────────────────┐
+│ FALTA: Tracking de productos enviados                               │
+│ FALTA: Detección de envíos sin resultados                           │
+│ FALTA: Tareas de reenvío                                            │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Fase 1: Migración de Base de Datos
+## Plan de Implementación por Fases
 
-### 1.1 Crear tabla `task_outcomes`
+### FASE 1: Congelado Financiero de Ventas (Crítico)
+**Prioridad: ALTA | Impacto: Dinero**
+
+#### 1.1 Migración de Base de Datos
+
+Agregar campos a tabla `sales`:
+- `cost_at_sale` (numeric) - Costo del producto al momento de la venta
+- `price_at_sale` (numeric) - Precio de venta real aplicado
+- `margin_at_sale` (numeric) - Margen calculado y congelado
+- `margin_percent_at_sale` (numeric) - Porcentaje de margen congelado
+- `related_activation_id` (uuid) - Activación que originó la venta
+- `related_creative_id` (uuid) - Creativo que originó la venta
+
+#### 1.2 Lógica de Negocio
+
+Al crear una venta:
+1. Capturar `costPrice` del producto actual
+2. Calcular margen: `margin = price_at_sale - cost_at_sale`
+3. Calcular porcentaje: `marginPercent = (margin / cost_at_sale) * 100`
+4. Guardar valores congelados en la venta
+
+**Regla crítica**: El margen NUNCA cambia aunque el producto se edite después.
+
+#### 1.3 Alertas de Ventas con Pérdida
+
+Crear tarea automática cuando:
+- `margin_at_sale < 0` → "Venta con pérdida: {producto} - Revisar precio"
+- Mostrar alerta visual en el listado de ventas
+
+---
+
+### FASE 2: Sistema de Activaciones de Producto
+**Prioridad: ALTA | Impacto: Crecimiento**
+
+#### 2.1 Nueva Tabla `product_activations`
 
 ```sql
--- Enum para resultados
-CREATE TYPE task_outcome_result AS ENUM (
-  'exitoso',
-  'fallido', 
-  'reprogramado',
-  'cancelado'
-);
-
--- Tabla de resultados
-CREATE TABLE task_outcomes (
+CREATE TABLE product_activations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id UUID NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   
-  -- Resultado operativo
-  result task_outcome_result NOT NULL,
+  -- Tipo de activación
+  activation_type TEXT NOT NULL, -- 'nuevo' | 'refuerzo' | 'promocion'
+  channel TEXT NOT NULL,          -- 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok'
   
-  -- Impacto económico
-  generated_income BOOLEAN NOT NULL DEFAULT false,
-  income_amount NUMERIC DEFAULT 0,
+  -- Creativo usado (si aplica)
+  creative_id UUID REFERENCES creatives(id),
   
-  -- Nota
-  notes TEXT,
+  -- Resultado
+  messages_received INTEGER DEFAULT 0,
+  sales_generated INTEGER DEFAULT 0,
   
   -- Metadata
-  completed_by UUID REFERENCES auth.users(id),
-  completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  notes TEXT,
+  activated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Índices
-CREATE INDEX idx_task_outcomes_task_id ON task_outcomes(task_id);
-CREATE INDEX idx_task_outcomes_result ON task_outcomes(result);
-CREATE INDEX idx_task_outcomes_completed_at ON task_outcomes(completed_at);
-CREATE INDEX idx_task_outcomes_generated_income ON task_outcomes(generated_income);
-
--- RLS
-ALTER TABLE task_outcomes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Authenticated users can view outcomes"
-  ON task_outcomes FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Admins can insert outcomes"
-  ON task_outcomes FOR INSERT
-  WITH CHECK (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can update outcomes"
-  ON task_outcomes FOR UPDATE
-  USING (has_role(auth.uid(), 'admin'));
 ```
 
----
-
-## Fase 2: Tipos TypeScript
-
-### 2.1 Nuevos tipos en `src/types/index.ts`
+#### 2.2 TypeScript
 
 ```typescript
-// Resultado del cierre de tarea
-export type TaskOutcomeResult = 'exitoso' | 'fallido' | 'reprogramado' | 'cancelado';
-
-// Registro de resultado de tarea
-export interface TaskOutcome {
+export interface ProductActivation {
   id: string;
-  taskId: string;
-  result: TaskOutcomeResult;
-  generatedIncome: boolean;
-  incomeAmount: number;
+  productId: string;
+  activationType: 'nuevo' | 'refuerzo' | 'promocion';
+  channel: SalesChannel;
+  creativeId?: string;
+  messagesReceived: number;
+  salesGenerated: number;
   notes?: string;
-  completedBy?: string;
-  completedAt: string;
+  activatedAt: string;
   createdAt: string;
 }
-
-// Input para crear outcome
-export interface CreateTaskOutcomeInput {
-  taskId: string;
-  result: TaskOutcomeResult;
-  generatedIncome: boolean;
-  incomeAmount?: number;
-  notes?: string;
-}
-
-// Extensión de OperationalTask para incluir outcome
-export interface OperationalTask {
-  // ... campos existentes ...
-  outcome?: TaskOutcome; // Nuevo campo
-}
 ```
+
+#### 2.3 Integración con Productos
+
+Enriquecer `ProductWithMetrics`:
+- `lastActivation?: ProductActivation`
+- `daysSinceLastActivation: number`
+- `activationsCount: number`
+- `activationHistory: ProductActivation[]`
 
 ---
 
-## Fase 3: Hook de Task Outcomes
+### FASE 3: Estado Comercial del Producto (Frío/Tibio/Caliente)
+**Prioridad: ALTA | Impacto: Decisiones**
 
-### 3.1 Crear `src/hooks/useTaskOutcomes.ts`
-
-```typescript
-export function useTaskOutcomes() {
-  // createOutcome: crea el resultado Y marca la tarea como completada
-  // getOutcomeByTaskId: obtiene el outcome de una tarea
-  // getTodayStats: estadísticas de hoy (completadas, con ingreso, total)
-  
-  return {
-    createOutcome,
-    getOutcomeByTaskId,
-    todayStats: {
-      completedToday: number,
-      withIncome: number,
-      totalRecovered: number,
-    },
-    loading,
-  };
-}
-```
-
----
-
-## Fase 4: Modal de Cierre de Tarea
-
-### 4.1 Crear `src/components/tasks/TaskCloseModal.tsx`
-
-Estructura del modal:
-
-```
-┌─────────────────────────────────────────┐
-│  ✓ Cerrar Tarea                         │
-│  {nombre de la tarea}                   │
-├─────────────────────────────────────────┤
-│                                         │
-│  ¿Cuál fue el resultado?                │
-│  ┌─────────────────────────────────┐    │
-│  │ ✓ Exitoso                       │    │
-│  │ ✗ Fallido                       │    │
-│  │ 🔄 Reprogramado                 │    │
-│  │ ⊘ Cancelado                     │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  ¿Generó ingreso?                       │
-│  ○ Sí   ○ No                            │
-│                                         │
-│  (Si aplica)                            │
-│  Monto generado                         │
-│  ┌─────────────────────────────────┐    │
-│  │ $                               │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-│  Nota (opcional - máx 200 caracteres)   │
-│  ┌─────────────────────────────────┐    │
-│  │                                 │    │
-│  └─────────────────────────────────┘    │
-│                                         │
-├─────────────────────────────────────────┤
-│           [Cancelar]  [Guardar]         │
-└─────────────────────────────────────────┘
-```
-
-**Características:**
-- Selección de resultado con radio buttons estilizados
-- Toggle para indicar si generó ingreso
-- Campo numérico para monto (solo si generó ingreso)
-- Textarea con contador de caracteres (máx 200)
-- Validación obligatoria del resultado
-- UX rápida y sin fricción
-
----
-
-## Fase 5: Actualizar TaskCard
-
-### 5.1 Modificar `src/components/tasks/TaskCard.tsx`
-
-**Cambios:**
-1. Mostrar badge visual si la tarea tiene outcome
-2. Mostrar indicador de ingreso generado (💰)
-3. Para tareas completadas: mostrar resumen del resultado
+#### 3.1 Nuevo Tipo
 
 ```typescript
-// Si la tarea tiene outcome, mostrar badge
-{task.outcome && (
-  <div className="flex items-center gap-2">
-    <Badge variant={outcomeVariant[task.outcome.result]}>
-      {outcomeLabels[task.outcome.result]}
-    </Badge>
-    {task.outcome.generatedIncome && (
-      <Badge variant="success">
-        💰 ${task.outcome.incomeAmount.toLocaleString()}
-      </Badge>
-    )}
-  </div>
-)}
+export type CommercialState = 'frio' | 'tibio' | 'caliente';
 ```
 
-**Variantes visuales:**
-- Exitoso: Verde/Success
-- Fallido: Rojo/Destructive  
-- Reprogramado: Amarillo/Warning
-- Cancelado: Gris/Muted
-
----
-
-## Fase 6: Actualizar useTasks
-
-### 6.1 Modificar `src/hooks/useTasks.ts`
-
-**Cambios:**
-
-1. Cargar outcomes junto con las tareas:
-```typescript
-const { data, error } = await supabase
-  .from('tasks')
-  .select(`
-    *,
-    related_product:products(...),
-    related_sale:sales(...),
-    outcome:task_outcomes(*)  // NUEVO
-  `)
-```
-
-2. Nueva función `completeWithOutcome`:
-```typescript
-const completeWithOutcome = async (input: CreateTaskOutcomeInput) => {
-  // 1. Crear el outcome
-  await supabase.from('task_outcomes').insert({
-    task_id: input.taskId,
-    result: input.result,
-    generated_income: input.generatedIncome,
-    income_amount: input.incomeAmount || 0,
-    notes: input.notes,
-  });
-  
-  // 2. Marcar tarea como completada
-  await supabase.from('tasks').update({
-    status: 'terminada',
-    resolved_at: new Date().toISOString(),
-  }).eq('id', input.taskId);
-  
-  // 3. Refrescar
-  await fetchTasks();
-};
-```
-
-3. Nuevas estadísticas:
-```typescript
-const outcomeStats = useMemo(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const completedToday = tasks.filter(t => 
-    t.outcome && new Date(t.outcome.completedAt) >= today
-  );
-  
-  const withIncome = completedToday.filter(t => 
-    t.outcome?.generatedIncome
-  );
-  
-  const totalRecovered = withIncome.reduce((sum, t) => 
-    sum + (t.outcome?.incomeAmount || 0), 0
-  );
-  
-  return { completedToday: completedToday.length, withIncome: withIncome.length, totalRecovered };
-}, [tasks]);
-```
-
----
-
-## Fase 7: Actualizar Command Center
-
-### 7.1 Modificar `src/pages/CommandCenter.tsx`
-
-**Agregar sección de resultados del día:**
-
-```
-┌─────────────────────────────────────────────────┐
-│  ▌ RESULTADOS DE HOY                            │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │   ✓ 5    │ │  💰 3    │ │   $2,450         │ │
-│  │ Cerradas │ │Con ingreso│ │ Recuperado hoy  │ │
-│  └──────────┘ └──────────┘ └──────────────────┘ │
-└─────────────────────────────────────────────────┘
-```
-
-**Ubicación:** Después de "Estado del Negocio", solo si hay tareas cerradas hoy.
-
----
-
-## Fase 8: Integrar Modal en Flujo
-
-### 8.1 Actualizar TaskCard y Tasks.tsx
-
-**Flujo del botón "Completar":**
-
-1. Usuario hace clic en "Completar"
-2. Se abre `TaskCloseModal` con la tarea seleccionada
-3. Usuario llena el formulario obligatorio
-4. Al guardar:
-   - Se crea el outcome
-   - Se marca la tarea como completada
-   - Se cierra el modal
-   - Se actualiza la UI
+#### 3.2 Lógica de Clasificación (Reglas Fijas GRC)
 
 ```typescript
-// En Tasks.tsx
-const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
-
-const handleResolve = (id: string) => {
-  const task = tasks.find(t => t.id === id);
-  if (task) {
-    setCloseModalTask(task); // Abre el modal
+function calculateCommercialState(
+  salesLast30Days: number,
+  messagesReceived: number,  // de activaciones
+  daysSinceLastActivation: number
+): CommercialState {
+  // CALIENTE: Mensajes + Ventas activas
+  if (salesLast30Days >= 3 && messagesReceived > 5) {
+    return 'caliente';
   }
-};
-
-// Modal
-<TaskCloseModal
-  task={closeModalTask}
-  open={!!closeModalTask}
-  onOpenChange={(open) => !open && setCloseModalTask(null)}
-  onSubmit={completeWithOutcome}
-/>
+  
+  // TIBIO: Mensajes pero pocas ventas
+  if (messagesReceived > 3 && salesLast30Days < 3) {
+    return 'tibio';
+  }
+  
+  // FRÍO: Sin ventas después de activación
+  if (daysSinceLastActivation > 7 && salesLast30Days === 0) {
+    return 'frio';
+  }
+  
+  // Default basado en ventas
+  return salesLast30Days > 0 ? 'tibio' : 'frio';
+}
 ```
 
----
+#### 3.3 Visualización
 
-## Resumen de Archivos
-
-| Acción | Archivo |
-|--------|---------|
-| MIGRAR | Nueva tabla `task_outcomes` |
-| MODIFICAR | `src/types/index.ts` - Nuevos tipos |
-| CREAR | `src/components/tasks/TaskCloseModal.tsx` |
-| MODIFICAR | `src/components/tasks/TaskCard.tsx` - Badge de outcome |
-| MODIFICAR | `src/hooks/useTasks.ts` - Cargar outcomes + nueva función |
-| MODIFICAR | `src/pages/Tasks.tsx` - Integrar modal |
-| MODIFICAR | `src/pages/CommandCenter.tsx` - Stats del día |
+Actualizar `ProductCard` y `ProductDetail`:
+- Badge de color: 🔴 Frío | 🟡 Tibio | 🟢 Caliente
+- Tooltip con explicación
+- Filtro por estado comercial en catálogo
 
 ---
 
-## Orden de Implementación
+### FASE 4: Métricas de Creativos y Comparación
+**Prioridad: MEDIA | Impacto: Crecimiento**
 
-1. **Migración BD** - Crear tabla `task_outcomes`
-2. **Tipos TypeScript** - Nuevas interfaces
-3. **TaskCloseModal** - Componente del modal
-4. **useTasks** - Cargar outcomes + completeWithOutcome
-5. **TaskCard** - Mostrar badges de resultado
-6. **Tasks.tsx** - Integrar modal en flujo
-7. **CommandCenter** - Mostrar estadísticas del día
+#### 4.1 Nuevos Campos en `creatives`
+
+```sql
+ALTER TABLE creatives ADD COLUMN messages_received INTEGER DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN sales_generated INTEGER DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN compared_to_previous TEXT; -- 'mejor' | 'peor' | 'igual'
+```
+
+#### 4.2 Lógica de Comparación
+
+Al actualizar métricas de un creativo:
+1. Buscar creativo anterior del mismo producto
+2. Comparar `salesGenerated`
+3. Marcar como mejor/peor/igual
+4. Si es "peor" → generar tarea automática
+
+#### 4.3 UI de Creativos
+
+Agregar en la card de creativo:
+- Inputs para registrar mensajes/ventas manualmente
+- Indicador visual de comparación vs anterior
+- Badge de rendimiento
+
+---
+
+### FASE 5: Tracking de Productos a Vendedores
+**Prioridad: MEDIA | Impacto: Operación**
+
+#### 5.1 Nueva Tabla `seller_product_shares`
+
+```sql
+CREATE TABLE seller_product_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id UUID NOT NULL REFERENCES sellers(id),
+  product_id UUID NOT NULL REFERENCES products(id),
+  
+  shared_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  channel TEXT DEFAULT 'whatsapp',
+  
+  -- Resultado
+  sales_generated INTEGER DEFAULT 0,
+  
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+#### 5.2 Integración
+
+- Botón "Enviar a vendedores" funcional en ProductDetail
+- Modal para seleccionar vendedores
+- Registro automático de fecha
+- Detección de productos enviados sin ventas → Tarea automática
+
+---
+
+### FASE 6: Rentabilidad Real Acumulada
+**Prioridad: MEDIA | Impacto: Dinero**
+
+#### 6.1 Enriquecer ProductWithMetrics
+
+```typescript
+// Calculado desde ventas con márgenes congelados
+interface ProductProfitability {
+  totalRevenue: number;          // Suma de ventas pagadas
+  totalCost: number;             // Suma de costos de ventas
+  netProfit: number;             // Revenue - Cost
+  averageMarginPercent: number;  // Promedio de márgenes
+  salesWithLoss: number;         // Conteo de ventas con pérdida
+}
+```
+
+#### 6.2 Visualización
+
+Nueva sección en ProductDetail: "Rentabilidad Real"
+- Total vendido
+- Costo acumulado
+- Ganancia neta
+- Alerta si hay ventas con pérdida
+
+---
+
+### FASE 7: Command Center Mejorado
+**Prioridad: MEDIA | Impacto: Decisiones**
+
+#### 7.1 Nuevas Secciones
+
+1. **Productos Calientes/Fríos**
+   - Grid visual de productos por estado comercial
+   - Click para ver acciones recomendadas
+
+2. **Alertas de Rentabilidad**
+   - Ventas con pérdida recientes
+   - Productos con margen bajo
+   - Tendencias negativas
+
+3. **Guía Diaria Mejorada**
+   - "Si solo haces esto hoy..."
+   - 3 acciones de máximo impacto
+   - Estimación de dinero recuperable
+
+---
+
+## Nuevas Reglas Automáticas de Tareas
+
+| Condición | Tarea | Prioridad |
+|-----------|-------|-----------|
+| Producto sin activación > 14 días | "Activar {producto}" | Alta |
+| Producto frío + margen alto | "Promocionar urgente: {producto}" | Alta |
+| Creativo con peor rendimiento | "Revisar estrategia: {producto}" | Media |
+| Producto enviado a vendedores sin ventas > 7 días | "Reenviar o revisar: {producto}" | Media |
+| Venta con margen negativo | "Revisar precio: {producto}" | Alta |
+| Activación sin ventas > 5 días | "Analizar activación: {producto}" | Baja |
+
+---
+
+## Archivos a Crear/Modificar
+
+### Nuevos Archivos
+| Archivo | Descripción |
+|---------|-------------|
+| `supabase/migrations/[timestamp]_sales_financial_freeze.sql` | Campos de congelado |
+| `supabase/migrations/[timestamp]_product_activations.sql` | Tabla de activaciones |
+| `supabase/migrations/[timestamp]_seller_product_shares.sql` | Tracking vendedores |
+| `supabase/migrations/[timestamp]_creatives_metrics.sql` | Métricas manuales |
+| `src/hooks/useProductActivations.ts` | Hook de activaciones |
+| `src/hooks/useSellerShares.ts` | Hook de envíos a vendedores |
+| `src/components/products/ActivationForm.tsx` | Modal de nueva activación |
+| `src/components/products/ActivationTimeline.tsx` | Historial de activaciones |
+| `src/components/creatives/CreativeMetricsForm.tsx` | Input de métricas manuales |
+
+### Archivos a Modificar
+| Archivo | Cambios |
+|---------|---------|
+| `src/types/index.ts` | Nuevos tipos (Activation, CommercialState, etc) |
+| `src/hooks/useSales.ts` | Congelado financiero al crear venta |
+| `src/hooks/useSmartCatalog.ts` | Añadir estado comercial y activaciones |
+| `src/lib/taskRules.ts` | Nuevas reglas automáticas |
+| `src/pages/ProductDetail.tsx` | Secciones de activaciones y rentabilidad |
+| `src/components/products/ProductCard.tsx` | Badge de estado comercial |
+| `src/pages/CommandCenter.tsx` | Nuevas secciones |
+
+---
+
+## Orden de Implementación Recomendado
+
+```text
+SEMANA 1: Fundamentos Financieros
+├── Fase 1: Congelado financiero de ventas
+└── Fase 6: Rentabilidad real (parcial)
+
+SEMANA 2: Sistema de Activaciones
+├── Fase 2: Tabla y CRUD de activaciones
+└── Fase 3: Estado comercial (Frío/Tibio/Caliente)
+
+SEMANA 3: Creativos y Vendedores
+├── Fase 4: Métricas de creativos
+└── Fase 5: Tracking de vendedores
+
+SEMANA 4: Command Center y Polish
+└── Fase 7: Mejoras visuales y guía diaria
+```
 
 ---
 
 ## Resultado Esperado
 
-Al finalizar:
+Al completar todas las fases, el usuario de GRC AI OS podrá:
 
-1. **Cada tarea completada** tiene un registro de su resultado
-2. **Datos económicos** quedan registrados para análisis futuro
-3. **Visualización clara** del estado final de cada tarea
-4. **Command Center** muestra resumen diario de productividad
-5. **Base lista** para futuras decisiones automáticas e IA
+1. **Cada mañana** ver exactamente qué productos mover, con qué creativo y en qué canal
+2. **Saber la rentabilidad real** de cada producto, no solo la teórica
+3. **Entender el estado comercial** de su catálogo de un vistazo (caliente/tibio/frío)
+4. **Nunca olvidar** activar productos estancados o cobrar ventas pendientes
+5. **Aprender qué funciona** gracias a la comparación de creativos
+6. **Controlar a los vendedores** sin necesidad de acceder al sistema
 
----
-
-## Notas Técnicas
-
-- La relación `task_outcomes` es 1:1 con `tasks` (constraint UNIQUE en `task_id`)
-- El outcome se crea ANTES de marcar la tarea completada (transacción lógica)
-- Los outcomes no se eliminan aunque se elimine la tarea (ON DELETE CASCADE opcional)
-- El campo `notes` tiene límite de 200 caracteres validado en frontend
-- Compatible 100% con el motor de reglas existente
-
+El sistema se convierte en un verdadero **copiloto operativo** que reduce el caos mental y maximiza el tiempo del dueño del negocio.
