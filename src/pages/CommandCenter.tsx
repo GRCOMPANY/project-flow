@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -6,88 +6,195 @@ import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useTasks } from '@/hooks/useTasks';
 import { useBusinessSummary } from '@/hooks/useBusinessSummary';
-import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
-import { TaskCard } from '@/components/tasks/TaskCard';
+import { AlertStrip, Alert } from '@/components/command-center/AlertStrip';
+import { ActionCard } from '@/components/command-center/ActionCard';
 import { TaskCloseModal } from '@/components/tasks/TaskCloseModal';
 import { BusinessMetricCard } from '@/components/command-center/BusinessMetricCard';
-import { DailyInsight } from '@/components/command-center/DailyInsight';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OperationalTask, OperationalStatus } from '@/types';
+import { toast } from 'sonner';
 import { 
   ShoppingCart, 
   DollarSign, 
   Package, 
   Image as ImageIcon,
-  Plus,
-  TrendingUp,
-  Sparkles,
   CheckCircle2,
   ArrowRight,
   ListTodo,
   Trophy,
   AlertTriangle,
-  ShieldAlert,
   PhoneCall,
+  Clock,
 } from 'lucide-react';
+
+// Helper to calculate days since a date
+function daysSince(dateStr: string): number {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Helper to determine next operational status
+function getNextOperationalStatus(current: OperationalStatus): OperationalStatus {
+  const flow: Record<OperationalStatus, OperationalStatus> = {
+    nuevo: 'contactado',
+    contactado: 'confirmado',
+    confirmado: 'en_ruta',
+    en_ruta: 'entregado',
+    sin_respuesta: 'contactado',
+    riesgo_devolucion: 'contactado',
+    entregado: 'entregado',
+  };
+  return flow[current] || current;
+}
+
+const statusLabels: Record<OperationalStatus, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  confirmado: 'Confirmado',
+  sin_respuesta: 'Sin respuesta',
+  en_ruta: 'En ruta',
+  entregado: 'Entregado',
+  riesgo_devolucion: 'En riesgo',
+};
 
 export default function CommandCenter() {
   const navigate = useNavigate();
   const { profile, isAdmin } = useAuth();
   const { products, loading: productsLoading } = useProducts();
-  const { sales, loading: salesLoading, updateSale } = useSales();
+  const { sales, loading: salesLoading, updateSale, updateOperationalStatus } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
   const { 
     todayTasks, 
     tasks,
     outcomeStats,
     loading: tasksLoading, 
-    resolveTask, 
-    dismissTask, 
-    updateTaskStatus,
+    resolveTask,
     completeWithOutcome
   } = useTasks();
 
   const loading = productsLoading || salesLoading || creativesLoading || tasksLoading;
 
   const summary = useBusinessSummary({ sales, products, creatives });
-  const smartProducts = useSmartCatalog({ products, sales, creatives });
-
-  // Calcular alertas de seguimiento
-  const seguimientoAlerts = {
-    sinConfirmar: sales.filter(s => s.operationalStatus === 'nuevo').length,
-    sinConfirmarViejo: sales.filter(s => {
-      if (s.operationalStatus !== 'nuevo') return false;
-      const days = Math.floor((Date.now() - new Date(s.statusUpdatedAt || s.saleDate).getTime()) / (1000 * 60 * 60 * 24));
-      return days > 2;
-    }).length,
-    enRiesgo: sales.filter(s => 
-      s.operationalStatus === 'riesgo_devolucion' || s.operationalStatus === 'sin_respuesta'
-    ).length,
-    pendienteAccion: sales.filter(s => 
-      s.operationalStatus !== 'entregado' && 
-      !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
-    ).length,
-  };
 
   // State for close modal
   const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
+  const [executingTaskId, setExecutingTaskId] = useState<string | null>(null);
 
-  const handleMarkPaid = async (saleId: string) => {
-    await updateSale(saleId, { paymentStatus: 'pagado' });
-  };
-
-  // Open modal instead of resolving directly
-  const handleResolveTask = (id: string) => {
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-      setCloseModalTask(task);
+  // Calculate diagnostic alerts
+  const alerts = useMemo<Alert[]>(() => {
+    const result: Alert[] = [];
+    
+    // 1. Pending collection (MONEY - RED)
+    const pendingAmount = sales
+      .filter(s => s.paymentStatus === 'pendiente')
+      .reduce((sum, s) => sum + s.totalAmount, 0);
+    if (pendingAmount > 0) {
+      result.push({
+        id: 'pending-payment',
+        icon: DollarSign,
+        value: `$${pendingAmount.toLocaleString()}`,
+        label: 'por cobrar',
+        variant: 'danger',
+        path: '/sales'
+      });
     }
-  };
+    
+    // 2. Unconfirmed > 2 days (WARNING)
+    const sinConfirmarViejo = sales.filter(s => {
+      if (s.operationalStatus !== 'nuevo') return false;
+      const days = daysSince(s.statusUpdatedAt || s.saleDate);
+      return days > 2;
+    }).length;
+    if (sinConfirmarViejo > 0) {
+      result.push({
+        id: 'unconfirmed',
+        icon: PhoneCall,
+        value: sinConfirmarViejo,
+        label: 'sin confirmar',
+        variant: 'warning',
+        path: '/sales'
+      });
+    }
+    
+    // 3. At risk (CRITICAL - RED)
+    const enRiesgo = sales.filter(s => 
+      s.operationalStatus === 'riesgo_devolucion' || 
+      s.operationalStatus === 'sin_respuesta'
+    ).length;
+    if (enRiesgo > 0) {
+      result.push({
+        id: 'at-risk',
+        icon: AlertTriangle,
+        value: enRiesgo,
+        label: 'en riesgo',
+        variant: 'danger',
+        path: '/sales'
+      });
+    }
 
-  const handleDismissTask = async (id: string, reason: string) => {
-    await dismissTask(id, reason);
+    // 4. Pending actions (INFO)
+    const pendingAction = sales.filter(s => 
+      s.operationalStatus !== 'entregado' && 
+      !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
+    ).length;
+    if (pendingAction > 0 && pendingAction !== sinConfirmarViejo && pendingAction !== enRiesgo) {
+      result.push({
+        id: 'pending-action',
+        icon: Clock,
+        value: pendingAction,
+        label: 'en seguimiento',
+        variant: 'info',
+        path: '/sales'
+      });
+    }
+    
+    return result;
+  }, [sales]);
+
+  // Execute action directly based on task type
+  const executeDirectAction = async (task: OperationalTask) => {
+    setExecutingTaskId(task.id);
+    
+    try {
+      const sale = sales.find(s => s.id === task.relatedSaleId);
+      
+      switch (task.type) {
+        case 'seguimiento_venta':
+          if (!sale) {
+            navigate(task.actionPath || '/sales');
+            return;
+          }
+          // Advance to next logical status
+          const nextStatus = getNextOperationalStatus(sale.operationalStatus);
+          await updateOperationalStatus(sale.id, nextStatus);
+          toast.success(`Estado actualizado: ${statusLabels[nextStatus]}`);
+          break;
+          
+        case 'cobro':
+          if (!sale) {
+            navigate(task.actionPath || '/sales');
+            return;
+          }
+          // Open modal to complete with outcome (money recovered)
+          setCloseModalTask(task);
+          return; // Don't clear executing state yet
+          
+        case 'creativo':
+          navigate('/creatives');
+          break;
+          
+        default:
+          // Fallback: navigate to action path
+          if (task.actionPath) {
+            navigate(task.actionPath);
+          }
+      }
+    } catch (error) {
+      toast.error('Error al ejecutar la acción');
+    } finally {
+      setExecutingTaskId(null);
+    }
   };
 
   const getGreeting = () => {
@@ -101,24 +208,23 @@ export default function CommandCenter() {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
-        <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="container max-w-4xl mx-auto px-4 py-8">
           <div className="space-y-8">
-            {/* Header skeleton */}
             <div className="space-y-2">
-              <Skeleton className="h-12 w-80" />
-              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-5 w-48" />
             </div>
-            {/* Insight skeleton */}
-            <Skeleton className="h-32 w-full rounded-2xl" />
-            {/* Tasks skeleton */}
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32 rounded-full" />
+              <Skeleton className="h-10 w-32 rounded-full" />
+            </div>
             <div className="space-y-3">
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-28 w-full rounded-xl" />
+              <Skeleton className="h-28 w-full rounded-xl" />
             </div>
-            {/* Metrics skeleton */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-28 rounded-xl" />
+                <Skeleton key={i} className="h-24 rounded-xl" />
               ))}
             </div>
           </div>
@@ -131,172 +237,81 @@ export default function CommandCenter() {
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
       
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <header className="mb-8 animate-fade-up">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <h1 className="text-foreground mb-2">
-                {getGreeting()}, {profile?.fullName?.split(' ')[0]} 👋
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {todayTasks.length > 0 
-                  ? `Tienes ${todayTasks.length} acciones prioritarias hoy`
-                  : '¡Todo en orden! No hay acciones pendientes'}
-              </p>
-            </div>
-            
-            {isAdmin && (
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/sales')}
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Nueva venta</span>
-                </Button>
-                <Button 
-                  onClick={() => navigate('/creatives')}
-                  className="gap-2 shadow-lg shadow-primary/20"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="hidden sm:inline">Crear creativo</span>
-                </Button>
-              </div>
-            )}
-          </div>
+      <div className="container max-w-4xl mx-auto px-4 py-6">
+        {/* Header - Compact */}
+        <header className="mb-6 animate-fade-up">
+          <h1 className="text-2xl font-semibold text-foreground">
+            {getGreeting()}, {profile?.fullName?.split(' ')[0]} 👋
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {todayTasks.length > 0 
+              ? `${todayTasks.length} acciones prioritarias`
+              : 'Todo en orden'}
+          </p>
         </header>
 
-        {/* Daily Insight */}
-        {isAdmin && (
-          <section className="mb-8">
-            <DailyInsight 
-              summary={summary}
-              smartProducts={smartProducts}
-              tasks={todayTasks}
-            />
+        {/* 1. ALERTS - Diagnostic Strip */}
+        {alerts.length > 0 && (
+          <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.05s' }}>
+            <AlertStrip alerts={alerts} />
           </section>
         )}
 
-        {/* Seguimiento Alerts */}
-        {isAdmin && (seguimientoAlerts.sinConfirmarViejo > 0 || seguimientoAlerts.enRiesgo > 0) && (
-          <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.15s' }}>
-            <div className="section-header">
-              <div className="section-indicator bg-amber-500" />
-              <h2 className="text-xl font-semibold text-foreground">
-                Alertas de Seguimiento
-              </h2>
-            </div>
-
-            <div className="grc-card p-4 space-y-3">
-              {seguimientoAlerts.sinConfirmarViejo > 0 && (
-                <div className="flex items-center gap-3 p-3 bg-amber-500/10 rounded-lg">
-                  <PhoneCall className="w-5 h-5 text-amber-600" />
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
-                      {seguimientoAlerts.sinConfirmarViejo} ventas sin confirmar &gt;2 días
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Requieren contacto inmediato
-                    </p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => navigate('/sales')}
-                  >
-                    Ver ventas
-                  </Button>
-                </div>
-              )}
-              
-              {seguimientoAlerts.enRiesgo > 0 && (
-                <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-lg">
-                  <ShieldAlert className="w-5 h-5 text-destructive" />
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
-                      {seguimientoAlerts.enRiesgo} ventas en riesgo
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Posible pérdida o devolución
-                    </p>
-                  </div>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={() => navigate('/sales')}
-                  >
-                    Atender ahora
-                  </Button>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Priority Actions */}
+        {/* 2. PRIORITY ACTIONS - Max 5 */}
         <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-          <div className="section-header">
-            <div className="section-indicator grc-gradient" />
-            <h2 className="text-xl font-semibold text-foreground">
-              Acciones Prioritarias
-            </h2>
-          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Acciones de Hoy
+          </h2>
 
           {todayTasks.length > 0 ? (
             <div className="space-y-3">
-              {todayTasks.map((task, index) => (
+              {todayTasks.slice(0, 5).map((task, index) => (
                 <div 
                   key={task.id} 
                   className="animate-fade-up"
                   style={{ animationDelay: `${0.05 * (index + 1)}s` }}
                 >
-                  <TaskCard 
+                  <ActionCard 
                     task={task}
-                    onResolve={handleResolveTask}
-                    onDismiss={handleDismissTask}
-                    onStatusChange={updateTaskStatus}
+                    onExecute={() => executeDirectAction(task)}
+                    executing={executingTaskId === task.id}
                   />
                 </div>
               ))}
               
-              {/* Link to see all tasks */}
+              {/* Link to audit view */}
               <Button
                 variant="ghost"
-                className="w-full gap-2 text-muted-foreground hover:text-foreground"
+                className="w-full gap-2 text-muted-foreground hover:text-foreground mt-2"
                 onClick={() => navigate('/tasks')}
               >
                 <ListTodo className="w-4 h-4" />
-                Ver todas las tareas
+                Ver historial completo
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           ) : (
-            <div className="grc-card p-10 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-success" />
+            <div className="grc-card p-8 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-7 h-7 text-success" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                ¡Excelente trabajo!
+              <h3 className="text-lg font-semibold text-foreground mb-1">
+                ¡Todo al día!
               </h3>
-              <p className="text-muted-foreground max-w-sm mx-auto">
-                No hay acciones pendientes. El negocio está al día.
+              <p className="text-sm text-muted-foreground">
+                No hay acciones pendientes
               </p>
             </div>
           )}
         </section>
 
-        {/* Business Status */}
-        <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-          <div className="section-header">
-            <div className="section-indicator grc-gold-gradient" />
-            <h2 className="text-xl font-semibold text-foreground">
-              Estado del Negocio
-            </h2>
-          </div>
+        {/* 3. BUSINESS STATUS - Metrics */}
+        <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.15s' }}>
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Estado del Negocio
+          </h2>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <BusinessMetricCard
               icon={<ShoppingCart className="w-5 h-5" />}
               label="Ventas del mes"
@@ -308,7 +323,7 @@ export default function CommandCenter() {
             
             <BusinessMetricCard
               icon={<DollarSign className="w-5 h-5" />}
-              label="Pendiente de cobro"
+              label="Por cobrar"
               value={summary.pendingCollections}
               sublabel={`$${summary.pendingCollectionAmount.toLocaleString()}`}
               variant={summary.pendingCollections > 0 ? 'danger' : 'default'}
@@ -317,7 +332,7 @@ export default function CommandCenter() {
             
             <BusinessMetricCard
               icon={<Package className="w-5 h-5" />}
-              label="Productos activos"
+              label="Productos"
               value={summary.activeProducts}
               sublabel={`${summary.featuredProducts} destacados`}
               variant="default"
@@ -335,96 +350,43 @@ export default function CommandCenter() {
           </div>
         </section>
 
-        {/* Today's Results - Only show if there are completed tasks today */}
+        {/* 4. TODAY'S RESULTS - Only if completed tasks */}
         {outcomeStats.completedToday > 0 && (
-          <section className="mb-8 animate-fade-up" style={{ animationDelay: '0.25s' }}>
-            <div className="section-header">
-              <div className="section-indicator bg-success" />
-              <h2 className="text-xl font-semibold text-foreground">
-                Resultados de Hoy
-              </h2>
-            </div>
+          <section className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Resultados de Hoy
+            </h2>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div className="grc-card p-4 flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-success/10">
+                <div className="p-2 rounded-xl bg-success/10">
                   <CheckCircle2 className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{outcomeStats.completedToday}</p>
+                  <p className="text-xl font-bold text-foreground">{outcomeStats.completedToday}</p>
                   <p className="text-xs text-muted-foreground">Cerradas</p>
                 </div>
               </div>
               
               <div className="grc-card p-4 flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10">
+                <div className="p-2 rounded-xl bg-primary/10">
                   <Trophy className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{outcomeStats.withIncome}</p>
+                  <p className="text-xl font-bold text-foreground">{outcomeStats.withIncome}</p>
                   <p className="text-xs text-muted-foreground">Con ingreso</p>
                 </div>
               </div>
               
               <div className="grc-card p-4 flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-success/10">
+                <div className="p-2 rounded-xl bg-success/10">
                   <DollarSign className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-success">${outcomeStats.totalRecovered.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Recuperado hoy</p>
+                  <p className="text-xl font-bold text-success">${outcomeStats.totalRecovered.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Recuperado</p>
                 </div>
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* Quick Actions */}
-        {isAdmin && (
-          <section className="animate-fade-up" style={{ animationDelay: '0.3s' }}>
-            <div className="section-header">
-              <div className="section-indicator bg-secondary" />
-              <h2 className="text-xl font-semibold text-foreground">
-                Acceso Rápido
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Button
-                variant="outline"
-                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
-                onClick={() => navigate('/products')}
-              >
-                <Package className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium">Productos</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
-                onClick={() => navigate('/creatives')}
-              >
-                <ImageIcon className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium">Creativos</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
-                onClick={() => navigate('/sales')}
-              >
-                <TrendingUp className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium">Ventas</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="h-auto py-5 flex-col gap-2.5 grc-card hover:bg-secondary/50 border-border/50"
-                onClick={() => navigate('/ai')}
-              >
-                <Sparkles className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium">Inteligencia IA</span>
-              </Button>
             </div>
           </section>
         )}
@@ -434,7 +396,12 @@ export default function CommandCenter() {
       <TaskCloseModal
         task={closeModalTask}
         open={!!closeModalTask}
-        onOpenChange={(open) => !open && setCloseModalTask(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCloseModalTask(null);
+            setExecutingTaskId(null);
+          }
+        }}
         onSubmit={completeWithOutcome}
       />
     </div>

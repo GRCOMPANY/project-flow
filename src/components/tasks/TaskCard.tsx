@@ -126,6 +126,7 @@ export function TaskCard({
   compact = false 
 }: TaskCardProps) {
   const navigate = useNavigate();
+  // Context collapsed by default for audit view
   const [expanded, setExpanded] = useState(false);
   
   const Icon = typeIcons[task.type] || Settings;
@@ -177,21 +178,21 @@ export function TaskCard({
   return (
     <div 
       className={cn(
-        "grc-card p-5 transition-all duration-200",
+        "grc-card p-4 transition-all duration-200",
         config.bgClass,
         priorityConfig[task.priority]
       )}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className={cn("p-3 rounded-xl shrink-0", config.iconClass)}>
+        <div className={cn("p-2.5 rounded-xl shrink-0", config.iconClass)}>
           <Icon className="w-5 h-5" />
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className={cn("text-xs font-bold tracking-wide", config.labelClass)}>
               {typeLabels[task.type]}
             </span>
@@ -220,37 +221,38 @@ export function TaskCard({
           </div>
 
           {/* Title */}
-          <h3 className="text-base font-semibold text-foreground mb-1">
+          <h3 className="text-base font-semibold text-foreground mb-0.5">
             {task.name}
           </h3>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
             {task.description}
           </p>
 
-          {/* Trigger Reason - Always visible */}
-          <div className="flex items-start gap-2 mb-2 p-3 rounded-lg bg-background/50 border border-border/50">
-            <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-0.5">Existe porque:</p>
-              <p className="text-sm text-foreground">{task.triggerReason}</p>
-            </div>
-          </div>
+          {/* Expandable Context - Collapsed by default */}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+          >
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {expanded ? 'Ocultar detalles' : 'Ver detalles'}
+          </button>
 
-          {/* Expandable Consequence */}
-          {task.consequence && (
-            <>
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
-              >
-                {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                {expanded ? 'Ocultar consecuencia' : 'Ver consecuencia'}
-              </button>
-              
-              {expanded && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20 mb-3">
+          {expanded && (
+            <div className="space-y-2 mb-3">
+              {/* Trigger Reason */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-0.5">Existe porque:</p>
+                  <p className="text-sm text-foreground">{task.triggerReason}</p>
+                </div>
+              </div>
+
+              {/* Consequence */}
+              {task.consequence && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
                   <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-medium text-destructive mb-0.5">Si no actúas:</p>
@@ -258,7 +260,7 @@ export function TaskCard({
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* Actions */}
