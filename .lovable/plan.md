@@ -1,204 +1,411 @@
 
-# Plan: Visualizar Congelado Financiero en UI de Ventas
+# Plan: Sistema de Seguimiento Post-Venta con Tareas Automaticas
 
 ## Resumen
-Actualizar la interfaz del módulo de Ventas para mostrar los campos de congelado financiero existentes, nuevos KPIs de rentabilidad, alertas visuales de pérdida, y enlazar con el detalle del producto.
+Implementar estados operativos extendidos para ventas y generar tareas automaticas segun el metodo de pago. Cada cambio de estado crea o cierra tareas, impactando el Command Center con alertas y KPIs operativos.
 
 ---
 
-## Cambios a Realizar
+## 1. Cambios en Base de Datos
 
-### 1. Actualizar SaleCard con Información Financiera
+### 1.1 Migracion: Agregar campo `operational_status` a `sales`
 
-**Archivo:** `src/pages/Sales.tsx` (componente SaleCard, líneas 550-693)
+```sql
+-- Crear enum para estados operativos
+CREATE TYPE operational_status AS ENUM (
+  'nuevo',
+  'contactado',
+  'confirmado',
+  'sin_respuesta',
+  'en_ruta',
+  'entregado',
+  'riesgo_devolucion'
+);
 
-Agregar sección de margen en cada tarjeta de venta:
+-- Agregar columna a sales
+ALTER TABLE sales ADD COLUMN operational_status operational_status DEFAULT 'nuevo';
 
-```text
-┌────────────────────────────────────────────────────────────────┐
-│ 📦 Producto Ejemplo ×2                              $1,200     │
-│ 👤 Cliente · 📅 28 Ene · 💬 WhatsApp · 💳 Transferencia        │
-├────────────────────────────────────────────────────────────────┤
-│ Costo: $400 × 2 = $800    |    Margen: +$400 (50%)  🟢        │
-│ [ALERTA ROJA si margen negativo]                              │
-└────────────────────────────────────────────────────────────────┘
-```
+-- Agregar campo para tracking de fechas de estado
+ALTER TABLE sales ADD COLUMN status_updated_at TIMESTAMPTZ DEFAULT now();
 
-**Lógica visual:**
-- Margen positivo: texto verde con icono ✓
-- Margen negativo: texto rojo con icono ⚠️ y badge "PÉRDIDA"
-- Mostrar: `Costo: $X × qty = $total | Margen: +$X (X%)`
-
----
-
-### 2. Nuevos KPIs en Dashboard de Ventas
-
-**Archivo:** `src/pages/Sales.tsx` (stats useMemo, líneas 108-123)
-
-Agregar a las estadísticas existentes:
-
-| KPI Actual | KPI Nuevo |
-|------------|-----------|
-| Total vendido | ✓ Ya existe |
-| Pendiente por cobrar | ✓ Ya existe |
-| Cobrado | ✓ Ya existe |
-| - | **Costo total** (suma costAtSale × qty) |
-| - | **Ganancia neta** (suma marginAtSale × qty) |
-| - | **Margen promedio** (promedio marginPercentAtSale) |
-
-**Nueva UI (agregar segunda fila de cards):**
-
-```text
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│  Total vendido  │ │ Pend. por cobrar│ │     Cobrado     │
-│    $12,500      │ │     $3,200      │ │     $9,300      │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
-
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│   Costo total   │ │  Ganancia neta  │ │ Margen promedio │
-│    $7,500       │ │ +$5,000 🟢      │ │      40%        │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
+-- Indice para consultas de seguimiento
+CREATE INDEX idx_sales_operational_status ON sales(operational_status);
 ```
 
 ---
 
-### 3. Alerta Visual de Ventas con Pérdida
+## 2. Actualizacion de Tipos TypeScript
 
-**En Dashboard:**
-- Si hay ventas con margen negativo, mostrar badge de alerta: `⚠️ X ventas con pérdida`
-- Color rojo/destructive
+### Archivo: `src/types/index.ts`
 
-**En SaleCard:**
-- Badge prominente `PÉRDIDA` en rojo si `marginAtSale < 0`
-- Icono de alerta junto al total
+Agregar nuevo tipo:
+
+```typescript
+// Estados operativos de venta (ciclo post-venta)
+export type OperationalStatus = 
+  | 'nuevo'
+  | 'contactado'
+  | 'confirmado'
+  | 'sin_respuesta'
+  | 'en_ruta'
+  | 'entregado'
+  | 'riesgo_devolucion';
+```
+
+Actualizar interface `Sale`:
+
+```typescript
+export interface Sale {
+  // ... campos existentes ...
+  
+  // Seguimiento operativo
+  operationalStatus: OperationalStatus;
+  statusUpdatedAt?: string;
+}
+```
 
 ---
 
-### 4. Rentabilidad Real en ProductDetail
+## 3. Nuevas Reglas de Tareas Automaticas
 
-**Archivo:** `src/pages/ProductDetail.tsx`
+### Archivo: `src/lib/taskRules.ts`
 
-Agregar nueva Card "Rentabilidad Real" después de "Performance":
+Agregar nueva funcion `generateSeguimientoTasks`:
+
+### 3.1 Reglas para Contra Entrega
+
+| Condicion | Tarea | Prioridad |
+|-----------|-------|-----------|
+| Venta nueva (< 1 dia) | "Confirmar pedido: {cliente}" | Alta |
+| `nuevo` por > 2 dias | "Recordar confirmacion: {cliente}" | Alta |
+| Sin respuesta > 3 dias | "Marcar riesgo: {cliente}" | Alta |
+| `confirmado` sin envio > 2 dias | "Preparar envio: {cliente}" | Media |
+| `en_ruta` > 3 dias sin entrega | "Verificar entrega: {cliente}" | Media |
+
+### 3.2 Reglas para Transferencia
+
+| Condicion | Tarea | Prioridad |
+|-----------|-------|-----------|
+| Venta nueva (< 1 dia) | "Enviar datos de pago: {cliente}" | Alta |
+| `contactado` + pendiente > 2 dias | "Recordar pago: {cliente}" | Alta |
+| Sin pago > 5 dias | "Marcar riesgo de no pago" | Alta |
+
+### 3.3 Flujo de Estados (Diagrama)
+
+```text
+CONTRA ENTREGA:
+nuevo -> contactado -> confirmado -> en_ruta -> entregado
+              \-> sin_respuesta -> riesgo_devolucion
+
+TRANSFERENCIA:
+nuevo -> contactado -> [espera pago] -> confirmado -> en_ruta -> entregado
+              \-> sin_respuesta -> riesgo_devolucion
+```
+
+### 3.4 Implementacion Tecnica
+
+```typescript
+export function generateSeguimientoTasks(sales: Sale[]): GeneratedTask[] {
+  const tasks: GeneratedTask[] = [];
+
+  for (const sale of sales) {
+    if (sale.orderStatus === 'entregado' && sale.paymentStatus === 'pagado') continue;
+    
+    const daysSinceStatus = daysSince(sale.statusUpdatedAt || sale.saleDate);
+    const isContraEntrega = sale.paymentMethod === 'contra_entrega';
+    const isTransferencia = sale.paymentMethod === 'transferencia';
+    const clientName = sale.clientName || 'Cliente';
+
+    // === CONTRA ENTREGA ===
+    if (isContraEntrega) {
+      // Regla 1: Confirmar pedido nuevo
+      if (sale.operationalStatus === 'nuevo' && daysSinceStatus <= 1) {
+        tasks.push({
+          name: `Confirmar pedido: ${clientName}`,
+          description: `$${sale.totalAmount.toLocaleString()} - llamar para confirmar`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Venta contra entrega registrada. Confirmar disponibilidad del cliente.`,
+          consequence: 'Sin confirmacion, el pedido puede perderse o generar devolucion.',
+          actionLabel: 'Marcar contactado',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          dedupKey: `seguimiento:confirmar:${sale.id}`,
+        });
+      }
+      
+      // Regla 2: Recordar confirmacion si no hay respuesta
+      if (sale.operationalStatus === 'nuevo' && daysSinceStatus > 2) {
+        tasks.push({
+          name: `Recordar confirmacion: ${clientName}`,
+          description: `Sin respuesta hace ${daysSinceStatus} dias`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente no ha confirmado pedido despues de ${daysSinceStatus} dias`,
+          consequence: 'Alto riesgo de perdida de venta o devolucion.',
+          actionLabel: 'Contactar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          dedupKey: `seguimiento:recordar:${sale.id}`,
+        });
+      }
+      
+      // Regla 3: Marcar riesgo
+      if (sale.operationalStatus === 'sin_respuesta' && daysSinceStatus > 3) {
+        tasks.push({
+          name: `Venta en riesgo: ${clientName}`,
+          description: `Sin respuesta - considerar cancelacion`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente sin respuesta por ${daysSinceStatus} dias`,
+          consequence: 'Probable perdida de venta y costos de envio si se despacha.',
+          actionLabel: 'Evaluar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          dedupKey: `seguimiento:riesgo:${sale.id}`,
+        });
+      }
+    }
+
+    // === TRANSFERENCIA ===
+    if (isTransferencia) {
+      // Regla 1: Enviar datos de pago
+      if (sale.operationalStatus === 'nuevo' && sale.paymentStatus === 'pendiente') {
+        tasks.push({
+          name: `Enviar datos de pago: ${clientName}`,
+          description: `$${sale.totalAmount.toLocaleString()} pendiente`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Venta por transferencia sin datos de pago enviados`,
+          consequence: 'El cliente no puede pagar sin los datos bancarios.',
+          actionLabel: 'Marcar contactado',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          dedupKey: `seguimiento:datos:${sale.id}`,
+        });
+      }
+      
+      // Regla 2: Recordar pago
+      if (sale.operationalStatus === 'contactado' && sale.paymentStatus === 'pendiente' && daysSinceStatus > 2) {
+        tasks.push({
+          name: `Recordar pago: ${clientName}`,
+          description: `$${sale.totalAmount.toLocaleString()} - ${daysSinceStatus} dias sin pagar`,
+          type: 'seguimiento_venta',
+          priority: 'alta',
+          impact: 'dinero',
+          triggerReason: `Cliente contactado pero sin transferir despues de ${daysSinceStatus} dias`,
+          consequence: 'Riesgo de perdida de venta.',
+          actionLabel: 'Recordar',
+          actionPath: '/sales',
+          relatedSaleId: sale.id,
+          dedupKey: `seguimiento:recordar_pago:${sale.id}`,
+        });
+      }
+    }
+
+    // === REGLAS GENERALES ===
+    
+    // En ruta sin entrega > 3 dias
+    if (sale.operationalStatus === 'en_ruta' && daysSinceStatus > 3) {
+      tasks.push({
+        name: `Verificar entrega: ${clientName}`,
+        description: `En ruta hace ${daysSinceStatus} dias`,
+        type: 'seguimiento_venta',
+        priority: 'media',
+        impact: 'operacion',
+        triggerReason: `Pedido marcado en ruta hace ${daysSinceStatus} dias sin confirmacion de entrega`,
+        consequence: 'Posible problema logistico o devolucion no reportada.',
+        actionLabel: 'Verificar',
+        actionPath: '/sales',
+        relatedSaleId: sale.id,
+        dedupKey: `seguimiento:verificar_entrega:${sale.id}`,
+      });
+    }
+    
+    // Riesgo de devolucion
+    if (sale.operationalStatus === 'riesgo_devolucion') {
+      tasks.push({
+        name: `Resolver riesgo: ${clientName}`,
+        description: `$${sale.totalAmount.toLocaleString()} en riesgo`,
+        type: 'seguimiento_venta',
+        priority: 'alta',
+        impact: 'dinero',
+        triggerReason: `Venta marcada con riesgo de devolucion o perdida`,
+        consequence: 'Perdida directa de la venta y posibles costos adicionales.',
+        actionLabel: 'Resolver',
+        actionPath: '/sales',
+        relatedSaleId: sale.id,
+        dedupKey: `seguimiento:resolver_riesgo:${sale.id}`,
+      });
+    }
+  }
+
+  return tasks;
+}
+```
+
+---
+
+## 4. Actualizacion de Hook useSales
+
+### Archivo: `src/hooks/useSales.ts`
+
+Agregar:
+- Mapeo de `operational_status` y `status_updated_at`
+- Funcion `updateOperationalStatus(id, newStatus)` que actualiza estado y `status_updated_at`
+- Auto-cierre de tareas relacionadas al cambiar estado
+
+```typescript
+const updateOperationalStatus = async (
+  id: string, 
+  newStatus: OperationalStatus
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from('sales')
+    .update({
+      operational_status: newStatus,
+      status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    toast({ title: 'Error', variant: 'destructive' });
+    return false;
+  }
+
+  toast({ title: `Estado: ${statusLabels[newStatus]}` });
+  fetchSales();
+  return true;
+};
+```
+
+---
+
+## 5. UI del Modulo de Ventas
+
+### Archivo: `src/pages/Sales.tsx`
+
+### 5.1 Nuevo Selector de Estado Operativo
+
+Agregar dropdown en `SaleCard` para cambiar estado:
+
+```text
+Estados visuales:
+- nuevo        -> Gris       -> "Nuevo"
+- contactado   -> Azul       -> "Contactado"
+- confirmado   -> Verde      -> "Confirmado"
+- sin_respuesta-> Amarillo   -> "Sin respuesta"
+- en_ruta      -> Morado     -> "En ruta"
+- entregado    -> Verde      -> "Entregado"
+- riesgo_devolucion -> Rojo  -> "En riesgo"
+```
+
+### 5.2 Nuevos KPIs en Dashboard
+
+Agregar tercera fila de cards (solo admin):
+
+```text
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ Sin confirmar   │ │   En riesgo     │ │ Pendiente accion│
+│      3          │ │       1         │ │       5         │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+```
+
+Calculos:
+- **Sin confirmar**: `operationalStatus === 'nuevo'` 
+- **En riesgo**: `operationalStatus === 'riesgo_devolucion' || operationalStatus === 'sin_respuesta'`
+- **Pendiente accion**: ventas que no estan en estado final
+
+### 5.3 Filtro por Estado Operativo
+
+Agregar filtro en la lista de ventas para ver solo:
+- Nuevos
+- En riesgo
+- Por confirmar
+- En ruta
+
+---
+
+## 6. Command Center
+
+### Archivo: `src/pages/CommandCenter.tsx`
+
+### 6.1 Nueva Seccion: Alertas de Seguimiento
+
+Despues de "Estado del Negocio", mostrar alertas si hay ventas en riesgo:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  💰 Rentabilidad Real (datos de ventas)                     │
+│ ALERTAS DE SEGUIMIENTO                                      │
 ├─────────────────────────────────────────────────────────────┤
-│ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐ │
-│ │  $8,500   │ │  $5,100   │ │  +$3,400  │ │    40.0%      │ │
-│ │ Ingresos  │ │  Costos   │ │ Ganancia  │ │ Margen prom.  │ │
-│ │ (pagados) │ │ reales    │ │   neta    │ │               │ │
-│ └───────────┘ └───────────┘ └───────────┘ └───────────────┘ │
-│                                                             │
-│ [⚠️ 1 venta con pérdida - si aplica]                       │
+│ ⚠️ 2 ventas sin confirmar > 2 dias                         │
+│ 🔴 1 venta en riesgo de devolucion                         │
+│ ⏰ 3 ventas pendientes de accion hoy                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Cálculos usando ventas del producto:**
-- Ingresos: suma de `totalAmount` de ventas pagadas
-- Costos: suma de `costAtSale × quantity` de ventas pagadas
-- Ganancia neta: Ingresos - Costos (usando marginAtSale)
-- Margen promedio: promedio de `marginPercentAtSale`
-- Conteo de ventas con pérdida
+### 6.2 Metricas Actualizadas
+
+En "Estado del Negocio", agregar:
+- "Ventas en seguimiento" (no entregadas)
+- "En riesgo" (contador con badge rojo)
 
 ---
 
-## Archivos a Modificar
+## 7. Archivos a Crear/Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/pages/Sales.tsx` | Stats useMemo + segunda fila KPIs + SaleCard con margen |
-| `src/pages/ProductDetail.tsx` | Nueva card "Rentabilidad Real" |
+| `supabase/migrations/[timestamp]_sales_operational_status.sql` | Nueva columna y enum |
+| `src/types/index.ts` | Nuevo tipo `OperationalStatus`, actualizar `Sale` |
+| `src/lib/taskRules.ts` | Nueva funcion `generateSeguimientoTasks`, integrar en `generateAllTasks` |
+| `src/hooks/useSales.ts` | Mapear nuevos campos, agregar `updateOperationalStatus` |
+| `src/pages/Sales.tsx` | Selector de estado, nuevos KPIs, filtros |
+| `src/pages/CommandCenter.tsx` | Alertas de seguimiento, metricas |
 
 ---
 
-## Detalle Técnico
+## 8. Orden de Implementacion
 
-### Cálculo de Stats en Sales.tsx
-
-```typescript
-const stats = useMemo(() => {
-  const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const pending = sales.filter(s => s.paymentStatus === 'pendiente');
-  const paid = sales.filter(s => s.paymentStatus === 'pagado');
-  const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
-  const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
-
-  // NUEVO: KPIs de rentabilidad
-  const totalCost = sales.reduce((sum, s) => 
-    sum + ((s.costAtSale || 0) * s.quantity), 0
-  );
-  const netProfit = sales.reduce((sum, s) => 
-    sum + ((s.marginAtSale || 0) * s.quantity), 0
-  );
-  const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined);
-  const avgMargin = salesWithMargin.length > 0
-    ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
-    : 0;
-  const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
-
-  return {
-    totalSold,
-    totalSales: sales.length,
-    pendingAmount,
-    pendingCount: pending.length,
-    paidAmount,
-    paidCount: paid.length,
-    // Nuevos
-    totalCost,
-    netProfit,
-    avgMargin,
-    salesWithLoss,
-  };
-}, [sales]);
-```
-
-### Visualización de Margen en SaleCard
-
-```typescript
-// Dentro de SaleCard, después del precio total
-const marginColor = (sale.marginAtSale || 0) >= 0 ? 'text-emerald-600' : 'text-destructive';
-const marginSign = (sale.marginAtSale || 0) >= 0 ? '+' : '';
-const hasLoss = (sale.marginAtSale || 0) < 0;
-
-// JSX
-<div className="flex items-center gap-2 text-xs border-t pt-2 mt-2">
-  <span className="text-muted-foreground">
-    Costo: ${((sale.costAtSale || 0) * sale.quantity).toLocaleString()}
-  </span>
-  <span className="text-muted-foreground">|</span>
-  <span className={marginColor}>
-    Margen: {marginSign}${((sale.marginAtSale || 0) * sale.quantity).toLocaleString()} 
-    ({(sale.marginPercentAtSale || 0).toFixed(0)}%)
-  </span>
-  {hasLoss && (
-    <Badge variant="destructive" className="text-xs">
-      ⚠️ PÉRDIDA
-    </Badge>
-  )}
-</div>
+```text
+1. Migracion DB (agregar campo operational_status)
+2. Actualizar tipos TypeScript
+3. Actualizar useSales.ts (mapeo y nueva funcion)
+4. Implementar reglas en taskRules.ts
+5. Actualizar UI de Sales.tsx (selector + KPIs)
+6. Actualizar Command Center (alertas)
 ```
 
 ---
 
-## Orden de Implementación
+## 9. Flujo de Usuario Esperado
 
-1. Actualizar `stats` useMemo con nuevos cálculos
-2. Agregar segunda fila de KPI cards al dashboard
-3. Modificar SaleCard para mostrar margen y alertas
-4. Agregar card de Rentabilidad Real en ProductDetail
+**Escenario: Venta contra entrega**
+
+1. Usuario registra venta → Estado: `nuevo`
+2. Sistema genera tarea: "Confirmar pedido: Juan"
+3. Usuario contacta al cliente → Cambia a `contactado` → Tarea se cierra
+4. Sistema genera tarea: "Esperar confirmacion"
+5. Cliente confirma → Cambia a `confirmado` → Nueva tarea: "Preparar envio"
+6. Se despacha → Cambia a `en_ruta` → Nueva tarea: "Verificar entrega"
+7. Se entrega → Cambia a `entregado` → Todas las tareas cerradas
+
+**Si no hay respuesta:**
+1. Despues de 2 dias sin cambio → Tarea: "Recordar confirmacion"
+2. Despues de 3+ dias → Cambia a `sin_respuesta`
+3. Sistema genera tarea: "Marcar riesgo"
+4. Usuario puede cambiar a `riesgo_devolucion` o reintentar
 
 ---
 
-## Resultado Visual Esperado
+## Resultado Esperado
 
-**Módulo de Ventas:**
-- 6 KPIs en lugar de 3 (2 filas)
-- Cada venta muestra su costo/margen con color semántico
-- Badge de pérdida en rojo si aplica
-- Alerta general si hay ventas con pérdida
-
-**Detalle de Producto:**
-- Nueva sección mostrando rentabilidad REAL basada en ventas
-- Datos congelados, no teóricos
-- Alerta si el producto tiene ventas con pérdida
+- Cada venta tiene un estado operativo claro
+- Las tareas se generan automaticamente segun el flujo
+- El Command Center muestra alertas de ventas en riesgo
+- El dashboard de ventas muestra KPIs de seguimiento
+- El sistema esta preparado para futura automatizacion de WhatsApp
