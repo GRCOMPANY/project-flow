@@ -1,363 +1,204 @@
 
-# Plan Maestro: GRC AI OS - Evolución a Sistema Operativo Completo
+# Plan: Visualizar Congelado Financiero en UI de Ventas
 
-## Diagnóstico del Estado Actual
+## Resumen
+Actualizar la interfaz del módulo de Ventas para mostrar los campos de congelado financiero existentes, nuevos KPIs de rentabilidad, alertas visuales de pérdida, y enlazar con el detalle del producto.
 
-### Lo que YA existe y funciona bien:
+---
 
-| Módulo | Estado | Funcionalidades |
-|--------|--------|-----------------|
-| **Productos** | 70% | CRUD, precios (costo/mayoreo/retail), márgenes calculados, Smart Catalog con prioridades |
-| **Ventas** | 60% | CRUD, estados de pago/entrega, canales de venta, relación con productos |
-| **Creativos** | 65% | Tipos/canales/objetivos, estados, resultados (funcionó/no), learning |
-| **Tareas** | 90% | Sistema operativo completo, reglas automáticas, cierre con outcomes |
-| **Command Center** | 75% | Acciones del día, métricas de negocio, Daily Insight |
+## Cambios a Realizar
 
-### Gaps Críticos Identificados:
+### 1. Actualizar SaleCard con Información Financiera
+
+**Archivo:** `src/pages/Sales.tsx` (componente SaleCard, líneas 550-693)
+
+Agregar sección de margen en cada tarjeta de venta:
 
 ```text
-PRODUCTOS
-┌─────────────────────────────────────────────────────────────────────┐
-│ FALTA: Estado Comercial (Frío/Tibio/Caliente)                       │
-│ FALTA: Sistema de Activaciones (historial de promociones)           │
-│ FALTA: Rentabilidad REAL acumulada desde ventas                     │
-│ FALTA: Días sin activación                                          │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ 📦 Producto Ejemplo ×2                              $1,200     │
+│ 👤 Cliente · 📅 28 Ene · 💬 WhatsApp · 💳 Transferencia        │
+├────────────────────────────────────────────────────────────────┤
+│ Costo: $400 × 2 = $800    |    Margen: +$400 (50%)  🟢        │
+│ [ALERTA ROJA si margen negativo]                              │
+└────────────────────────────────────────────────────────────────┘
+```
 
-VENTAS
-┌─────────────────────────────────────────────────────────────────────┐
-│ FALTA: Congelado financiero (cost_at_sale, margin_at_sale)          │
-│ FALTA: Detección de ventas con pérdida                              │
-│ FALTA: Relación con activación/creativo que generó la venta         │
-└─────────────────────────────────────────────────────────────────────┘
+**Lógica visual:**
+- Margen positivo: texto verde con icono ✓
+- Margen negativo: texto rojo con icono ⚠️ y badge "PÉRDIDA"
+- Mostrar: `Costo: $X × qty = $total | Margen: +$X (X%)`
 
-CREATIVOS
-┌─────────────────────────────────────────────────────────────────────┐
-│ FALTA: Métricas manuales (mensajes recibidos, ventas generadas)     │
-│ FALTA: Comparación con creativo anterior                            │
-│ FALTA: Tareas automáticas por bajo rendimiento                      │
-└─────────────────────────────────────────────────────────────────────┘
+---
 
-VENDEDORES
-┌─────────────────────────────────────────────────────────────────────┐
-│ FALTA: Tracking de productos enviados                               │
-│ FALTA: Detección de envíos sin resultados                           │
-│ FALTA: Tareas de reenvío                                            │
-└─────────────────────────────────────────────────────────────────────┘
+### 2. Nuevos KPIs en Dashboard de Ventas
+
+**Archivo:** `src/pages/Sales.tsx` (stats useMemo, líneas 108-123)
+
+Agregar a las estadísticas existentes:
+
+| KPI Actual | KPI Nuevo |
+|------------|-----------|
+| Total vendido | ✓ Ya existe |
+| Pendiente por cobrar | ✓ Ya existe |
+| Cobrado | ✓ Ya existe |
+| - | **Costo total** (suma costAtSale × qty) |
+| - | **Ganancia neta** (suma marginAtSale × qty) |
+| - | **Margen promedio** (promedio marginPercentAtSale) |
+
+**Nueva UI (agregar segunda fila de cards):**
+
+```text
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  Total vendido  │ │ Pend. por cobrar│ │     Cobrado     │
+│    $12,500      │ │     $3,200      │ │     $9,300      │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
+
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│   Costo total   │ │  Ganancia neta  │ │ Margen promedio │
+│    $7,500       │ │ +$5,000 🟢      │ │      40%        │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
 ---
 
-## Plan de Implementación por Fases
+### 3. Alerta Visual de Ventas con Pérdida
 
-### FASE 1: Congelado Financiero de Ventas (Crítico)
-**Prioridad: ALTA | Impacto: Dinero**
+**En Dashboard:**
+- Si hay ventas con margen negativo, mostrar badge de alerta: `⚠️ X ventas con pérdida`
+- Color rojo/destructive
 
-#### 1.1 Migración de Base de Datos
-
-Agregar campos a tabla `sales`:
-- `cost_at_sale` (numeric) - Costo del producto al momento de la venta
-- `price_at_sale` (numeric) - Precio de venta real aplicado
-- `margin_at_sale` (numeric) - Margen calculado y congelado
-- `margin_percent_at_sale` (numeric) - Porcentaje de margen congelado
-- `related_activation_id` (uuid) - Activación que originó la venta
-- `related_creative_id` (uuid) - Creativo que originó la venta
-
-#### 1.2 Lógica de Negocio
-
-Al crear una venta:
-1. Capturar `costPrice` del producto actual
-2. Calcular margen: `margin = price_at_sale - cost_at_sale`
-3. Calcular porcentaje: `marginPercent = (margin / cost_at_sale) * 100`
-4. Guardar valores congelados en la venta
-
-**Regla crítica**: El margen NUNCA cambia aunque el producto se edite después.
-
-#### 1.3 Alertas de Ventas con Pérdida
-
-Crear tarea automática cuando:
-- `margin_at_sale < 0` → "Venta con pérdida: {producto} - Revisar precio"
-- Mostrar alerta visual en el listado de ventas
+**En SaleCard:**
+- Badge prominente `PÉRDIDA` en rojo si `marginAtSale < 0`
+- Icono de alerta junto al total
 
 ---
 
-### FASE 2: Sistema de Activaciones de Producto
-**Prioridad: ALTA | Impacto: Crecimiento**
+### 4. Rentabilidad Real en ProductDetail
 
-#### 2.1 Nueva Tabla `product_activations`
+**Archivo:** `src/pages/ProductDetail.tsx`
 
-```sql
-CREATE TABLE product_activations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  
-  -- Tipo de activación
-  activation_type TEXT NOT NULL, -- 'nuevo' | 'refuerzo' | 'promocion'
-  channel TEXT NOT NULL,          -- 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok'
-  
-  -- Creativo usado (si aplica)
-  creative_id UUID REFERENCES creatives(id),
-  
-  -- Resultado
-  messages_received INTEGER DEFAULT 0,
-  sales_generated INTEGER DEFAULT 0,
-  
-  -- Metadata
-  notes TEXT,
-  activated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+Agregar nueva Card "Rentabilidad Real" después de "Performance":
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  💰 Rentabilidad Real (datos de ventas)                     │
+├─────────────────────────────────────────────────────────────┤
+│ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐ │
+│ │  $8,500   │ │  $5,100   │ │  +$3,400  │ │    40.0%      │ │
+│ │ Ingresos  │ │  Costos   │ │ Ganancia  │ │ Margen prom.  │ │
+│ │ (pagados) │ │ reales    │ │   neta    │ │               │ │
+│ └───────────┘ └───────────┘ └───────────┘ └───────────────┘ │
+│                                                             │
+│ [⚠️ 1 venta con pérdida - si aplica]                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### 2.2 TypeScript
-
-```typescript
-export interface ProductActivation {
-  id: string;
-  productId: string;
-  activationType: 'nuevo' | 'refuerzo' | 'promocion';
-  channel: SalesChannel;
-  creativeId?: string;
-  messagesReceived: number;
-  salesGenerated: number;
-  notes?: string;
-  activatedAt: string;
-  createdAt: string;
-}
-```
-
-#### 2.3 Integración con Productos
-
-Enriquecer `ProductWithMetrics`:
-- `lastActivation?: ProductActivation`
-- `daysSinceLastActivation: number`
-- `activationsCount: number`
-- `activationHistory: ProductActivation[]`
+**Cálculos usando ventas del producto:**
+- Ingresos: suma de `totalAmount` de ventas pagadas
+- Costos: suma de `costAtSale × quantity` de ventas pagadas
+- Ganancia neta: Ingresos - Costos (usando marginAtSale)
+- Margen promedio: promedio de `marginPercentAtSale`
+- Conteo de ventas con pérdida
 
 ---
 
-### FASE 3: Estado Comercial del Producto (Frío/Tibio/Caliente)
-**Prioridad: ALTA | Impacto: Decisiones**
+## Archivos a Modificar
 
-#### 3.1 Nuevo Tipo
-
-```typescript
-export type CommercialState = 'frio' | 'tibio' | 'caliente';
-```
-
-#### 3.2 Lógica de Clasificación (Reglas Fijas GRC)
-
-```typescript
-function calculateCommercialState(
-  salesLast30Days: number,
-  messagesReceived: number,  // de activaciones
-  daysSinceLastActivation: number
-): CommercialState {
-  // CALIENTE: Mensajes + Ventas activas
-  if (salesLast30Days >= 3 && messagesReceived > 5) {
-    return 'caliente';
-  }
-  
-  // TIBIO: Mensajes pero pocas ventas
-  if (messagesReceived > 3 && salesLast30Days < 3) {
-    return 'tibio';
-  }
-  
-  // FRÍO: Sin ventas después de activación
-  if (daysSinceLastActivation > 7 && salesLast30Days === 0) {
-    return 'frio';
-  }
-  
-  // Default basado en ventas
-  return salesLast30Days > 0 ? 'tibio' : 'frio';
-}
-```
-
-#### 3.3 Visualización
-
-Actualizar `ProductCard` y `ProductDetail`:
-- Badge de color: 🔴 Frío | 🟡 Tibio | 🟢 Caliente
-- Tooltip con explicación
-- Filtro por estado comercial en catálogo
-
----
-
-### FASE 4: Métricas de Creativos y Comparación
-**Prioridad: MEDIA | Impacto: Crecimiento**
-
-#### 4.1 Nuevos Campos en `creatives`
-
-```sql
-ALTER TABLE creatives ADD COLUMN messages_received INTEGER DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN sales_generated INTEGER DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN compared_to_previous TEXT; -- 'mejor' | 'peor' | 'igual'
-```
-
-#### 4.2 Lógica de Comparación
-
-Al actualizar métricas de un creativo:
-1. Buscar creativo anterior del mismo producto
-2. Comparar `salesGenerated`
-3. Marcar como mejor/peor/igual
-4. Si es "peor" → generar tarea automática
-
-#### 4.3 UI de Creativos
-
-Agregar en la card de creativo:
-- Inputs para registrar mensajes/ventas manualmente
-- Indicador visual de comparación vs anterior
-- Badge de rendimiento
-
----
-
-### FASE 5: Tracking de Productos a Vendedores
-**Prioridad: MEDIA | Impacto: Operación**
-
-#### 5.1 Nueva Tabla `seller_product_shares`
-
-```sql
-CREATE TABLE seller_product_shares (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  seller_id UUID NOT NULL REFERENCES sellers(id),
-  product_id UUID NOT NULL REFERENCES products(id),
-  
-  shared_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  channel TEXT DEFAULT 'whatsapp',
-  
-  -- Resultado
-  sales_generated INTEGER DEFAULT 0,
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 5.2 Integración
-
-- Botón "Enviar a vendedores" funcional en ProductDetail
-- Modal para seleccionar vendedores
-- Registro automático de fecha
-- Detección de productos enviados sin ventas → Tarea automática
-
----
-
-### FASE 6: Rentabilidad Real Acumulada
-**Prioridad: MEDIA | Impacto: Dinero**
-
-#### 6.1 Enriquecer ProductWithMetrics
-
-```typescript
-// Calculado desde ventas con márgenes congelados
-interface ProductProfitability {
-  totalRevenue: number;          // Suma de ventas pagadas
-  totalCost: number;             // Suma de costos de ventas
-  netProfit: number;             // Revenue - Cost
-  averageMarginPercent: number;  // Promedio de márgenes
-  salesWithLoss: number;         // Conteo de ventas con pérdida
-}
-```
-
-#### 6.2 Visualización
-
-Nueva sección en ProductDetail: "Rentabilidad Real"
-- Total vendido
-- Costo acumulado
-- Ganancia neta
-- Alerta si hay ventas con pérdida
-
----
-
-### FASE 7: Command Center Mejorado
-**Prioridad: MEDIA | Impacto: Decisiones**
-
-#### 7.1 Nuevas Secciones
-
-1. **Productos Calientes/Fríos**
-   - Grid visual de productos por estado comercial
-   - Click para ver acciones recomendadas
-
-2. **Alertas de Rentabilidad**
-   - Ventas con pérdida recientes
-   - Productos con margen bajo
-   - Tendencias negativas
-
-3. **Guía Diaria Mejorada**
-   - "Si solo haces esto hoy..."
-   - 3 acciones de máximo impacto
-   - Estimación de dinero recuperable
-
----
-
-## Nuevas Reglas Automáticas de Tareas
-
-| Condición | Tarea | Prioridad |
-|-----------|-------|-----------|
-| Producto sin activación > 14 días | "Activar {producto}" | Alta |
-| Producto frío + margen alto | "Promocionar urgente: {producto}" | Alta |
-| Creativo con peor rendimiento | "Revisar estrategia: {producto}" | Media |
-| Producto enviado a vendedores sin ventas > 7 días | "Reenviar o revisar: {producto}" | Media |
-| Venta con margen negativo | "Revisar precio: {producto}" | Alta |
-| Activación sin ventas > 5 días | "Analizar activación: {producto}" | Baja |
-
----
-
-## Archivos a Crear/Modificar
-
-### Nuevos Archivos
-| Archivo | Descripción |
-|---------|-------------|
-| `supabase/migrations/[timestamp]_sales_financial_freeze.sql` | Campos de congelado |
-| `supabase/migrations/[timestamp]_product_activations.sql` | Tabla de activaciones |
-| `supabase/migrations/[timestamp]_seller_product_shares.sql` | Tracking vendedores |
-| `supabase/migrations/[timestamp]_creatives_metrics.sql` | Métricas manuales |
-| `src/hooks/useProductActivations.ts` | Hook de activaciones |
-| `src/hooks/useSellerShares.ts` | Hook de envíos a vendedores |
-| `src/components/products/ActivationForm.tsx` | Modal de nueva activación |
-| `src/components/products/ActivationTimeline.tsx` | Historial de activaciones |
-| `src/components/creatives/CreativeMetricsForm.tsx` | Input de métricas manuales |
-
-### Archivos a Modificar
 | Archivo | Cambios |
 |---------|---------|
-| `src/types/index.ts` | Nuevos tipos (Activation, CommercialState, etc) |
-| `src/hooks/useSales.ts` | Congelado financiero al crear venta |
-| `src/hooks/useSmartCatalog.ts` | Añadir estado comercial y activaciones |
-| `src/lib/taskRules.ts` | Nuevas reglas automáticas |
-| `src/pages/ProductDetail.tsx` | Secciones de activaciones y rentabilidad |
-| `src/components/products/ProductCard.tsx` | Badge de estado comercial |
-| `src/pages/CommandCenter.tsx` | Nuevas secciones |
+| `src/pages/Sales.tsx` | Stats useMemo + segunda fila KPIs + SaleCard con margen |
+| `src/pages/ProductDetail.tsx` | Nueva card "Rentabilidad Real" |
 
 ---
 
-## Orden de Implementación Recomendado
+## Detalle Técnico
 
-```text
-SEMANA 1: Fundamentos Financieros
-├── Fase 1: Congelado financiero de ventas
-└── Fase 6: Rentabilidad real (parcial)
+### Cálculo de Stats en Sales.tsx
 
-SEMANA 2: Sistema de Activaciones
-├── Fase 2: Tabla y CRUD de activaciones
-└── Fase 3: Estado comercial (Frío/Tibio/Caliente)
+```typescript
+const stats = useMemo(() => {
+  const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const pending = sales.filter(s => s.paymentStatus === 'pendiente');
+  const paid = sales.filter(s => s.paymentStatus === 'pagado');
+  const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
+  const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
 
-SEMANA 3: Creativos y Vendedores
-├── Fase 4: Métricas de creativos
-└── Fase 5: Tracking de vendedores
+  // NUEVO: KPIs de rentabilidad
+  const totalCost = sales.reduce((sum, s) => 
+    sum + ((s.costAtSale || 0) * s.quantity), 0
+  );
+  const netProfit = sales.reduce((sum, s) => 
+    sum + ((s.marginAtSale || 0) * s.quantity), 0
+  );
+  const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined);
+  const avgMargin = salesWithMargin.length > 0
+    ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
+    : 0;
+  const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
 
-SEMANA 4: Command Center y Polish
-└── Fase 7: Mejoras visuales y guía diaria
+  return {
+    totalSold,
+    totalSales: sales.length,
+    pendingAmount,
+    pendingCount: pending.length,
+    paidAmount,
+    paidCount: paid.length,
+    // Nuevos
+    totalCost,
+    netProfit,
+    avgMargin,
+    salesWithLoss,
+  };
+}, [sales]);
+```
+
+### Visualización de Margen en SaleCard
+
+```typescript
+// Dentro de SaleCard, después del precio total
+const marginColor = (sale.marginAtSale || 0) >= 0 ? 'text-emerald-600' : 'text-destructive';
+const marginSign = (sale.marginAtSale || 0) >= 0 ? '+' : '';
+const hasLoss = (sale.marginAtSale || 0) < 0;
+
+// JSX
+<div className="flex items-center gap-2 text-xs border-t pt-2 mt-2">
+  <span className="text-muted-foreground">
+    Costo: ${((sale.costAtSale || 0) * sale.quantity).toLocaleString()}
+  </span>
+  <span className="text-muted-foreground">|</span>
+  <span className={marginColor}>
+    Margen: {marginSign}${((sale.marginAtSale || 0) * sale.quantity).toLocaleString()} 
+    ({(sale.marginPercentAtSale || 0).toFixed(0)}%)
+  </span>
+  {hasLoss && (
+    <Badge variant="destructive" className="text-xs">
+      ⚠️ PÉRDIDA
+    </Badge>
+  )}
+</div>
 ```
 
 ---
 
-## Resultado Esperado
+## Orden de Implementación
 
-Al completar todas las fases, el usuario de GRC AI OS podrá:
+1. Actualizar `stats` useMemo con nuevos cálculos
+2. Agregar segunda fila de KPI cards al dashboard
+3. Modificar SaleCard para mostrar margen y alertas
+4. Agregar card de Rentabilidad Real en ProductDetail
 
-1. **Cada mañana** ver exactamente qué productos mover, con qué creativo y en qué canal
-2. **Saber la rentabilidad real** de cada producto, no solo la teórica
-3. **Entender el estado comercial** de su catálogo de un vistazo (caliente/tibio/frío)
-4. **Nunca olvidar** activar productos estancados o cobrar ventas pendientes
-5. **Aprender qué funciona** gracias a la comparación de creativos
-6. **Controlar a los vendedores** sin necesidad de acceder al sistema
+---
 
-El sistema se convierte en un verdadero **copiloto operativo** que reduce el caos mental y maximiza el tiempo del dueño del negocio.
+## Resultado Visual Esperado
+
+**Módulo de Ventas:**
+- 6 KPIs en lugar de 3 (2 filas)
+- Cada venta muestra su costo/margen con color semántico
+- Badge de pérdida en rojo si aplica
+- Alerta general si hay ventas con pérdida
+
+**Detalle de Producto:**
+- Nueva sección mostrando rentabilidad REAL basada en ventas
+- Datos congelados, no teóricos
+- Alerta si el producto tiene ventas con pérdida
