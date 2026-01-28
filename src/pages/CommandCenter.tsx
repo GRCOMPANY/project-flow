@@ -13,6 +13,7 @@ import { ProductSpotlight, identifyKeyProducts } from '@/components/command-cent
 import { AIInsightBanner, generateDailyInsight } from '@/components/command-center/AIInsightBanner';
 import { QuickActionsBar, generateSmartActions } from '@/components/command-center/QuickActionsBar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Activity } from 'lucide-react';
 
 // Helper to calculate days since a date
 function daysSince(dateStr: string): number {
@@ -35,7 +36,33 @@ export default function CommandCenter() {
   // DATA CALCULATIONS
   // =========================================
 
-  // Hero Financial Card data
+  // Calculate weekly totals for context
+  const weeklyStats = useMemo(() => {
+    const today = new Date();
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const thisWeekSales = sales.filter(s => new Date(s.saleDate) >= oneWeekAgo);
+    const totalWeeklySales = thisWeekSales.reduce((sum, s) => sum + s.totalAmount, 0);
+
+    // Yesterday's at-risk calculation
+    const yesterdaySales = sales.filter(s => {
+      const saleDate = new Date(s.saleDate);
+      return saleDate.toDateString() === yesterday.toDateString();
+    });
+    const yesterdayRisk = yesterdaySales
+      .filter(s => s.paymentStatus === 'pendiente')
+      .reduce((sum, s) => sum + s.totalAmount, 0);
+
+    return {
+      totalWeeklySales,
+      yesterdayRisk,
+    };
+  }, [sales]);
+
+  // Hero Financial Card data with enhanced context
   const tensionData = useMemo(() => {
     const pendingAmount = sales
       .filter(s => s.paymentStatus === 'pendiente')
@@ -60,14 +87,31 @@ export default function CommandCenter() {
       : 0;
     const montoEnRiesgo = pendingAmount + (atRisk * avgSaleAmount);
 
+    // Calculate % of weekly sales
+    const percentOfWeeklySales = weeklyStats.totalWeeklySales > 0
+      ? Math.round((montoEnRiesgo / weeklyStats.totalWeeklySales) * 100)
+      : 0;
+
+    // Calculate change vs yesterday
+    const changeVsYesterday = weeklyStats.yesterdayRisk > 0
+      ? Math.round(((montoEnRiesgo - weeklyStats.yesterdayRisk) / weeklyStats.yesterdayRisk) * 100)
+      : 0;
+
+    // Actions to stability
+    const actionsToStability = unconfirmedOld + atRisk;
+
     return {
       montoEnRiesgo: Math.round(montoEnRiesgo),
       pendingAmount,
       pendingCount,
       unconfirmedOld,
       atRisk,
+      avgSaleAmount,
+      percentOfWeeklySales,
+      changeVsYesterday,
+      actionsToStability,
     };
-  }, [sales]);
+  }, [sales, weeklyStats]);
 
   // Product metrics for radar and actions
   const productMetrics = useMemo(() => {
@@ -84,7 +128,7 @@ export default function CommandCenter() {
     return { hotProducts, coldProducts, needsCreatives };
   }, [smartProducts]);
 
-  // Radar alerts
+  // Radar alerts with enhanced data
   const radarAlerts = useMemo(() => {
     return generateRadarAlerts(
       {
@@ -92,12 +136,13 @@ export default function CommandCenter() {
         atRisk: tensionData.atRisk,
         pendingAmount: tensionData.pendingAmount,
         pendingCount: tensionData.pendingCount,
+        avgSaleAmount: tensionData.avgSaleAmount,
       },
       productMetrics
     );
   }, [tensionData, productMetrics]);
 
-  // Trend metrics data
+  // Trend metrics data (now includes margin)
   const trendData = useMemo(() => {
     return calculateTrendData(sales);
   }, [sales]);
@@ -163,31 +208,25 @@ export default function CommandCenter() {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
-        <div className="container max-w-6xl mx-auto px-4 py-8">
-          <div className="space-y-8">
+        <div className="container max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-10">
             {/* Header skeleton */}
             <div className="space-y-2">
-              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-72" />
             </div>
             
             {/* Hero skeleton */}
-            <Skeleton className="h-52 w-full rounded-2xl" />
+            <Skeleton className="h-56 w-full rounded-2xl" />
             
-            {/* Radar skeleton */}
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-16 w-full rounded-xl" />
-              <Skeleton className="h-16 w-full rounded-xl" />
-            </div>
-            
-            {/* Metrics skeleton */}
-            <div className="grid grid-cols-2 gap-4">
-              <Skeleton className="h-36 rounded-2xl" />
-              <Skeleton className="h-36 rounded-2xl" />
+            {/* Two column skeleton */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Skeleton className="h-64 rounded-2xl" />
+              <Skeleton className="h-64 rounded-2xl" />
             </div>
             
             {/* Spotlight skeleton */}
-            <Skeleton className="h-48 w-full rounded-2xl" />
+            <Skeleton className="h-52 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -202,40 +241,53 @@ export default function CommandCenter() {
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
 
-      <div className="container max-w-6xl mx-auto px-4 py-6 space-y-8">
-        {/* Header */}
+      <div className="container max-w-7xl mx-auto px-4 py-8 space-y-10">
+        {/* Premium Header */}
         <header className="animate-fade-up">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Sistema Activo
-            </span>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                  Sistema Activo
+                </span>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Activity className="w-3 h-3" />
+                  Actualizado ahora
+                </span>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+                {getGreeting()}, {profile?.fullName?.split(' ')[0]}
+              </h1>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-foreground mt-2">
-            {getGreeting()}, {profile?.fullName?.split(' ')[0]}
-          </h1>
         </header>
 
-        {/* BLOQUE 1: Hero Financial Card */}
+        {/* BLOQUE 1: Hero Financial Card - Premium */}
         <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
           <HeroFinancialCard
             montoEnRiesgo={tensionData.montoEnRiesgo}
             ventasSinConfirmar={tensionData.unconfirmedOld}
             ventasEnRiesgo={tensionData.atRisk}
             pendienteCobro={tensionData.pendingAmount}
+            percentOfWeeklySales={tensionData.percentOfWeeklySales}
+            changeVsYesterday={tensionData.changeVsYesterday}
+            actionsToStability={tensionData.actionsToStability}
+            totalWeeklySales={weeklyStats.totalWeeklySales}
           />
         </section>
 
         {/* Two Column Layout for Radar + Metrics */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* BLOQUE 2: AI Radar Panel */}
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* BLOQUE 2: AI Radar Panel - Premium */}
           {radarAlerts.length > 0 && (
             <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
               <AIRadarPanel alerts={radarAlerts} />
             </section>
           )}
 
-          {/* BLOQUE 3: Metrics Dashboard */}
+          {/* BLOQUE 3: Metrics Dashboard - Premium with Margin */}
           <section 
             className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`} 
             style={{ animationDelay: '0.15s' }}
@@ -243,24 +295,25 @@ export default function CommandCenter() {
             <MetricsDashboard
               salesData={trendData.salesData}
               profitData={trendData.profitData}
+              marginData={trendData.marginData}
             />
           </section>
         </div>
 
-        {/* BLOQUE 4: Product Spotlight */}
+        {/* BLOQUE 4: Product Spotlight - Premium */}
         {spotlightProduct && (
           <section className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
             <ProductSpotlight keyProduct={spotlightProduct} />
           </section>
         )}
 
-        {/* BLOQUE 5: AI Insight Banner */}
+        {/* BLOQUE 5: AI Insight Banner - Premium */}
         <section className="animate-fade-up" style={{ animationDelay: '0.25s' }}>
           <AIInsightBanner insight={dailyInsight} />
         </section>
 
-        {/* BLOQUE 6: Quick Actions Bar */}
-        <section className="animate-fade-up pb-8" style={{ animationDelay: '0.3s' }}>
+        {/* BLOQUE 6: Quick Actions Bar - Premium */}
+        <section className="animate-fade-up pb-10" style={{ animationDelay: '0.3s' }}>
           <QuickActionsBar actions={smartActions} />
         </section>
       </div>

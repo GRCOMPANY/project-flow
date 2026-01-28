@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { 
   Brain, 
-  Lightbulb, 
   ArrowRight, 
   DollarSign, 
   TrendingUp, 
   AlertCircle,
-  PartyPopper
+  PartyPopper,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ export type InsightType = 'money' | 'growth' | 'warning' | 'celebration';
 export interface DailyInsight {
   message: string;
   type: InsightType;
+  causality?: string;
+  estimatedImpact?: number;
   action?: {
     label: string;
     path: string;
@@ -32,35 +34,35 @@ const typeConfig: Record<InsightType, {
   gradient: string;
   borderGradient: string;
   iconBg: string;
-  glowColor: string;
+  glowClass: string;
 }> = {
   money: {
     icon: DollarSign,
-    gradient: 'from-success/10 via-success/5 to-transparent',
-    borderGradient: 'from-success/40 via-success/20 to-transparent',
-    iconBg: 'bg-success/15 text-success',
-    glowColor: 'shadow-success/20',
+    gradient: 'from-success/8 via-success/4 to-transparent',
+    borderGradient: 'from-success/50 via-success/25 to-transparent',
+    iconBg: 'bg-success/12 text-success',
+    glowClass: 'hover:glow-success',
   },
   growth: {
     icon: TrendingUp,
-    gradient: 'from-primary/10 via-primary/5 to-transparent',
-    borderGradient: 'from-primary/40 via-primary/20 to-transparent',
-    iconBg: 'bg-primary/15 text-primary',
-    glowColor: 'shadow-primary/20',
+    gradient: 'from-primary/8 via-primary/4 to-transparent',
+    borderGradient: 'from-primary/50 via-primary/25 to-transparent',
+    iconBg: 'bg-primary/12 text-primary',
+    glowClass: '',
   },
   warning: {
     icon: AlertCircle,
-    gradient: 'from-warning/10 via-warning/5 to-transparent',
-    borderGradient: 'from-warning/40 via-warning/20 to-transparent',
-    iconBg: 'bg-warning/15 text-warning',
-    glowColor: 'shadow-warning/20',
+    gradient: 'from-warning/8 via-warning/4 to-transparent',
+    borderGradient: 'from-warning/50 via-warning/25 to-transparent',
+    iconBg: 'bg-warning/12 text-warning',
+    glowClass: 'hover:glow-warning',
   },
   celebration: {
     icon: PartyPopper,
-    gradient: 'from-accent/10 via-accent/5 to-transparent',
-    borderGradient: 'from-accent/40 via-accent/20 to-transparent',
+    gradient: 'from-accent/8 via-accent/4 to-transparent',
+    borderGradient: 'from-accent/50 via-accent/25 to-transparent',
     iconBg: 'bg-accent/15 text-accent-foreground',
-    glowColor: 'shadow-accent/20',
+    glowClass: '',
   },
 };
 
@@ -70,62 +72,83 @@ export function AIInsightBanner({ insight, className }: AIInsightBannerProps) {
   const Icon = config.icon;
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Section Header */}
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-          <Brain className="w-4 h-4 text-indigo-500" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center animate-glow-ai">
+          <Brain className="w-4.5 h-4.5 text-indigo-500" />
         </div>
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          GRC AI Sugiere
-        </span>
+        <div>
+          <span className="text-sm font-bold text-foreground uppercase tracking-wide">
+            GRC AI Sugiere
+          </span>
+          <p className="text-xs text-muted-foreground">
+            Insight inteligente del día
+          </p>
+        </div>
         <div className="h-px flex-1 bg-border/50" />
       </div>
 
-      {/* Insight Card */}
+      {/* Insight Card - Premium Glass Effect */}
       <div className={cn(
-        "ai-insight-banner relative overflow-hidden rounded-2xl",
-        "bg-gradient-to-br",
-        config.gradient,
-        `hover:shadow-lg hover:${config.glowColor}`,
-        "transition-all duration-300"
+        "ai-insight-banner gradient-border-ai relative overflow-hidden rounded-2xl",
+        "transition-all duration-300",
+        config.glowClass
       )}>
-        {/* Gradient Border Effect */}
+        {/* Background Gradient */}
         <div className={cn(
-          "absolute inset-0 rounded-2xl p-px bg-gradient-to-br pointer-events-none",
-          config.borderGradient
-        )}>
-          <div className="w-full h-full rounded-2xl bg-card" />
-        </div>
+          "absolute inset-0 bg-gradient-to-br pointer-events-none",
+          config.gradient
+        )} />
 
         {/* Content */}
-        <div className="relative p-6 flex items-center gap-5">
-          {/* Icon */}
-          <div className={cn(
-            "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0",
-            config.iconBg,
-            "shadow-sm"
-          )}>
-            <Icon className="w-7 h-7" />
-          </div>
+        <div className="relative p-6 md:p-8">
+          <div className="flex flex-col md:flex-row md:items-center gap-5">
+            {/* Icon */}
+            <div className={cn(
+              "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0",
+              config.iconBg,
+              "shadow-sm ring-1 ring-white/10"
+            )}>
+              <Icon className="w-8 h-8" />
+            </div>
 
-          {/* Message */}
-          <div className="flex-1 min-w-0">
-            <p className="text-lg font-medium text-foreground leading-relaxed">
-              "{insight.message}"
-            </p>
-          </div>
+            {/* Message + Causality */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <p className="text-xl font-semibold text-foreground leading-relaxed">
+                "{insight.message}"
+              </p>
+              
+              {/* Causality */}
+              {insight.causality && (
+                <p className="narrative-causality text-sm">
+                  {insight.causality}
+                </p>
+              )}
 
-          {/* Action */}
-          {insight.action && (
-            <Button
-              onClick={() => navigate(insight.action!.path)}
-              className="gap-2 shadow-lg shrink-0"
-            >
-              {insight.action.label}
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
+              {/* Estimated Impact */}
+              {insight.estimatedImpact && insight.estimatedImpact > 0 && (
+                <div className="flex items-center gap-2 pt-1">
+                  <Sparkles className="w-4 h-4 text-accent" />
+                  <span className="text-sm font-bold text-foreground">
+                    → Impacto estimado: <span className="text-success">${insight.estimatedImpact.toLocaleString()}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Action */}
+            {insight.action && (
+              <Button
+                onClick={() => navigate(insight.action!.path)}
+                className="gap-2 shadow-lg shrink-0 btn-gradient-primary text-white"
+                size="lg"
+              >
+                {insight.action.label}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -152,6 +175,8 @@ export function generateDailyInsight(
     return {
       type: 'money',
       message: `Hoy puedes recuperar $${salesData.pendingAmount.toLocaleString()} si cobras ${salesData.pendingCount} pedido${salesData.pendingCount > 1 ? 's' : ''}.`,
+      causality: `Porque ${salesData.pendingCount > 1 ? 'estas ventas ya están' : 'esta venta ya está'} lista${salesData.pendingCount > 1 ? 's' : ''} para cobrar`,
+      estimatedImpact: salesData.pendingAmount,
       action: { label: 'Cobrar ahora', path: '/sales' },
     };
   }
@@ -161,6 +186,7 @@ export function generateDailyInsight(
     return {
       type: 'warning',
       message: `Tienes ${salesData.unconfirmedOld} pedido${salesData.unconfirmedOld > 1 ? 's' : ''} sin confirmar hace más de 2 días. Llama ahora antes de que se cancelen.`,
+      causality: 'Porque el cliente puede perder interés después de tanto tiempo',
       action: { label: 'Llamar', path: '/sales' },
     };
   }
@@ -170,6 +196,7 @@ export function generateDailyInsight(
     return {
       type: 'warning',
       message: `${salesData.atRisk} venta${salesData.atRisk > 1 ? 's' : ''} en riesgo de devolución. Actúa ahora para no perder dinero.`,
+      causality: 'Porque el cliente ha mostrado señales de insatisfacción',
       action: { label: 'Revisar', path: '/sales' },
     };
   }
@@ -179,6 +206,7 @@ export function generateDailyInsight(
     return {
       type: 'growth',
       message: `Tienes ${productData.hotProducts} producto${productData.hotProducts > 1 ? 's' : ''} vendiendo bien esta semana. Es momento de escalar.`,
+      causality: 'Porque la demanda está alta y puedes aprovechar el momentum',
       action: { label: 'Escalar', path: '/products' },
     };
   }
@@ -188,6 +216,7 @@ export function generateDailyInsight(
     return {
       type: 'growth',
       message: `${productData.coldWithPotential} producto${productData.coldWithPotential > 1 ? 's' : ''} con buen margen ${productData.coldWithPotential > 1 ? 'llevan' : 'lleva'} 30 días sin venderse. Un buen creativo podría activarlos.`,
+      causality: 'Porque tienen potencial de ganancia pero necesitan visibilidad',
       action: { label: 'Crear creativo', path: '/creatives' },
     };
   }
@@ -197,6 +226,7 @@ export function generateDailyInsight(
     return {
       type: 'celebration',
       message: `¡Ya generaste $${salesData.revenueToday.toLocaleString()} hoy con ${salesData.paidToday} venta${salesData.paidToday > 1 ? 's' : ''}! Sigue así.`,
+      estimatedImpact: salesData.revenueToday,
     };
   }
 
@@ -204,6 +234,7 @@ export function generateDailyInsight(
   return {
     type: 'celebration',
     message: 'Tu negocio está estable. Enfócate en crear contenido para atraer más clientes.',
+    causality: 'Porque el contenido nuevo mantiene el interés de tu audiencia',
     action: { label: 'Crear creativo', path: '/creatives' },
   };
 }

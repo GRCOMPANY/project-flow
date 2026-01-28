@@ -17,6 +17,7 @@ export interface SmartAction {
   path: string;
   badge?: number;
   priority: number;
+  gradient?: string;
 }
 
 interface QuickActionsBarProps {
@@ -37,40 +38,47 @@ export function QuickActionsBar({ actions, className }: QuickActionsBarProps) {
     .slice(0, 4);
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Section Header */}
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
-          <Zap className="w-4 h-4 text-muted-foreground" />
+        <div className="w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center">
+          <Zap className="w-4.5 h-4.5 text-muted-foreground" />
         </div>
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Acciones Rápidas
-        </span>
+        <div>
+          <span className="text-sm font-bold text-foreground uppercase tracking-wide">
+            Acciones Rápidas
+          </span>
+          <p className="text-xs text-muted-foreground">
+            Lo más importante ahora
+          </p>
+        </div>
         <div className="h-px flex-1 bg-border/50" />
       </div>
 
       {/* Actions Grid */}
-      <div className="flex flex-wrap items-center justify-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-4">
         {sortedActions.map((action, index) => (
           <Button
             key={action.id}
             variant={action.variant}
+            size="lg"
             onClick={() => navigate(action.path)}
             className={cn(
-              "gap-2 relative",
-              action.variant === 'default' && "shadow-lg",
-              "animate-fade-up"
+              "gap-2.5 relative min-w-[140px] h-12 text-base font-semibold",
+              action.variant === 'default' && !action.gradient && "btn-gradient-primary text-white",
+              action.gradient,
+              "animate-fade-up transition-all duration-300"
             )}
-            style={{ animationDelay: `${index * 0.05}s` }}
+            style={{ animationDelay: `${index * 0.06}s` }}
           >
-            <action.icon className="w-4 h-4" />
+            <action.icon className="w-5 h-5" />
             <span>{action.label}</span>
             {action.badge !== undefined && action.badge > 0 && (
               <span className={cn(
-                "absolute -top-1.5 -right-1.5 min-w-5 h-5 rounded-full flex items-center justify-center",
-                "text-[10px] font-bold",
+                "absolute -top-2 -right-2 min-w-6 h-6 rounded-full flex items-center justify-center",
+                "text-xs font-bold shadow-lg",
                 action.variant === 'default' 
-                  ? "bg-background text-foreground" 
+                  ? "bg-white text-primary" 
                   : "bg-primary text-primary-foreground"
               )}>
                 {action.badge > 9 ? '9+' : action.badge}

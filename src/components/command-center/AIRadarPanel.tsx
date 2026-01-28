@@ -8,7 +8,8 @@ import {
   TrendingUp,
   ImageIcon,
   Package,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,8 @@ export interface RadarAlert {
   icon: LucideIcon;
   message: string;
   subtext?: string;
+  estimatedImpact?: number;
+  causality?: string;
   action: {
     label: string;
     path: string;
@@ -40,55 +43,60 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
     switch (severity) {
       case 'critical':
         return {
-          card: 'radar-alert-critical hover:shadow-md hover:shadow-destructive/5',
-          icon: 'bg-destructive/15 text-destructive',
+          card: 'radar-alert-critical hover:shadow-lg hover:shadow-destructive/10',
+          icon: 'bg-destructive/12 text-destructive',
           dot: 'bg-destructive',
+          impact: 'text-destructive',
         };
       case 'warning':
         return {
-          card: 'radar-alert-warning hover:shadow-md hover:shadow-warning/5',
-          icon: 'bg-warning/15 text-warning',
+          card: 'radar-alert-warning hover:shadow-lg hover:shadow-warning/10',
+          icon: 'bg-warning/12 text-warning',
           dot: 'bg-warning',
+          impact: 'text-warning',
         };
       case 'opportunity':
         return {
-          card: 'radar-alert-opportunity hover:shadow-md hover:shadow-success/5',
-          icon: 'bg-success/15 text-success',
+          card: 'radar-alert-opportunity hover:shadow-lg hover:shadow-success/10',
+          icon: 'bg-success/12 text-success',
           dot: 'bg-success',
+          impact: 'text-success',
         };
       default:
         return {
           card: '',
           icon: 'bg-muted text-muted-foreground',
           dot: 'bg-muted-foreground',
+          impact: 'text-muted-foreground',
         };
     }
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-primary" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center animate-glow-ai">
+            <Zap className="w-4.5 h-4.5 text-indigo-500" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
               Radar IA
             </h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Clock className="w-3 h-3" />
               Alertas detectadas automáticamente
             </p>
           </div>
         </div>
-        <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
+        <span className="text-xs font-bold text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-full">
           {alerts.length} {alerts.length === 1 ? 'alerta' : 'alertas'}
         </span>
       </div>
       
       {/* Alerts Grid */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {alerts.slice(0, 5).map((alert, index) => {
           const styles = getSeverityStyles(alert.severity);
           
@@ -101,38 +109,52 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
                 styles.card,
                 "animate-fade-up"
               )}
-              style={{ animationDelay: `${index * 0.05}s` }}
+              style={{ animationDelay: `${index * 0.06}s` }}
             >
               {/* Severity Dot */}
               <div className={cn(
-                "w-2 h-2 rounded-full shrink-0 animate-pulse",
+                "w-2.5 h-2.5 rounded-full shrink-0 animate-pulse",
                 styles.dot
               )} />
               
               {/* Icon */}
               <div className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
                 styles.icon
               )}>
-                <alert.icon className="w-4 h-4" />
+                <alert.icon className="w-5 h-5" />
               </div>
               
               {/* Content */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground line-clamp-1">
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <p className="text-sm font-semibold text-foreground line-clamp-1">
                   {alert.message}
                 </p>
-                {alert.subtext && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                    {alert.subtext}
-                  </p>
-                )}
+                
+                {/* Impact + Causality */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {alert.estimatedImpact && alert.estimatedImpact > 0 && (
+                    <span className={cn("text-xs font-bold", styles.impact)}>
+                      → ${alert.estimatedImpact.toLocaleString()} {alert.severity === 'opportunity' ? 'posible' : 'en riesgo'}
+                    </span>
+                  )}
+                  {alert.causality && (
+                    <span className="text-xs text-muted-foreground italic">
+                      {alert.causality}
+                    </span>
+                  )}
+                  {!alert.estimatedImpact && alert.subtext && (
+                    <span className="text-xs text-muted-foreground">
+                      {alert.subtext}
+                    </span>
+                  )}
+                </div>
               </div>
               
               {/* Action */}
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
                 <span className="hidden sm:inline">{alert.action.label}</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
           );
@@ -149,6 +171,7 @@ export function generateRadarAlerts(
     atRisk: number;
     pendingAmount: number;
     pendingCount: number;
+    avgSaleAmount?: number;
   },
   productData: {
     hotProducts: number;
@@ -157,6 +180,7 @@ export function generateRadarAlerts(
   }
 ): RadarAlert[] {
   const alerts: RadarAlert[] = [];
+  const avgSale = salesData.avgSaleAmount || 150000;
 
   // Critical: Old unconfirmed sales
   if (salesData.unconfirmedOld > 0) {
@@ -165,7 +189,8 @@ export function generateRadarAlerts(
       severity: 'critical',
       icon: PhoneCall,
       message: `${salesData.unconfirmedOld} venta${salesData.unconfirmedOld > 1 ? 's' : ''} sin confirmar hace más de 2 días`,
-      subtext: 'Riesgo de cancelación alto',
+      estimatedImpact: Math.round(salesData.unconfirmedOld * avgSale),
+      causality: 'Porque llevan mucho tiempo sin contacto',
       action: { label: 'Llamar', path: '/sales' }
     });
   }
@@ -177,7 +202,8 @@ export function generateRadarAlerts(
       severity: 'critical',
       icon: AlertTriangle,
       message: `${salesData.atRisk} venta${salesData.atRisk > 1 ? 's' : ''} en riesgo de devolución`,
-      subtext: 'Requiere atención urgente',
+      estimatedImpact: Math.round(salesData.atRisk * avgSale),
+      causality: 'Requiere atención urgente',
       action: { label: 'Revisar', path: '/sales' }
     });
   }
@@ -189,7 +215,8 @@ export function generateRadarAlerts(
       severity: 'opportunity',
       icon: DollarSign,
       message: `Puedes recuperar $${salesData.pendingAmount.toLocaleString()} si cobras hoy`,
-      subtext: `${salesData.pendingCount} venta${salesData.pendingCount > 1 ? 's' : ''} pendiente${salesData.pendingCount > 1 ? 's' : ''} de pago`,
+      estimatedImpact: salesData.pendingAmount,
+      causality: `${salesData.pendingCount} venta${salesData.pendingCount > 1 ? 's' : ''} lista${salesData.pendingCount > 1 ? 's' : ''} para cobrar`,
       action: { label: 'Cobrar', path: '/sales' }
     });
   }
@@ -201,7 +228,7 @@ export function generateRadarAlerts(
       severity: 'warning',
       icon: ImageIcon,
       message: `${productData.needsCreatives} producto${productData.needsCreatives > 1 ? 's' : ''} rentable${productData.needsCreatives > 1 ? 's' : ''} sin contenido activo`,
-      subtext: 'Oportunidad de venta perdida',
+      causality: 'Oportunidad de venta perdida',
       action: { label: 'Crear', path: '/creatives' }
     });
   }
@@ -213,7 +240,7 @@ export function generateRadarAlerts(
       severity: 'opportunity',
       icon: TrendingUp,
       message: `${productData.hotProducts} producto${productData.hotProducts > 1 ? 's' : ''} listo${productData.hotProducts > 1 ? 's' : ''} para escalar`,
-      subtext: 'Están vendiendo bien esta semana',
+      causality: 'Están vendiendo bien esta semana',
       action: { label: 'Escalar', path: '/products' }
     });
   }
@@ -225,7 +252,7 @@ export function generateRadarAlerts(
       severity: 'warning',
       icon: Package,
       message: `${productData.coldProducts} producto${productData.coldProducts > 1 ? 's' : ''} sin movimiento en 30 días`,
-      subtext: 'Con margen alto - potencial dormido',
+      causality: 'Con margen alto - potencial dormido',
       action: { label: 'Activar', path: '/products' }
     });
   }

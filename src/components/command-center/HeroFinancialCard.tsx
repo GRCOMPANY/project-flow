@@ -2,11 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
   TrendingUp, 
+  TrendingDown,
   DollarSign, 
   Clock, 
   ShieldAlert,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Minus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,6 +18,11 @@ interface HeroFinancialCardProps {
   ventasSinConfirmar: number;
   ventasEnRiesgo: number;
   pendienteCobro: number;
+  // New premium props
+  percentOfWeeklySales?: number;
+  changeVsYesterday?: number;
+  actionsToStability?: number;
+  totalWeeklySales?: number;
 }
 
 type BusinessState = 'healthy' | 'warning' | 'critical';
@@ -25,6 +32,10 @@ export function HeroFinancialCard({
   ventasSinConfirmar,
   ventasEnRiesgo,
   pendienteCobro,
+  percentOfWeeklySales = 0,
+  changeVsYesterday = 0,
+  actionsToStability = 0,
+  totalWeeklySales = 0,
 }: HeroFinancialCardProps) {
   const navigate = useNavigate();
 
@@ -37,76 +48,109 @@ export function HeroFinancialCard({
 
   const businessState = getBusinessState();
   const hasUrgency = montoEnRiesgo > 0 || ventasSinConfirmar > 0 || ventasEnRiesgo > 0;
+  const totalActions = ventasSinConfirmar + ventasEnRiesgo;
 
   const stateConfig = {
     healthy: {
       label: 'Negocio Estable',
       description: 'Todo bajo control',
       icon: CheckCircle2,
-      bgClass: 'from-success/10 via-success/5 to-transparent',
+      bgGradient: 'from-success/8 via-success/4 to-transparent',
       borderClass: 'border-success/20',
-      badgeClass: 'bg-success/15 text-success border-success/30',
-      iconBg: 'bg-success/15 text-success',
+      badgeClass: 'bg-success/10 text-success border-success/20',
+      iconBg: 'bg-success/12 text-success',
+      glowClass: '',
     },
     warning: {
       label: 'Requiere Atención',
-      description: 'Hay acciones pendientes',
+      description: `${totalActions || 'Acciones'} pendientes`,
       icon: AlertTriangle,
-      bgClass: 'from-warning/10 via-warning/5 to-transparent',
+      bgGradient: 'from-warning/10 via-warning/5 to-transparent',
       borderClass: 'border-warning/25',
-      badgeClass: 'bg-warning/15 text-warning border-warning/30',
-      iconBg: 'bg-warning/15 text-warning',
+      badgeClass: 'bg-warning/12 text-warning border-warning/25',
+      iconBg: 'bg-warning/12 text-warning',
+      glowClass: 'hover:glow-warning',
     },
     critical: {
       label: 'Atención Urgente',
       description: 'Actúa ahora',
       icon: ShieldAlert,
-      bgClass: 'from-destructive/10 via-destructive/5 to-transparent',
+      bgGradient: 'from-destructive/10 via-destructive/5 to-transparent',
       borderClass: 'border-destructive/25',
-      badgeClass: 'bg-destructive/15 text-destructive border-destructive/30',
-      iconBg: 'bg-destructive/15 text-destructive',
+      badgeClass: 'bg-destructive/12 text-destructive border-destructive/25',
+      iconBg: 'bg-destructive/12 text-destructive',
+      glowClass: 'hover:glow-danger',
     },
   };
 
   const config = stateConfig[businessState];
   const StateIcon = config.icon;
 
+  // Trend indicator
+  const TrendIcon = changeVsYesterday > 0 ? TrendingUp : changeVsYesterday < 0 ? TrendingDown : Minus;
+  const trendColor = changeVsYesterday > 0 ? 'text-destructive' : changeVsYesterday < 0 ? 'text-success' : 'text-muted-foreground';
+  const trendBg = changeVsYesterday > 0 ? 'bg-destructive/10' : changeVsYesterday < 0 ? 'bg-success/10' : 'bg-muted/50';
+
   return (
     <div
       className={cn(
-        'hero-financial-card relative overflow-hidden rounded-2xl border p-6 md:p-8',
-        'bg-gradient-to-br',
-        config.bgClass,
-        config.borderClass
+        'hero-financial-card hero-glass relative overflow-hidden rounded-2xl border p-6 md:p-8',
+        'bg-gradient-to-br transition-all duration-300',
+        config.bgGradient,
+        config.borderClass,
+        config.glowClass
       )}
     >
       {/* Background decoration */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 opacity-[0.03] pointer-events-none">
-        <DollarSign className="w-full h-full" />
+      <div className="absolute -top-24 -right-24 w-72 h-72 opacity-[0.03] pointer-events-none">
+        <DollarSign className="w-full h-full" strokeWidth={0.5} />
       </div>
 
       {/* Two column layout */}
-      <div className="relative grid md:grid-cols-[1fr,280px] gap-6 md:gap-8">
+      <div className="relative grid md:grid-cols-[1fr,300px] gap-6 md:gap-10">
         {/* Left: Financial Data */}
         <div className="space-y-6">
           {/* Label */}
-          <div className="flex items-center gap-2">
-            <div className={cn('p-2 rounded-lg', config.iconBg)}>
-              <DollarSign className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <div className={cn('p-2.5 rounded-xl', config.iconBg)}>
+              <DollarSign className="w-5 h-5" />
             </div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Balance Crítico del Día
-            </span>
+            <div>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                Balance Crítico del Día
+              </span>
+            </div>
           </div>
 
           {/* Hero Number */}
-          <div className="space-y-1">
-            <h2 className="hero-financial-number text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+          <div className="space-y-2">
+            <h2 className="hero-financial-number text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
               ${montoEnRiesgo.toLocaleString()}
             </h2>
-            <p className="text-muted-foreground text-base">
-              {hasUrgency ? 'en riesgo hoy' : 'pendiente de gestión'}
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-muted-foreground text-base">
+                {hasUrgency ? 'en riesgo hoy' : 'pendiente de gestión'}
+              </p>
+              
+              {/* Trend vs Yesterday */}
+              {changeVsYesterday !== 0 && (
+                <div className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
+                  trendBg,
+                  trendColor
+                )}>
+                  <TrendIcon className="w-3.5 h-3.5" />
+                  <span>{changeVsYesterday > 0 ? '+' : ''}{changeVsYesterday}% vs ayer</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Context: % of weekly sales */}
+            {percentOfWeeklySales > 0 && (
+              <p className="narrative-context text-sm">
+                Representa el <span className="font-semibold text-foreground">{percentOfWeeklySales}%</span> de tus ventas semanales
+              </p>
+            )}
           </div>
 
           {/* Status Chips */}
@@ -145,7 +189,7 @@ export function HeroFinancialCard({
             )}
 
             {!hasUrgency && (
-              <div className="tension-chip bg-success/10 text-success">
+              <div className="tension-chip bg-success/10 text-success border border-success/20">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Sin alertas pendientes</span>
               </div>
@@ -154,44 +198,52 @@ export function HeroFinancialCard({
         </div>
 
         {/* Right: Business State + CTA */}
-        <div className="flex flex-col justify-between gap-4 md:border-l md:border-border/50 md:pl-8">
+        <div className="flex flex-col justify-between gap-5 md:border-l md:border-border/40 md:pl-10">
           {/* State Indicator */}
-          <div className="space-y-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-4">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Estado del Negocio
             </span>
             
             <div className={cn(
-              'inline-flex items-center gap-3 px-4 py-3 rounded-xl border',
+              'flex items-center gap-4 px-5 py-4 rounded-2xl border',
               config.badgeClass
             )}>
               <div className={cn(
-                'w-10 h-10 rounded-lg flex items-center justify-center',
+                'w-12 h-12 rounded-xl flex items-center justify-center',
                 config.iconBg
               )}>
-                <StateIcon className="w-5 h-5" />
+                <StateIcon className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-sm">{config.label}</p>
-                <p className="text-xs opacity-80">{config.description}</p>
+                <p className="font-bold text-base">{config.label}</p>
+                <p className="text-sm opacity-80">{config.description}</p>
               </div>
             </div>
+
+            {/* Actions to stability hint */}
+            {actionsToStability > 0 && businessState !== 'healthy' && (
+              <p className="narrative-causality pl-1">
+                {actionsToStability} {actionsToStability === 1 ? 'acción te separa' : 'acciones te separan'} de estabilidad
+              </p>
+            )}
           </div>
 
           {/* CTAs */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Button
               onClick={() => navigate('/sales')}
               size="lg"
               className={cn(
-                'w-full gap-2 font-semibold shadow-lg',
-                businessState === 'critical' && 'bg-destructive hover:bg-destructive/90',
-                businessState === 'warning' && 'bg-warning hover:bg-warning/90 text-warning-foreground'
+                'w-full gap-2 font-bold shadow-lg text-base h-12',
+                businessState === 'critical' && 'btn-gradient-primary',
+                businessState === 'warning' && 'bg-warning hover:bg-warning/90 text-warning-foreground',
+                businessState === 'healthy' && 'btn-gradient-success text-white'
               )}
             >
-              <DollarSign className="w-4 h-4" />
-              {pendienteCobro > 0 ? 'Cobrar Ahora' : 'Ver Ventas'}
-              <ArrowRight className="w-4 h-4" />
+              <DollarSign className="w-5 h-5" />
+              {pendienteCobro > 0 ? `Cobrar $${(pendienteCobro / 1000).toFixed(0)}K Ahora` : 'Ver Ventas'}
+              <ArrowRight className="w-5 h-5" />
             </Button>
             
             {hasUrgency && (
