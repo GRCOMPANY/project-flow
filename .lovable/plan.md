@@ -1,357 +1,501 @@
 
-# Plan: Dashboard Premium Ejecutivo - Rediseno Visual Enterprise/IA/Fintech
 
-## Vision del Rediseno
-
-Transformar el Command Center de un dashboard funcional a una **experiencia visual enterprise-grade** que transmita:
-- Control total del negocio
-- Inteligencia artificial trabajando para ti
-- Estetica fintech/SaaS premium
-- Alta densidad de datos con jerarquia clara
-
-El objetivo es que cualquier inversionista o cliente B2B vea este dashboard y perciba inmediatamente un producto de alto valor.
-
----
+# Plan: Rediseno Premium Dashboard - Nivel Enterprise/IA/Fintech
 
 ## Diagnostico del Estado Actual
 
-| Elemento | Problema |
-|----------|----------|
-| Layout | Muy vertical, sin aprovechamiento horizontal |
-| Cards | Todas iguales, sin jerarquia visual |
-| Tipografia | Mezcla serif/sans sin proposito claro |
-| Colores | Gradientes sutiles pero sin impacto |
-| Graficas | Sparklines pequenas, sin contexto visual |
-| Espaciado | Generoso pero sin densidad de datos |
+Tras revisar los 6 componentes principales del dashboard y el sistema de estilos, identifico las siguientes oportunidades de mejora:
+
+| Componente | Estado Actual | Oportunidad |
+|------------|--------------|-------------|
+| HeroFinancialCard | Funcional pero generico | Falta narrativa financiera, % vs periodo anterior, gradientes mas impactantes |
+| AIRadarPanel | Alertas basicas | Falta "glow" IA, iconos mas sofisticados, numerica contextual |
+| MetricsDashboard | Sparklines simples | Falta contexto comparativo, etiquetas "vs semana anterior" |
+| ProductSpotlight | Card funcional | Imagen pequena, falta estado comercial, metricas sin contexto |
+| AIInsightBanner | Insight basico | Falta efecto "glass", animacion sutil, sensacion de IA |
+| QuickActionsBar | Botones genericos | Falta gradientes premium, iconografia consistente |
 
 ---
 
-## Nueva Arquitectura Visual (6 Bloques)
+## Arquitectura de Mejoras (6 Bloques)
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  HEADER PREMIUM (glass effect + status live)                                │
-│  GRC AI OS                                    ● Sistema activo   [Avatar]  │
-└─────────────────────────────────────────────────────────────────────────────┘
+### BLOQUE 1: Hero Financiero Premium
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE 1: HERO FINANCIERO (70% del ancho, dominante)                       │
-│  ┌───────────────────────────────────────────┬─────────────────────────────┐│
-│  │  💰 BALANCE CRITICO DEL DIA               │  📊 ESTADO                  ││
-│  │                                           │                             ││
-│  │  $405.000                                 │   ┌─────────────────────┐   ││
-│  │  en riesgo hoy                            │   │  ⚠️ EN RIESGO       │   ││
-│  │                                           │   │  Requiere accion    │   ││
-│  │  ┌────────┐ ┌────────┐ ┌────────┐        │   └─────────────────────┘   ││
-│  │  │ 3 sin  │ │ 2 en   │ │ $140K  │        │                             ││
-│  │  │confirmar│ │ riesgo │ │ cobrar │        │  [████ COBRAR AHORA ████]  ││
-│  │  └────────┘ └────────┘ └────────┘        │                             ││
-│  └───────────────────────────────────────────┴─────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
+**Archivo:** `src/components/command-center/HeroFinancialCard.tsx`
 
-┌────────────────────────────────────┬────────────────────────────────────────┐
-│  BLOQUE 2: RADAR IA (Alertas)      │  BLOQUE 3: METRICAS VISUALES          │
-│                                    │                                        │
-│  ┌────────────────────────────────┐│  ┌──────────┐ ┌──────────┐            │
-│  │ 🔴 3 ventas sin confirmar >2d  ││  │ VENTAS   │ │ GANANCIA │            │
-│  └────────────────────────────────┘│  │  18      │ │ +$245K   │            │
-│  ┌────────────────────────────────┐│  │ ~~~~~~~~ │ │ ~~~~~~~~ │            │
-│  │ 🟡 1 producto rentable dormido ││  │ +23% ↑   │ │ +12% ↑   │            │
-│  └────────────────────────────────┘│  └──────────┘ └──────────┘            │
-│  ┌────────────────────────────────┐│                                        │
-│  │ 🟢 Recupera $250K si cobras    ││  ┌──────────────────────────────────┐ │
-│  └────────────────────────────────┘│  │ CONVERSION                       │ │
-│                                    │  │ 18.5% (+5%)                      │ │
-│                                    │  └──────────────────────────────────┘ │
-└────────────────────────────────────┴────────────────────────────────────────┘
+**Mejoras:**
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE 4: PRODUCTO ESTRELLA DE LA SEMANA (Full width highlight)            │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │  🏆 MAS VENDIDO                           [Imagen Grande]              │ │
-│  │                                                                         │ │
-│  │  Nombre del Producto                      12 vendidos esta semana      │ │
-│  │  52% margen                               $156K generado               │ │
-│  │                                                                         │ │
-│  │  [ 🚀 Escalar producto ]  [ 🎨 Nuevo creativo ]                        │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+1. **Narrativa financiera contextual:**
+   - Mostrar "% del total de ventas recientes" junto al monto en riesgo
+   - Agregar comparativa: "↑ 15% vs ayer" o "↓ 8% vs ayer"
+   - Subtexto: "Esto representa el X% de tus ventas de esta semana"
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE 5: INSIGHT IA (Card Premium con glow)                               │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │  🧠 GRC AI sugiere                                                     │ │
-│  │                                                                         │ │
-│  │  "Hoy puedes recuperar $405.000 si confirmas estos 3 pedidos."         │ │
-│  │                                                                         │ │
-│  │                                        [ Ejecutar ahora → ]            │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+2. **Estado del negocio mejorado:**
+   - Indicador circular animado (pulso suave)
+   - Tres estados: "Oportunidad" (verde), "Requiere Atencion" (amarillo), "Critico" (rojo)
+   - Descripcion contextual: "3 acciones te separan de estabilidad"
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE 6: ACCIONES RAPIDAS (Footer premium)                                │
-│  [ 💰 Cobrar (3) ]  [ 🎨 Crear creativo ]  [ 📈 Escalar ]  [ ⚡ Reactivar ]│
-└─────────────────────────────────────────────────────────────────────────────┘
+3. **Diseno visual premium:**
+   - Gradiente mas sofisticado con efecto "glass"
+   - Numero hero con gradiente dorado sutil
+   - Border con brillo sutil animado
+   - Sombra con color semantico (rojo suave si critico)
+
+4. **CTA mejorado:**
+   - Boton con gradiente y efecto hover premium
+   - Texto contextual: "Cobrar $XXX ahora" con monto visible
+   - Micro-badge con cantidad de acciones
+
+```typescript
+// Props adicionales
+interface HeroFinancialCardProps {
+  // ...existentes
+  percentOfWeeklySales: number;  // % que representa del total semanal
+  changeVsYesterday: number;     // cambio porcentual vs ayer
+  actionsToStability: number;    // acciones para llegar a estable
+}
 ```
 
 ---
 
-## Especificaciones de Diseno
+### BLOQUE 2: Radar IA Premium
 
-### Sistema de Colores Premium
+**Archivo:** `src/components/command-center/AIRadarPanel.tsx`
 
-```css
-/* Nuevo sistema de colores enterprise */
---dashboard-bg: 224 20% 4%;         /* Fondo oscuro profundo */
---dashboard-surface: 224 18% 8%;    /* Cards */
---dashboard-elevated: 224 16% 12%;  /* Cards hover */
---dashboard-border: 224 15% 18%;    /* Bordes sutiles */
+**Mejoras:**
 
-/* Gradientes premium */
---gradient-gold: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
---gradient-danger: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
---gradient-success: linear-gradient(135deg, #059669 0%, #047857 100%);
---gradient-ai: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+1. **Header con efecto IA:**
+   - Icono de "cerebro" o "radar" con animacion de pulso
+   - Badge "Actualizado hace X min" para sensacion de tiempo real
+   - Gradiente indigo/purple para identidad IA
 
-/* Glow effects */
---glow-gold: 0 0 40px rgba(212, 175, 55, 0.15);
---glow-danger: 0 0 40px rgba(220, 38, 38, 0.15);
---glow-ai: 0 0 60px rgba(99, 102, 241, 0.2);
+2. **Alertas con contexto numerico:**
+   - Cada alerta con impacto economico estimado
+   - Ejemplo: "3 ventas sin confirmar → $450K en riesgo"
+   - Subtext con causalidad: "Porque llevan mas de 2 dias sin contacto"
+
+3. **Jerarquia visual por severidad:**
+   - Critical: Border glow rojo animado
+   - Warning: Border amarillo solido
+   - Opportunity: Border verde con icono de dinero
+
+4. **Acciones inline:**
+   - Boton pequeno dentro de cada alerta: "Actuar"
+   - Hover reveal del CTA para mantener limpieza
+
+```typescript
+// Mejorar RadarAlert
+interface RadarAlert {
+  // ...existentes
+  estimatedImpact?: number;   // Impacto economico estimado
+  causality?: string;         // "Porque..." 
+  urgencyLevel?: 'now' | 'today' | 'this_week';
+}
 ```
 
-### Tipografia Enterprise
+---
+
+### BLOQUE 3: Metricas con Contexto
+
+**Archivo:** `src/components/command-center/MetricsDashboard.tsx`
+
+**Mejoras:**
+
+1. **Comparacion temporal visible:**
+   - Agregar "vs semana anterior" con numero y flecha
+   - Badge: "+$45K vs semana pasada"
+   - Porcentaje de cambio prominente
+
+2. **Tercera metrica: Margen Promedio**
+   - Calcular margen promedio de ventas pagadas
+   - Mostrar tendencia del margen
+   - Alerta visual si margen baja
+
+3. **Sparklines mejorados:**
+   - Area fill con gradiente mas visible
+   - Punto final con "glow" sutil
+   - Hover para ver valor del dia
+
+4. **Layout optimizado:**
+   - Grid 3 columnas en desktop
+   - Cards con mas "aire" y profundidad
+   - Iconos mas grandes y semanticos
+
+```typescript
+// Agregar avgMarginData
+interface MetricsDashboardProps {
+  salesData: SparklineData;
+  profitData: SparklineData;
+  marginData: SparklineData;  // NUEVO: Margen promedio
+}
+```
+
+---
+
+### BLOQUE 4: Producto Estrella Premium
+
+**Archivo:** `src/components/command-center/ProductSpotlight.tsx`
+
+**Mejoras:**
+
+1. **Imagen prominente:**
+   - Aumentar tamano de imagen a 250px minimo
+   - Overlay con gradiente sutil
+   - Ring/border con color del tipo de producto
+
+2. **Estado comercial visible:**
+   - Badge grande: "Caliente", "Tibio", "Frio"
+   - Con icono y color semantico
+   - Posicion destacada
+
+3. **Metricas con contexto:**
+   - "12 vendidos esta semana (↑ 4 vs anterior)"
+   - "$156K generado (52% margen)"
+   - Trend indicator visual
+
+4. **Acciones mejoradas:**
+   - Botones con iconos y gradientes
+   - Tercer boton: "Enviar a vendedores"
+   - Layout horizontal en desktop
+
+5. **Causalidad:**
+   - Subtexto: "Este producto esta vendiendo porque..."
+   - Insight de por que es el destacado
+
+---
+
+### BLOQUE 5: Insight IA con Glow
+
+**Archivo:** `src/components/command-center/AIInsightBanner.tsx`
+
+**Mejoras:**
+
+1. **Efecto glass premium:**
+   - Background con blur y transparencia
+   - Border con gradiente IA (indigo → purple)
+   - Sombra con glow sutil del color del tipo
+
+2. **Animacion del icono:**
+   - Icono de cerebro con pulso sutil
+   - Efecto de "pensando" cuando hay insight nuevo
+
+3. **Tipografia impactante:**
+   - Texto del insight mas grande (text-xl)
+   - Comillas estilizadas
+   - Font-weight mas bold
+
+4. **Narrativa mejorada:**
+   - Insights con causalidad: "Porque X, puedes hacer Y"
+   - Impacto estimado visible: "→ Impacto estimado: $XXX"
+   - CTA con urgencia: "Actuar ahora"
+
+---
+
+### BLOQUE 6: Acciones Rapidas Premium
+
+**Archivo:** `src/components/command-center/QuickActionsBar.tsx`
+
+**Mejoras:**
+
+1. **Botones con gradientes:**
+   - Primary: Gradiente rojo GRC
+   - Secondary: Gradiente dorado
+   - Outline: Border con hover gradiente
+
+2. **Badges mejorados:**
+   - Numeros con fondo contrastante
+   - Animacion de entrada
+   - Posicion consistente
+
+3. **Layout mejorado:**
+   - Flex con gap mayor
+   - Botones mas grandes en desktop
+   - Iconos antes del texto
+
+4. **Hover effects:**
+   - Elevacion sutil
+   - Glow del color del boton
+   - Transicion suave
+
+---
+
+## Mejoras de CSS Global
+
+**Archivo:** `src/index.css`
+
+**Agregar:**
 
 ```css
-/* Headers impactantes */
-.dashboard-hero-number {
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 3.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
+/* ====== PREMIUM DASHBOARD V2 ====== */
+
+/* Hero Financial - Glass Effect */
+.hero-glass {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--card) / 0.95) 0%,
+    hsl(var(--card) / 0.85) 100%
+  );
+  backdrop-filter: blur(16px);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Gradient Borders */
+.gradient-border-ai {
+  position: relative;
+  background: linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+              linear-gradient(135deg, #6366F1, #8B5CF6, #6366F1) border-box;
+  border: 2px solid transparent;
+}
+
+/* Glow Effects */
+.glow-success { box-shadow: 0 0 24px -4px hsl(var(--success) / 0.4); }
+.glow-warning { box-shadow: 0 0 24px -4px hsl(var(--warning) / 0.4); }
+.glow-danger { box-shadow: 0 0 24px -4px hsl(var(--destructive) / 0.4); }
+.glow-ai { box-shadow: 0 0 32px -4px rgba(99, 102, 241, 0.3); }
+
+/* Hero Number Gradient */
+.hero-number-gold {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5D67B 50%, #B8860B 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Labels tech */
-.dashboard-label {
-  font-family: 'Inter', sans-serif;
+/* Pulse Animation for Status */
+@keyframes pulse-status {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: 0 0 0 8px transparent;
+    opacity: 0.8;
+  }
+}
+
+.pulse-status {
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+/* Radar Alert Glow */
+.radar-glow-critical {
+  box-shadow: inset 4px 0 0 hsl(var(--destructive)),
+              0 2px 12px -2px hsl(var(--destructive) / 0.2);
+}
+
+/* Premium Button Gradients */
+.btn-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(0 72% 32%) 100%);
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-primary:hover {
+  box-shadow: 0 4px 16px -4px hsl(var(--primary) / 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-gradient-gold {
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(42 85% 45%) 100%);
+}
+
+/* Metric Card Premium */
+.metric-card-premium {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow: 
+    0 1px 2px hsl(var(--foreground) / 0.02),
+    0 4px 16px hsl(var(--foreground) / 0.04);
+  transition: all 0.3s ease;
+}
+
+.metric-card-premium:hover {
+  border-color: hsl(var(--border));
+  box-shadow: 
+    0 2px 8px hsl(var(--foreground) / 0.04),
+    0 8px 32px hsl(var(--foreground) / 0.08);
+  transform: translateY(-2px);
+}
+
+/* Comparison Badge */
+.comparison-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
 }
-```
 
-### Componentes Visuales Nuevos
+.comparison-badge-up {
+  background: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+}
 
-| Componente | Descripcion Visual |
-|------------|-------------------|
-| HeroFinancialCard | Card gigante con gradiente sutil, numero hero animado, chips de estado, glow effect |
-| BusinessStateIndicator | Circulo pulsante con estado (verde/amarillo/rojo), texto de estado |
-| AIRadarPanel | Panel con borde izquierdo de color, icono animado, flecha de navegacion |
-| MetricSparkCard | Card con numero grande, mini grafica SVG, indicador de tendencia |
-| ProductSpotlight | Card horizontal con imagen grande, metricas apiladas, botones de accion |
-| AIInsightBanner | Card con borde gradiente AI (morado), glow sutil, icono de cerebro |
-| PremiumActionButton | Botones con gradientes, iconos, badges numericos, hover effects |
-
----
-
-## Cambios por Archivo
-
-### 1. src/index.css - Sistema de Diseno Premium
-
-Agregar:
-- Variables CSS para modo oscuro enterprise
-- Clases `.dashboard-*` para componentes
-- Animaciones premium (pulse, glow, float)
-- Efectos de glass morphism
-- Gradientes enterprise
-
-### 2. src/components/command-center/HeroFinancialCard.tsx (NUEVO)
-
-Reemplaza TensionCard con version enterprise:
-- Numero hero con gradiente animado
-- Estado del negocio con indicador visual
-- Chips de riesgo con iconos
-- CTA principal prominente
-- Layout 2 columnas (data | estado + CTA)
-
-### 3. src/components/command-center/AIRadarPanel.tsx (NUEVO)
-
-Reemplaza BusinessRadar con version premium:
-- Header con titulo "Radar IA" y contador
-- Alertas con borde izquierdo semantico
-- Iconos animados sutilmente
-- Efecto hover con elevacion
-- Maximo 5 alertas visibles
-
-### 4. src/components/command-center/MetricsDashboard.tsx (NUEVO)
-
-Reemplaza TrendSparklines con graficas completas:
-- Grid de 3 metricas principales
-- Graficas SVG con area fill (no solo linea)
-- Indicadores de tendencia animados
-- Tooltips con datos precisos
-- Colores semanticos
-
-### 5. src/components/command-center/ProductSpotlight.tsx (NUEVO)
-
-Reemplaza KeyProductCards con version hero:
-- Un solo producto destacado (el mas importante)
-- Imagen grande (40% del card)
-- Metricas apiladas con iconos
-- Doble CTA (Escalar + Crear creativo)
-- Badge de tipo (Mas vendido / Mas rentable)
-
-### 6. src/components/command-center/AIInsightBanner.tsx (NUEVO)
-
-Reemplaza DailyInsightCard con version IA:
-- Borde con gradiente AI (indigo/purple)
-- Icono de cerebro animado
-- Texto grande, impactante
-- CTA secundario discreto
-- Glow effect sutil
-
-### 7. src/components/command-center/QuickActionsBar.tsx (NUEVO)
-
-Reemplaza SmartActions con barra premium:
-- Layout horizontal fijo en parte inferior
-- Botones con gradientes
-- Iconos y badges integrados
-- Efecto ripple en click
-- Responsive (stack en mobile)
-
-### 8. src/pages/CommandCenter.tsx - Reestructuracion
-
-Cambios:
-- Background oscuro enterprise
-- Layout con CSS Grid 2 columnas
-- Nuevo header premium con status live
-- Integracion de todos los nuevos componentes
-- Animaciones de entrada escalonadas
-
----
-
-## Detalle Visual de Componentes
-
-### HeroFinancialCard
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│ GLASS EFFECT + GRADIENT BORDER                                          │
-│                                                                          │
-│  ⚠️  Balance Critico del Dia              │   ESTADO DEL NEGOCIO        │
-│                                            │                             │
-│     $405.000                              │   ┌─────────────────────┐   │
-│     en riesgo                             │   │  ⚠️ EN RIESGO      │   │
-│                                           │   │  3 items criticos   │   │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐     │   └─────────────────────┘   │
-│  │ 🔴 3    │ │ 🟡 2    │ │ 💰 $140K│     │                             │
-│  │ sin conf│ │ riesgo  │ │ cobrar  │     │   [█████ COBRAR █████]     │
-│  └─────────┘ └─────────┘ └─────────┘     │   [    Ver detalle    ]     │
-│                                           │                             │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### AIRadarPanel
-
-```text
-┌────────────────────────────────────────────┐
-│  🧠 RADAR IA                         (5)  │
-├────────────────────────────────────────────┤
-│  ┌────────────────────────────────────┐   │
-│  │ 🔴 3 ventas sin confirmar > 2 dias │ → │
-│  └────────────────────────────────────┘   │
-│  ┌────────────────────────────────────┐   │
-│  │ 🟡 1 producto rentable sin activar │ → │
-│  └────────────────────────────────────┘   │
-│  ┌────────────────────────────────────┐   │
-│  │ 🟢 Recupera $250K si cobras hoy    │ → │
-│  └────────────────────────────────────┘   │
-└────────────────────────────────────────────┘
-```
-
-### MetricsDashboard
-
-```text
-┌──────────────────────────────────────────────┐
-│  METRICAS 7 DIAS                             │
-├──────────────────────────────────────────────┤
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐│
-│  │ 📊 VENTAS  │ │ 💰 GANANCIA│ │ 📈 TASA   ││
-│  │    18      │ │  +$245K    │ │   18.5%   ││
-│  │ ▂▃▄▅▆▇▇▆ │ │ ▃▄▅▄▆▇▆▅ │ │ ▄▅▆▅▆▇▇▆ ││
-│  │  +23% ↑   │ │  +12% ↑   │ │  +5% ↑    ││
-│  └────────────┘ └────────────┘ └────────────┘│
-└──────────────────────────────────────────────┘
+.comparison-badge-down {
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
 ```
 
 ---
 
-## Animaciones Premium
+## Cambios en CommandCenter.tsx
 
-```css
-/* Entrada escalonada */
-.dashboard-stagger-1 { animation-delay: 0.05s; }
-.dashboard-stagger-2 { animation-delay: 0.10s; }
-.dashboard-stagger-3 { animation-delay: 0.15s; }
-.dashboard-stagger-4 { animation-delay: 0.20s; }
-.dashboard-stagger-5 { animation-delay: 0.25s; }
-.dashboard-stagger-6 { animation-delay: 0.30s; }
+**Archivo:** `src/pages/CommandCenter.tsx`
 
-/* Pulse para urgencia */
-@keyframes pulse-urgent {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-  50% { box-shadow: 0 0 20px 5px rgba(220, 38, 38, 0.2); }
-}
+**Mejoras:**
 
-/* Glow para IA */
-@keyframes glow-ai {
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
-  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.3); }
-}
+1. **Calculos adicionales:**
+   - `percentOfWeeklySales`: Calcular % del total semanal
+   - `changeVsYesterday`: Cambio vs ayer
+   - `avgMarginData`: Data de margen promedio
 
-/* Float sutil */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-```
+2. **Layout mejorado:**
+   - Espaciado mas generoso (space-y-10)
+   - Max-width aumentado a max-w-7xl
+   - Animaciones escalonadas mas pronunciadas
+
+3. **Header premium:**
+   - Status "Sistema Activo" con glow
+   - Hora de ultima actualizacion
+   - Badge de version IA
 
 ---
 
 ## Orden de Implementacion
 
-1. Actualizar `index.css` con sistema de diseno enterprise
-2. Crear `HeroFinancialCard.tsx` (hero principal)
-3. Crear `AIRadarPanel.tsx` (alertas inteligentes)
-4. Crear `MetricsDashboard.tsx` (graficas visuales)
-5. Crear `ProductSpotlight.tsx` (producto destacado)
-6. Crear `AIInsightBanner.tsx` (insight IA)
-7. Crear `QuickActionsBar.tsx` (acciones rapidas)
-8. Reestructurar `CommandCenter.tsx` (integrar todo)
+```text
+1. src/index.css
+   → Agregar nuevas clases premium (glass, glow, gradients)
+
+2. src/components/command-center/HeroFinancialCard.tsx
+   → Redisenar con narrativa financiera y efectos premium
+
+3. src/components/command-center/AIRadarPanel.tsx
+   → Mejorar con contexto numerico y efectos IA
+
+4. src/components/command-center/MetricsDashboard.tsx
+   → Agregar margen, comparativas, mejorar sparklines
+
+5. src/components/command-center/ProductSpotlight.tsx
+   → Imagen grande, estado comercial, metricas contextuales
+
+6. src/components/command-center/AIInsightBanner.tsx
+   → Efecto glass, glow IA, tipografia impactante
+
+7. src/components/command-center/QuickActionsBar.tsx
+   → Botones con gradientes y efectos hover
+
+8. src/pages/CommandCenter.tsx
+   → Nuevos calculos y layout mejorado
+```
 
 ---
 
-## Resultado Esperado
+## Resultado Visual Esperado
 
-Un dashboard que:
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ● Sistema Activo                          GRC AI OS v2.0     Ultima act: 2min │
+│  Buenos dias, Carlos                                                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-- Se ve como un producto de $10,000/mes
-- Transmite control total e inteligencia artificial
-- Tiene alta densidad de informacion sin sentirse abrumador
-- Usa colores, gradientes y efectos de forma intencional
-- Se siente como Stripe Dashboard + Linear + AI Platform
-- Es vendible a otros negocios como producto B2B
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ╔════════════════════════════════════════════════════════════════════════════╗ │
+│  ║  💰 BALANCE CRITICO DEL DIA                                                ║ │
+│  ║                                                                            ║ │
+│  ║     $405.000                          ESTADO: ⚠️ REQUIERE ATENCION        ║ │
+│  ║     en riesgo hoy                     3 acciones para estabilidad          ║ │
+│  ║                                                                            ║ │
+│  ║     📈 ↑15% vs ayer                                                       ║ │
+│  ║     Representa el 23% de ventas semanales                                  ║ │
+│  ║                                                                            ║ │
+│  ║     [3 sin confirmar]  [2 en riesgo]  [$140K pendiente]                   ║ │
+│  ║                                                                            ║ │
+│  ║                         [████ COBRAR $140K AHORA ████]                    ║ │
+│  ╚════════════════════════════════════════════════════════════════════════════╝ │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────┬────────────────────────────────────────────┐
+│  🧠 RADAR IA              (4) ⟳2m │  📊 METRICAS 7 DIAS                        │
+│  ─────────────────────────────────│  ─────────────────────────────────────────  │
+│  ┌────────────────────────────────┐│  ┌───────────┐ ┌───────────┐ ┌───────────┐│
+│  │🔴 3 ventas sin confirmar >2d  ││  │  VENTAS   │ │ GANANCIA  │ │  MARGEN   ││
+│  │   → $450K en riesgo      [→]  ││  │    18     │ │  +$245K   │ │   42%     ││
+│  └────────────────────────────────┘│  │  ~~~~~~~~ │ │ ~~~~~~~~  │ │ ~~~~~~~~  ││
+│  ┌────────────────────────────────┐│  │  +23% ↑   │ │  +12% ↑   │ │  +5% ↑    ││
+│  │🟢 Recupera $250K si cobras hoy││  │ vs ant.   │ │ vs ant.   │ │ vs ant.   ││
+│  │   Porque 3 ventas estan listas││  └───────────┘ └───────────┘ └───────────┘│
+│  └────────────────────────────────┘│                                            │
+└────────────────────────────────────┴────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ✨ PRODUCTO ESTRELLA DE LA SEMANA                                              │
+│  ┌──────────────────────────────────────────────────────────────────────────┐   │
+│  │  ┌─────────────────┐                                                      │   │
+│  │  │                 │  🏆 MAS VENDIDO          🔥 CALIENTE                │   │
+│  │  │     [IMAGEN     │                                                      │   │
+│  │  │      GRANDE]    │  Nombre del Producto Premium                        │   │
+│  │  │                 │                                                      │   │
+│  │  │                 │  12 vendidos  │  $156K generado  │  52% margen      │   │
+│  │  │                 │  (+4 vs ant.) │  (+$32K vs ant.) │  (estable)       │   │
+│  │  └─────────────────┘                                                      │   │
+│  │                                                                           │   │
+│  │  [🚀 Escalar producto]  [🎨 Nuevo creativo]  [📤 Enviar a vendedores]   │   │
+│  └──────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  🧠 GRC AI SUGIERE                                                   [GLOW AI] │
+│  ╔══════════════════════════════════════════════════════════════════════════╗   │
+│  ║                                                                          ║   │
+│  ║  "Hoy puedes recuperar $405.000 si confirmas estos 3 pedidos.           ║   │
+│  ║   Porque llevan mas de 2 dias esperando y el cliente aun responde."      ║   │
+│  ║                                                                          ║   │
+│  ║                          → Impacto estimado: +$405K                      ║   │
+│  ║                                                                          ║   │
+│  ║                                        [Actuar ahora →]                  ║   │
+│  ╚══════════════════════════════════════════════════════════════════════════╝   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ⚡ ACCIONES RAPIDAS                                                            │
+│                                                                                 │
+│   [💰 Cobrar Ahora (3)]   [🎨 Crear Creativo]   [📈 Escalar]   [⚡ Reactivar] │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Principios de Diseno Aplicados
+
+| Principio | Implementacion |
+|-----------|---------------|
+| Visual Intelligence | Sparklines con area, comparativas %, badges de tendencia |
+| Narrativa de dinero | "Representa X%", "→ Impacto estimado", montos en CTAs |
+| IA visible | Header "Radar IA", glow effects, causalidad en insights |
+| Premium sin ruido | Glass effects, gradientes sutiles, espaciado generoso |
+| Alta densidad jerarquizada | Grid 2 columnas, cards con profundidad, tipografia variable |
 
 ---
 
 ## Lo Que NO Cambia
 
-- Logica de negocio en hooks
-- Calculos de metricas
-- Base de datos
-- Tipos TypeScript
+- Logica de negocio existente en hooks
+- Calculos de metricas base
 - Sistema de navegacion
+- Base de datos
+- Tipos TypeScript (solo extensiones)
+
+---
+
+## Criterio de Exito
+
+Cuando el usuario abra el dashboard, debe pensar:
+
+> "Esto es otro nivel. Esto entiende mi negocio. Esto me va a hacer ganar mas plata."
+
+El dashboard debe sentirse como un **copiloto inteligente de alto nivel**, no como un admin panel generico.
+
