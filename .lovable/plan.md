@@ -1,411 +1,484 @@
 
-# Plan: Sistema de Seguimiento Post-Venta con Tareas Automaticas
+# Plan: Rediseno UX Command Center - Modelo Alerta > Accion > Auditoria
 
-## Resumen
-Implementar estados operativos extendidos para ventas y generar tareas automaticas segun el metodo de pago. Cada cambio de estado crea o cierra tareas, impactando el Command Center con alertas y KPIs operativos.
+## Diagnostico del Estado Actual
 
----
+### Problemas Criticos Identificados
 
-## 1. Cambios en Base de Datos
+1. **Mezcla Conceptual**: Las "Alertas de Seguimiento" y "Acciones Prioritarias" tienen el mismo peso visual y estructura
+2. **Sobrecarga Informativa**: TaskCard muestra "Existe porque..." siempre visible (deberia estar colapsado)
+3. **Falta de Jerarquia**: Todo se presenta con igual prominencia
+4. **Friccion de Ejecucion**: El boton principal navega en lugar de ejecutar directamente
+5. **Ruido Visual**: Demasiados badges, iconos y texto compitiendo por atencion
 
-### 1.1 Migracion: Agregar campo `operational_status` a `sales`
-
-```sql
--- Crear enum para estados operativos
-CREATE TYPE operational_status AS ENUM (
-  'nuevo',
-  'contactado',
-  'confirmado',
-  'sin_respuesta',
-  'en_ruta',
-  'entregado',
-  'riesgo_devolucion'
-);
-
--- Agregar columna a sales
-ALTER TABLE sales ADD COLUMN operational_status operational_status DEFAULT 'nuevo';
-
--- Agregar campo para tracking de fechas de estado
-ALTER TABLE sales ADD COLUMN status_updated_at TIMESTAMPTZ DEFAULT now();
-
--- Indice para consultas de seguimiento
-CREATE INDEX idx_sales_operational_status ON sales(operational_status);
-```
-
----
-
-## 2. Actualizacion de Tipos TypeScript
-
-### Archivo: `src/types/index.ts`
-
-Agregar nuevo tipo:
-
-```typescript
-// Estados operativos de venta (ciclo post-venta)
-export type OperationalStatus = 
-  | 'nuevo'
-  | 'contactado'
-  | 'confirmado'
-  | 'sin_respuesta'
-  | 'en_ruta'
-  | 'entregado'
-  | 'riesgo_devolucion';
-```
-
-Actualizar interface `Sale`:
-
-```typescript
-export interface Sale {
-  // ... campos existentes ...
-  
-  // Seguimiento operativo
-  operationalStatus: OperationalStatus;
-  statusUpdatedAt?: string;
-}
-```
-
----
-
-## 3. Nuevas Reglas de Tareas Automaticas
-
-### Archivo: `src/lib/taskRules.ts`
-
-Agregar nueva funcion `generateSeguimientoTasks`:
-
-### 3.1 Reglas para Contra Entrega
-
-| Condicion | Tarea | Prioridad |
-|-----------|-------|-----------|
-| Venta nueva (< 1 dia) | "Confirmar pedido: {cliente}" | Alta |
-| `nuevo` por > 2 dias | "Recordar confirmacion: {cliente}" | Alta |
-| Sin respuesta > 3 dias | "Marcar riesgo: {cliente}" | Alta |
-| `confirmado` sin envio > 2 dias | "Preparar envio: {cliente}" | Media |
-| `en_ruta` > 3 dias sin entrega | "Verificar entrega: {cliente}" | Media |
-
-### 3.2 Reglas para Transferencia
-
-| Condicion | Tarea | Prioridad |
-|-----------|-------|-----------|
-| Venta nueva (< 1 dia) | "Enviar datos de pago: {cliente}" | Alta |
-| `contactado` + pendiente > 2 dias | "Recordar pago: {cliente}" | Alta |
-| Sin pago > 5 dias | "Marcar riesgo de no pago" | Alta |
-
-### 3.3 Flujo de Estados (Diagrama)
+### Flujo Actual vs Deseado
 
 ```text
-CONTRA ENTREGA:
-nuevo -> contactado -> confirmado -> en_ruta -> entregado
-              \-> sin_respuesta -> riesgo_devolucion
-
-TRANSFERENCIA:
-nuevo -> contactado -> [espera pago] -> confirmado -> en_ruta -> entregado
-              \-> sin_respuesta -> riesgo_devolucion
-```
-
-### 3.4 Implementacion Tecnica
-
-```typescript
-export function generateSeguimientoTasks(sales: Sale[]): GeneratedTask[] {
-  const tasks: GeneratedTask[] = [];
-
-  for (const sale of sales) {
-    if (sale.orderStatus === 'entregado' && sale.paymentStatus === 'pagado') continue;
-    
-    const daysSinceStatus = daysSince(sale.statusUpdatedAt || sale.saleDate);
-    const isContraEntrega = sale.paymentMethod === 'contra_entrega';
-    const isTransferencia = sale.paymentMethod === 'transferencia';
-    const clientName = sale.clientName || 'Cliente';
-
-    // === CONTRA ENTREGA ===
-    if (isContraEntrega) {
-      // Regla 1: Confirmar pedido nuevo
-      if (sale.operationalStatus === 'nuevo' && daysSinceStatus <= 1) {
-        tasks.push({
-          name: `Confirmar pedido: ${clientName}`,
-          description: `$${sale.totalAmount.toLocaleString()} - llamar para confirmar`,
-          type: 'seguimiento_venta',
-          priority: 'alta',
-          impact: 'dinero',
-          triggerReason: `Venta contra entrega registrada. Confirmar disponibilidad del cliente.`,
-          consequence: 'Sin confirmacion, el pedido puede perderse o generar devolucion.',
-          actionLabel: 'Marcar contactado',
-          actionPath: '/sales',
-          relatedSaleId: sale.id,
-          dedupKey: `seguimiento:confirmar:${sale.id}`,
-        });
-      }
-      
-      // Regla 2: Recordar confirmacion si no hay respuesta
-      if (sale.operationalStatus === 'nuevo' && daysSinceStatus > 2) {
-        tasks.push({
-          name: `Recordar confirmacion: ${clientName}`,
-          description: `Sin respuesta hace ${daysSinceStatus} dias`,
-          type: 'seguimiento_venta',
-          priority: 'alta',
-          impact: 'dinero',
-          triggerReason: `Cliente no ha confirmado pedido despues de ${daysSinceStatus} dias`,
-          consequence: 'Alto riesgo de perdida de venta o devolucion.',
-          actionLabel: 'Contactar',
-          actionPath: '/sales',
-          relatedSaleId: sale.id,
-          dedupKey: `seguimiento:recordar:${sale.id}`,
-        });
-      }
-      
-      // Regla 3: Marcar riesgo
-      if (sale.operationalStatus === 'sin_respuesta' && daysSinceStatus > 3) {
-        tasks.push({
-          name: `Venta en riesgo: ${clientName}`,
-          description: `Sin respuesta - considerar cancelacion`,
-          type: 'seguimiento_venta',
-          priority: 'alta',
-          impact: 'dinero',
-          triggerReason: `Cliente sin respuesta por ${daysSinceStatus} dias`,
-          consequence: 'Probable perdida de venta y costos de envio si se despacha.',
-          actionLabel: 'Evaluar',
-          actionPath: '/sales',
-          relatedSaleId: sale.id,
-          dedupKey: `seguimiento:riesgo:${sale.id}`,
-        });
-      }
-    }
-
-    // === TRANSFERENCIA ===
-    if (isTransferencia) {
-      // Regla 1: Enviar datos de pago
-      if (sale.operationalStatus === 'nuevo' && sale.paymentStatus === 'pendiente') {
-        tasks.push({
-          name: `Enviar datos de pago: ${clientName}`,
-          description: `$${sale.totalAmount.toLocaleString()} pendiente`,
-          type: 'seguimiento_venta',
-          priority: 'alta',
-          impact: 'dinero',
-          triggerReason: `Venta por transferencia sin datos de pago enviados`,
-          consequence: 'El cliente no puede pagar sin los datos bancarios.',
-          actionLabel: 'Marcar contactado',
-          actionPath: '/sales',
-          relatedSaleId: sale.id,
-          dedupKey: `seguimiento:datos:${sale.id}`,
-        });
-      }
-      
-      // Regla 2: Recordar pago
-      if (sale.operationalStatus === 'contactado' && sale.paymentStatus === 'pendiente' && daysSinceStatus > 2) {
-        tasks.push({
-          name: `Recordar pago: ${clientName}`,
-          description: `$${sale.totalAmount.toLocaleString()} - ${daysSinceStatus} dias sin pagar`,
-          type: 'seguimiento_venta',
-          priority: 'alta',
-          impact: 'dinero',
-          triggerReason: `Cliente contactado pero sin transferir despues de ${daysSinceStatus} dias`,
-          consequence: 'Riesgo de perdida de venta.',
-          actionLabel: 'Recordar',
-          actionPath: '/sales',
-          relatedSaleId: sale.id,
-          dedupKey: `seguimiento:recordar_pago:${sale.id}`,
-        });
-      }
-    }
-
-    // === REGLAS GENERALES ===
-    
-    // En ruta sin entrega > 3 dias
-    if (sale.operationalStatus === 'en_ruta' && daysSinceStatus > 3) {
-      tasks.push({
-        name: `Verificar entrega: ${clientName}`,
-        description: `En ruta hace ${daysSinceStatus} dias`,
-        type: 'seguimiento_venta',
-        priority: 'media',
-        impact: 'operacion',
-        triggerReason: `Pedido marcado en ruta hace ${daysSinceStatus} dias sin confirmacion de entrega`,
-        consequence: 'Posible problema logistico o devolucion no reportada.',
-        actionLabel: 'Verificar',
-        actionPath: '/sales',
-        relatedSaleId: sale.id,
-        dedupKey: `seguimiento:verificar_entrega:${sale.id}`,
-      });
-    }
-    
-    // Riesgo de devolucion
-    if (sale.operationalStatus === 'riesgo_devolucion') {
-      tasks.push({
-        name: `Resolver riesgo: ${clientName}`,
-        description: `$${sale.totalAmount.toLocaleString()} en riesgo`,
-        type: 'seguimiento_venta',
-        priority: 'alta',
-        impact: 'dinero',
-        triggerReason: `Venta marcada con riesgo de devolucion o perdida`,
-        consequence: 'Perdida directa de la venta y posibles costos adicionales.',
-        actionLabel: 'Resolver',
-        actionPath: '/sales',
-        relatedSaleId: sale.id,
-        dedupKey: `seguimiento:resolver_riesgo:${sale.id}`,
-      });
-    }
-  }
-
-  return tasks;
-}
+ACTUAL:                              DESEADO:
+┌─────────────────────┐              ┌─────────────────────┐
+│ Saludo + Botones    │              │ Saludo compacto     │
+├─────────────────────┤              ├─────────────────────┤
+│ Daily Insight       │              │ ALERTAS (1 linea)   │
+│ (card grande)       │              │ • 2 sin confirmar   │
+├─────────────────────┤              │ • $140K pendiente   │
+│ Alertas Seguimiento │              │ • 1 en riesgo       │
+│ (cards medianas)    │              ├─────────────────────┤
+├─────────────────────┤              │ ACCION 1            │
+│ Acciones Priorit.   │              │ [EJECUTAR]          │
+│ (cards grandes)     │              ├─────────────────────┤
+│ - TaskCard          │              │ ACCION 2            │
+│ - TaskCard          │              │ [EJECUTAR]          │
+│ - TaskCard          │              ├─────────────────────┤
+├─────────────────────┤              │ Estado Negocio      │
+│ Estado Negocio      │              │ (metricas)          │
+└─────────────────────┘              └─────────────────────┘
 ```
 
 ---
 
-## 4. Actualizacion de Hook useSales
+## Arquitectura de Componentes
 
-### Archivo: `src/hooks/useSales.ts`
+### Componentes Nuevos
 
-Agregar:
-- Mapeo de `operational_status` y `status_updated_at`
-- Funcion `updateOperationalStatus(id, newStatus)` que actualiza estado y `status_updated_at`
-- Auto-cierre de tareas relacionadas al cambiar estado
+| Componente | Proposito |
+|------------|-----------|
+| `AlertStrip.tsx` | Barra de alertas compactas (diagnostico) |
+| `ActionCard.tsx` | Tarjeta de accion ejecutable (ejecucion) |
+
+### Componentes a Modificar
+
+| Componente | Cambios |
+|------------|---------|
+| `CommandCenter.tsx` | Reorganizar estructura completa |
+| `TaskCard.tsx` | Simplificar para auditoria, colapsar contexto |
+
+---
+
+## Diseno Detallado
+
+### 1. AlertStrip - Barra de Alertas (Diagnostico)
+
+Reemplaza: DailyInsight + Alertas de Seguimiento
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🔴 2 sin confirmar  │  💰 $140.000 por cobrar  │  ⚠️ 1 en riesgo     │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Especificaciones:**
+- **Layout**: Flex horizontal, items compactos
+- **Cada alerta**: `Icono + Numero/Monto + Label corto`
+- **Interaccion**: Click navega al modulo correspondiente
+- **Sin estado**: Las alertas NO se completan, solo informan
+- **Colores semanticos**:
+  - Rojo: dinero en peligro / riesgo
+  - Amarillo: seguimiento pendiente
+  - Verde: todo ok (ocultar si no hay alertas)
+
+**Implementacion:**
 
 ```typescript
-const updateOperationalStatus = async (
-  id: string, 
-  newStatus: OperationalStatus
-): Promise<boolean> => {
-  const { error } = await supabase
-    .from('sales')
-    .update({
-      operational_status: newStatus,
-      status_updated_at: new Date().toISOString(),
-    })
-    .eq('id', id);
+// src/components/command-center/AlertStrip.tsx
+interface Alert {
+  id: string;
+  icon: LucideIcon;
+  value: string | number;
+  label: string;
+  variant: 'danger' | 'warning' | 'info';
+  path: string;
+}
 
-  if (error) {
-    toast({ title: 'Error', variant: 'destructive' });
-    return false;
-  }
+// Alertas a calcular:
+// - sinConfirmar: sales con operationalStatus === 'nuevo' y >2 dias
+// - pendienteCobro: suma de totalAmount donde paymentStatus === 'pendiente'
+// - enRiesgo: sales con operationalStatus === 'riesgo_devolucion' | 'sin_respuesta'
+// - pedidosSinEnviar: sales con operationalStatus === 'confirmado' y >2 dias
+```
 
-  toast({ title: `Estado: ${statusLabels[newStatus]}` });
-  fetchSales();
-  return true;
+### 2. ActionCard - Tarjeta de Accion Ejecutable
+
+Reemplaza: TaskCard en Command Center
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ 💰 COBRO                                                            │
+│                                                                     │
+│ Confirmar pedido — Manuela Balbuena                                │
+│ $140.000 · Contra entrega                                          │
+│                                                                     │
+│ [████ Marcar contactado ████]  ···                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Especificaciones:**
+- **Maximo 5 acciones** visibles
+- **Titulo con verbo**: "Confirmar pedido", "Cobrar venta", "Recordar pago"
+- **Subtitulo**: Cliente + monto + metodo
+- **Boton principal**: Ejecuta directamente (sin modal, sin navegacion)
+- **Icono secundario**: "···" para ver detalle/contexto expandible
+- **Sin "Existe porque"** visible por defecto - colapsado en "···"
+
+**Comportamiento del Boton Principal:**
+
+| Tipo Tarea | Accion del Boton | Efecto |
+|------------|------------------|--------|
+| Seguimiento (nuevo) | "Marcar contactado" | updateOperationalStatus('contactado') |
+| Seguimiento (contactado) | "Marcar confirmado" | updateOperationalStatus('confirmado') |
+| Cobro | "Marcar pagado" | updateSale({paymentStatus: 'pagado'}) |
+| Creativo | "Ir a crear" | navigate('/creatives') |
+
+**Implementacion:**
+
+```typescript
+// src/components/command-center/ActionCard.tsx
+interface ActionCardProps {
+  task: OperationalTask;
+  onExecute: () => Promise<void>;  // Accion principal
+  onViewDetail?: () => void;       // Expandir contexto
+}
+
+// Mapeo de acciones directas
+const directActions: Record<TaskType, (task: OperationalTask) => Promise<void>> = {
+  seguimiento_venta: async (task) => {
+    if (task.relatedSaleId) {
+      await updateOperationalStatus(task.relatedSaleId, getNextStatus(currentStatus));
+    }
+  },
+  cobro: async (task) => {
+    if (task.relatedSaleId) {
+      await updateSale(task.relatedSaleId, { paymentStatus: 'pagado' });
+    }
+  },
+  // ...
 };
 ```
 
----
+### 3. CommandCenter Reorganizado
 
-## 5. UI del Modulo de Ventas
+**Nueva Estructura:**
 
-### Archivo: `src/pages/Sales.tsx`
+```typescript
+// src/pages/CommandCenter.tsx
 
-### 5.1 Nuevo Selector de Estado Operativo
+return (
+  <div className="min-h-screen bg-background">
+    <CommandCenterNav />
+    
+    <div className="container max-w-4xl mx-auto px-4 py-6">
+      {/* Header compacto */}
+      <header className="mb-6">
+        <h1 className="text-2xl">Buenos dias, {nombre}</h1>
+      </header>
 
-Agregar dropdown en `SaleCard` para cambiar estado:
+      {/* 1. ALERTAS - Diagnostico rapido */}
+      <AlertStrip alerts={calculatedAlerts} className="mb-8" />
 
-```text
-Estados visuales:
-- nuevo        -> Gris       -> "Nuevo"
-- contactado   -> Azul       -> "Contactado"
-- confirmado   -> Verde      -> "Confirmado"
-- sin_respuesta-> Amarillo   -> "Sin respuesta"
-- en_ruta      -> Morado     -> "En ruta"
-- entregado    -> Verde      -> "Entregado"
-- riesgo_devolucion -> Rojo  -> "En riesgo"
+      {/* 2. ACCIONES PRIORITARIAS - Maximo 5 */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-4">Acciones de Hoy</h2>
+        <div className="space-y-3">
+          {priorityActions.slice(0, 5).map(task => (
+            <ActionCard 
+              key={task.id}
+              task={task}
+              onExecute={() => executeDirectAction(task)}
+              onViewDetail={() => setExpandedTask(task)}
+            />
+          ))}
+        </div>
+        
+        {/* Link secundario a auditoria */}
+        <Button variant="ghost" onClick={() => navigate('/tasks')}>
+          Ver historial completo →
+        </Button>
+      </section>
+
+      {/* 3. ESTADO DEL NEGOCIO - Metricas */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Estado del Negocio</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* BusinessMetricCard existentes */}
+        </div>
+      </section>
+    </div>
+  </div>
+);
 ```
 
-### 5.2 Nuevos KPIs en Dashboard
+### 4. TaskCard Simplificado (para /tasks)
 
-Agregar tercera fila de cards (solo admin):
+La pagina `/tasks` se convierte en vista de **auditoria**:
 
-```text
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ Sin confirmar   │ │   En riesgo     │ │ Pendiente accion│
-│      3          │ │       1         │ │       5         │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
+**Cambios en TaskCard:**
+- Contexto ("Existe porque...") colapsado por defecto
+- Consecuencia colapsada por defecto
+- Layout mas compacto
+- Menos badges visibles
+- Enfocado en historial, no ejecucion
+
+```typescript
+// src/components/tasks/TaskCard.tsx - Cambios
+
+// 1. Mover triggerReason DENTRO del bloque expandible
+// 2. Por defecto expanded = false
+// 3. Reducir padding: p-5 -> p-4
+// 4. Eliminar badges redundantes en vista compacta
 ```
-
-Calculos:
-- **Sin confirmar**: `operationalStatus === 'nuevo'` 
-- **En riesgo**: `operationalStatus === 'riesgo_devolucion' || operationalStatus === 'sin_respuesta'`
-- **Pendiente accion**: ventas que no estan en estado final
-
-### 5.3 Filtro por Estado Operativo
-
-Agregar filtro en la lista de ventas para ver solo:
-- Nuevos
-- En riesgo
-- Por confirmar
-- En ruta
 
 ---
 
-## 6. Command Center
+## Archivos a Crear
 
-### Archivo: `src/pages/CommandCenter.tsx`
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/components/command-center/AlertStrip.tsx` | Barra de alertas diagnostico |
+| `src/components/command-center/ActionCard.tsx` | Tarjeta de accion ejecutable |
 
-### 6.1 Nueva Seccion: Alertas de Seguimiento
-
-Despues de "Estado del Negocio", mostrar alertas si hay ventas en riesgo:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ ALERTAS DE SEGUIMIENTO                                      │
-├─────────────────────────────────────────────────────────────┤
-│ ⚠️ 2 ventas sin confirmar > 2 dias                         │
-│ 🔴 1 venta en riesgo de devolucion                         │
-│ ⏰ 3 ventas pendientes de accion hoy                       │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 6.2 Metricas Actualizadas
-
-En "Estado del Negocio", agregar:
-- "Ventas en seguimiento" (no entregadas)
-- "En riesgo" (contador con badge rojo)
-
----
-
-## 7. Archivos a Crear/Modificar
+## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `supabase/migrations/[timestamp]_sales_operational_status.sql` | Nueva columna y enum |
-| `src/types/index.ts` | Nuevo tipo `OperationalStatus`, actualizar `Sale` |
-| `src/lib/taskRules.ts` | Nueva funcion `generateSeguimientoTasks`, integrar en `generateAllTasks` |
-| `src/hooks/useSales.ts` | Mapear nuevos campos, agregar `updateOperationalStatus` |
-| `src/pages/Sales.tsx` | Selector de estado, nuevos KPIs, filtros |
-| `src/pages/CommandCenter.tsx` | Alertas de seguimiento, metricas |
+| `src/pages/CommandCenter.tsx` | Reorganizar estructura, usar nuevos componentes |
+| `src/components/tasks/TaskCard.tsx` | Colapsar contexto por defecto, simplificar |
+| `src/index.css` | Agregar clases para alertas compactas |
 
 ---
 
-## 8. Orden de Implementacion
+## Calculo de Alertas
 
-```text
-1. Migracion DB (agregar campo operational_status)
-2. Actualizar tipos TypeScript
-3. Actualizar useSales.ts (mapeo y nueva funcion)
-4. Implementar reglas en taskRules.ts
-5. Actualizar UI de Sales.tsx (selector + KPIs)
-6. Actualizar Command Center (alertas)
+```typescript
+// En CommandCenter.tsx
+
+const alerts = useMemo(() => {
+  const result: Alert[] = [];
+  
+  // 1. Pendiente por cobrar (DINERO)
+  const pendingAmount = sales
+    .filter(s => s.paymentStatus === 'pendiente')
+    .reduce((sum, s) => sum + s.totalAmount, 0);
+  if (pendingAmount > 0) {
+    result.push({
+      id: 'pending-payment',
+      icon: DollarSign,
+      value: `$${pendingAmount.toLocaleString()}`,
+      label: 'por cobrar',
+      variant: 'danger',
+      path: '/sales?filter=pendiente'
+    });
+  }
+  
+  // 2. Sin confirmar > 2 dias (RIESGO)
+  const sinConfirmarViejo = sales.filter(s => {
+    if (s.operationalStatus !== 'nuevo') return false;
+    const days = daysSince(s.statusUpdatedAt || s.saleDate);
+    return days > 2;
+  }).length;
+  if (sinConfirmarViejo > 0) {
+    result.push({
+      id: 'unconfirmed',
+      icon: PhoneCall,
+      value: sinConfirmarViejo,
+      label: 'sin confirmar',
+      variant: 'warning',
+      path: '/sales?status=nuevo'
+    });
+  }
+  
+  // 3. En riesgo (CRITICO)
+  const enRiesgo = sales.filter(s => 
+    s.operationalStatus === 'riesgo_devolucion' || 
+    s.operationalStatus === 'sin_respuesta'
+  ).length;
+  if (enRiesgo > 0) {
+    result.push({
+      id: 'at-risk',
+      icon: AlertTriangle,
+      value: enRiesgo,
+      label: 'en riesgo',
+      variant: 'danger',
+      path: '/sales?status=riesgo'
+    });
+  }
+  
+  return result;
+}, [sales]);
 ```
 
 ---
 
-## 9. Flujo de Usuario Esperado
+## Mapeo de Acciones Directas
 
-**Escenario: Venta contra entrega**
+El boton principal de cada ActionCard ejecuta segun el tipo de tarea:
 
-1. Usuario registra venta → Estado: `nuevo`
-2. Sistema genera tarea: "Confirmar pedido: Juan"
-3. Usuario contacta al cliente → Cambia a `contactado` → Tarea se cierra
-4. Sistema genera tarea: "Esperar confirmacion"
-5. Cliente confirma → Cambia a `confirmado` → Nueva tarea: "Preparar envio"
-6. Se despacha → Cambia a `en_ruta` → Nueva tarea: "Verificar entrega"
-7. Se entrega → Cambia a `entregado` → Todas las tareas cerradas
+```typescript
+const executeDirectAction = async (task: OperationalTask) => {
+  const sale = sales.find(s => s.id === task.relatedSaleId);
+  
+  switch (task.type) {
+    case 'seguimiento_venta':
+      if (!sale) return;
+      // Avanzar al siguiente estado logico
+      const nextStatus = getNextOperationalStatus(sale.operationalStatus);
+      await updateOperationalStatus(sale.id, nextStatus);
+      // Cerrar tarea automaticamente
+      await resolveTask(task.id);
+      toast.success(`Estado actualizado: ${statusLabels[nextStatus]}`);
+      break;
+      
+    case 'cobro':
+      if (!sale) return;
+      await updateSale(sale.id, { paymentStatus: 'pagado' });
+      await resolveTask(task.id);
+      toast.success('Venta marcada como pagada');
+      break;
+      
+    case 'creativo':
+      // Este tipo SI navega
+      navigate('/creatives');
+      break;
+      
+    default:
+      // Fallback: abrir detalle
+      setExpandedTask(task);
+  }
+};
 
-**Si no hay respuesta:**
-1. Despues de 2 dias sin cambio → Tarea: "Recordar confirmacion"
-2. Despues de 3+ dias → Cambia a `sin_respuesta`
-3. Sistema genera tarea: "Marcar riesgo"
-4. Usuario puede cambiar a `riesgo_devolucion` o reintentar
+// Helper para determinar siguiente estado
+function getNextOperationalStatus(current: OperationalStatus): OperationalStatus {
+  const flow: Record<OperationalStatus, OperationalStatus> = {
+    nuevo: 'contactado',
+    contactado: 'confirmado',
+    confirmado: 'en_ruta',
+    en_ruta: 'entregado',
+    sin_respuesta: 'contactado',
+    riesgo_devolucion: 'contactado',
+    entregado: 'entregado', // terminal
+  };
+  return flow[current] || current;
+}
+```
 
 ---
 
-## Resultado Esperado
+## Estilos Nuevos
 
-- Cada venta tiene un estado operativo claro
-- Las tareas se generan automaticamente segun el flujo
-- El Command Center muestra alertas de ventas en riesgo
-- El dashboard de ventas muestra KPIs de seguimiento
-- El sistema esta preparado para futura automatizacion de WhatsApp
+```css
+/* src/index.css - Agregar */
+
+/* Alert Strip */
+.alert-strip {
+  @apply flex flex-wrap gap-2 p-3 rounded-xl bg-muted/30 border border-border/30;
+}
+
+.alert-chip {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all;
+}
+
+.alert-chip-danger {
+  @apply bg-destructive/10 text-destructive hover:bg-destructive/20;
+}
+
+.alert-chip-warning {
+  @apply bg-warning/10 text-warning hover:bg-warning/20;
+}
+
+.alert-chip-info {
+  @apply bg-primary/10 text-primary hover:bg-primary/20;
+}
+
+/* Action Card */
+.action-card {
+  @apply grc-card p-4 border-l-4;
+}
+
+.action-card-cobro {
+  @apply border-l-destructive bg-destructive/5;
+}
+
+.action-card-seguimiento {
+  @apply border-l-warning bg-warning/5;
+}
+
+.action-card-creativo {
+  @apply border-l-primary bg-primary/5;
+}
+```
+
+---
+
+## Resultado Visual Esperado
+
+### Command Center Rediseñado
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Buenos dias, Carlos                                             │
+├──────────────────────────────────────────────────────────────────┤
+│  🔴 $140.000 por cobrar   ⚠️ 2 sin confirmar   🔴 1 en riesgo   │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ACCIONES DE HOY                                                 │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 💰 COBRO                                                   │  │
+│  │                                                            │  │
+│  │ Confirmar pedido — Manuela Balbuena                       │  │
+│  │ $140.000 · Contra entrega                                 │  │
+│  │                                                            │  │
+│  │ [████████ Marcar contactado ████████]           ···       │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 📈 SEGUIMIENTO                                             │  │
+│  │                                                            │  │
+│  │ Recordar pago — Juan Perez                                │  │
+│  │ $85.000 · Transferencia · 3 dias sin pagar               │  │
+│  │                                                            │  │
+│  │ [████████ Enviar recordatorio ████████]         ···       │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Ver historial completo →                                        │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│  ESTADO DEL NEGOCIO                                              │
+│                                                                  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │    12    │ │  $2.4M   │ │    8     │ │    3     │            │
+│  │  Ventas  │ │ Ingresos │ │Productos │ │Creativos │            │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Orden de Implementacion
+
+1. Crear `AlertStrip.tsx`
+2. Crear `ActionCard.tsx`
+3. Actualizar `index.css` con nuevos estilos
+4. Reorganizar `CommandCenter.tsx`
+5. Simplificar `TaskCard.tsx` (colapsar contexto)
+
+---
+
+## Reglas de Diseno Aplicadas
+
+| Regla | Aplicacion |
+|-------|------------|
+| Jerarquia visual clara | Alertas < Acciones < Metricas |
+| Espacio en blanco | Container max-w-4xl, padding reducido |
+| Colores semanticos | Rojo=riesgo, Amarillo=seguimiento, Verde=ok |
+| Contexto colapsado | "Existe porque" y "Consecuencia" ocultos |
+| Boton ejecuta | Sin modales innecesarios |
+| Maximo 5 acciones | slice(0, 5) en priorityActions |
+
+---
+
+## Lo Que NO Cambia
+
+- Logica de generacion de tareas en `taskRules.ts`
+- Estructura de base de datos
+- Hooks existentes (`useTasks`, `useSales`)
+- Tipos TypeScript
+- Pagina `/tasks` como destino (solo simplificada)
