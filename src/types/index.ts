@@ -150,6 +150,12 @@ export interface Sale {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Congelado Financiero (Fase 1)
+  costAtSale?: number;           // Costo del producto al momento de la venta
+  marginAtSale?: number;         // Margen calculado y congelado
+  marginPercentAtSale?: number;  // Porcentaje de margen congelado
+  relatedCreativeId?: string;    // Creativo que originó la venta
 }
 
 // Creative Intelligence

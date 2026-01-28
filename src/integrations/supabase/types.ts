@@ -218,14 +218,18 @@ export type Database = {
         Row: {
           client_name: string | null
           client_phone: string | null
+          cost_at_sale: number | null
           created_at: string
           id: string
+          margin_at_sale: number | null
+          margin_percent_at_sale: number | null
           notes: string | null
           order_status: Database["public"]["Enums"]["order_status"] | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           product_id: string | null
           quantity: number
+          related_creative_id: string | null
           sale_date: string
           sales_channel: string | null
           seller_id: string | null
@@ -236,14 +240,18 @@ export type Database = {
         Insert: {
           client_name?: string | null
           client_phone?: string | null
+          cost_at_sale?: number | null
           created_at?: string
           id?: string
+          margin_at_sale?: number | null
+          margin_percent_at_sale?: number | null
           notes?: string | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
           quantity?: number
+          related_creative_id?: string | null
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
@@ -254,14 +262,18 @@ export type Database = {
         Update: {
           client_name?: string | null
           client_phone?: string | null
+          cost_at_sale?: number | null
           created_at?: string
           id?: string
+          margin_at_sale?: number | null
+          margin_percent_at_sale?: number | null
           notes?: string | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
           quantity?: number
+          related_creative_id?: string | null
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
@@ -282,6 +294,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products_seller_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_related_creative_id_fkey"
+            columns: ["related_creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
             referencedColumns: ["id"]
           },
           {
