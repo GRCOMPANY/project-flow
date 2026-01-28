@@ -56,6 +56,9 @@ import {
   User,
   MessageSquare,
   Truck,
+  AlertTriangle,
+  Percent,
+  Wallet,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
@@ -112,6 +115,19 @@ export default function Sales() {
     const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
     const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
 
+    // KPIs de rentabilidad (usando campos congelados)
+    const totalCost = sales.reduce((sum, s) => 
+      sum + ((s.costAtSale || 0) * s.quantity), 0
+    );
+    const netProfit = sales.reduce((sum, s) => 
+      sum + ((s.marginAtSale || 0) * s.quantity), 0
+    );
+    const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined && s.marginPercentAtSale !== null);
+    const avgMargin = salesWithMargin.length > 0
+      ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
+      : 0;
+    const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
+
     return {
       totalSold,
       totalSales: sales.length,
@@ -119,6 +135,10 @@ export default function Sales() {
       pendingCount: pending.length,
       paidAmount,
       paidCount: paid.length,
+      totalCost,
+      netProfit,
+      avgMargin,
+      salesWithLoss,
     };
   }, [sales]);
 
@@ -242,8 +262,8 @@ export default function Sales() {
           )}
         </div>
 
-        {/* Dashboard Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Dashboard Stats - Row 1: Ingresos */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -289,6 +309,61 @@ export default function Sales() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Dashboard Stats - Row 2: Rentabilidad (solo admin) */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-muted rounded-lg">
+                    <Wallet className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Costo total</p>
+                    <p className="text-2xl font-bold">${stats.totalCost.toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${stats.netProfit >= 0 ? 'bg-emerald-500/10' : 'bg-destructive/10'}`}>
+                    <DollarSign className={`w-5 h-5 ${stats.netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ganancia neta</p>
+                    <p className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {stats.netProfit >= 0 ? '+' : ''}${stats.netProfit.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Percent className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Margen promedio</p>
+                    <p className="text-2xl font-bold">{stats.avgMargin.toFixed(1)}%</p>
+                  </div>
+                  {stats.salesWithLoss > 0 && (
+                    <Badge variant="destructive" className="gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {stats.salesWithLoss} con pérdida
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Sales List */}
         {sales.length === 0 ? (
@@ -572,8 +647,14 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
 
   const orderStatusOption = getOrderStatusOption(sale.orderStatus);
 
+  // Cálculos de margen (usando campos congelados)
+  const totalCost = (sale.costAtSale || 0) * sale.quantity;
+  const totalMargin = (sale.marginAtSale || 0) * sale.quantity;
+  const hasLoss = (sale.marginAtSale || 0) < 0;
+  const hasMarginData = sale.costAtSale !== undefined && sale.costAtSale !== null;
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${hasLoss ? 'border-destructive/50' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           {/* Main Info */}
@@ -584,6 +665,12 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
                 {sale.product?.name || 'Producto eliminado'}
               </span>
               <span className="text-muted-foreground">×{sale.quantity}</span>
+              {hasLoss && (
+                <Badge variant="destructive" className="gap-1 text-xs">
+                  <AlertTriangle className="w-3 h-3" />
+                  PÉRDIDA
+                </Badge>
+              )}
               <span className="font-bold text-lg ml-auto">
                 ${sale.totalAmount.toLocaleString()}
               </span>
@@ -615,6 +702,20 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
                 {getPaymentMethodLabel(sale.paymentMethod)}
               </span>
             </div>
+
+            {/* Margin Info (Admin only) */}
+            {isAdmin && hasMarginData && (
+              <div className="flex items-center gap-3 text-xs mt-2 pt-2 border-t border-dashed">
+                <span className="text-muted-foreground">
+                  Costo: ${totalCost.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground">|</span>
+                <span className={hasLoss ? 'text-destructive font-medium' : 'text-emerald-600 font-medium'}>
+                  Margen: {totalMargin >= 0 ? '+' : ''}${totalMargin.toLocaleString()} 
+                  ({(sale.marginPercentAtSale || 0).toFixed(0)}%)
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Status Badges */}

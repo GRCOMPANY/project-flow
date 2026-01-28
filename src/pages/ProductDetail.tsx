@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   ArrowLeft, Edit2, Trash2, Package, TrendingUp, DollarSign, 
   Clock, Image as ImageIcon, Sparkles, ShoppingCart, Send, 
-  ListTodo, Percent, Star, AlertTriangle
+  ListTodo, Percent, Star, AlertTriangle, Wallet
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -62,6 +62,20 @@ const ProductDetail = () => {
   const pendingToCollect = productSales
     .filter(s => s.paymentStatus === 'pendiente')
     .reduce((sum, s) => sum + s.totalAmount, 0);
+
+  // Rentabilidad Real (usando campos congelados de ventas pagadas)
+  const paidSales = productSales.filter(s => s.paymentStatus === 'pagado');
+  const realProfitability = {
+    totalRevenue: paidSales.reduce((sum, s) => sum + s.totalAmount, 0),
+    totalCost: paidSales.reduce((sum, s) => sum + ((s.costAtSale || 0) * s.quantity), 0),
+    netProfit: paidSales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0),
+    avgMargin: paidSales.length > 0 
+      ? paidSales.filter(s => s.marginPercentAtSale != null).reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / 
+        paidSales.filter(s => s.marginPercentAtSale != null).length 
+      : 0,
+    salesWithLoss: paidSales.filter(s => (s.marginAtSale || 0) < 0).length,
+    hasData: paidSales.some(s => s.costAtSale !== undefined && s.costAtSale !== null),
+  };
 
   const handleDelete = async () => {
     if (id) {
@@ -268,6 +282,64 @@ const ProductDetail = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Rentabilidad Real Card (Admin only) */}
+            {isAdmin && realProfitability.hasData && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-primary" />
+                    Rentabilidad Real
+                    <span className="text-xs font-normal text-muted-foreground ml-auto">
+                      (basado en ventas pagadas)
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="text-center p-4 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-foreground">
+                        ${realProfitability.totalRevenue.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Ingresos</div>
+                    </div>
+                    <div className="text-center p-4 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-foreground">
+                        ${realProfitability.totalCost.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Costos reales</div>
+                    </div>
+                    <div className={cn(
+                      "text-center p-4 rounded-lg",
+                      realProfitability.netProfit >= 0 ? "bg-emerald-500/10" : "bg-destructive/10"
+                    )}>
+                      <div className={cn(
+                        "text-2xl font-bold",
+                        realProfitability.netProfit >= 0 ? "text-emerald-600" : "text-destructive"
+                      )}>
+                        {realProfitability.netProfit >= 0 ? '+' : ''}${realProfitability.netProfit.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Ganancia neta</div>
+                    </div>
+                    <div className="text-center p-4 bg-secondary rounded-lg">
+                      <div className="text-2xl font-bold text-foreground">
+                        {realProfitability.avgMargin.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">Margen prom.</div>
+                    </div>
+                  </div>
+                  
+                  {realProfitability.salesWithLoss > 0 && (
+                    <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        {realProfitability.salesWithLoss} venta{realProfitability.salesWithLoss > 1 ? 's' : ''} con pérdida
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Creatives Card */}
             <Card>
