@@ -6,9 +6,11 @@ import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { ProductForm } from '@/components/products/ProductForm';
+import { ProductCreativesTab } from '@/components/products/ProductCreativesTab';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, Edit2, Trash2, Package, TrendingUp, DollarSign, 
   Clock, Image as ImageIcon, Sparkles, ShoppingCart, Send, 
@@ -180,225 +182,263 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Prices Card (Admin) */}
-            {isAdmin && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <DollarSign className="w-5 h-5" />
-                    Precios y Márgenes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="text-center p-4 bg-secondary rounded-lg">
-                      <div className="text-sm text-muted-foreground mb-1">Costo</div>
-                      <div className="text-xl font-bold text-foreground">
-                        ${product.costPrice.toLocaleString('es-MX')}
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-secondary rounded-lg">
-                      <div className="text-sm text-muted-foreground mb-1">Mayorista</div>
-                      <div className="text-xl font-bold text-foreground">
-                        ${product.wholesalePrice.toLocaleString('es-MX')}
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/20">
-                      <div className="text-sm text-primary mb-1">Precio Final</div>
-                      <div className="text-xl font-bold text-primary">
-                        ${product.retailPrice.toLocaleString('es-MX')}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Margin bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Percent className="w-4 h-4" />
-                        Margen
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn(
-                          marginLevel === 'alto' ? 'border-success text-success' : 
-                          marginLevel === 'medio' ? 'border-warning text-warning' : 'border-destructive text-destructive'
-                        )}>
-                          {marginLevel.charAt(0).toUpperCase() + marginLevel.slice(1)}
-                        </Badge>
-                        <span className="font-bold">
-                          {(product.marginPercent ?? 0).toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full transition-all rounded-full",
-                          marginLevel === 'alto' ? 'bg-success' : 
-                          marginLevel === 'medio' ? 'bg-warning' : 'bg-destructive'
-                        )}
-                        style={{ width: `${Math.min((product.marginPercent ?? 0), 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Ganancia por unidad: <span className="font-semibold text-foreground">${(product.marginAmount ?? 0).toFixed(0)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Tabs */}
+            <Tabs defaultValue="detalles" className="w-full">
+              <TabsList className="w-full grid grid-cols-4">
+                <TabsTrigger value="detalles">Detalles</TabsTrigger>
+                <TabsTrigger value="performance">Performance</TabsTrigger>
+                <TabsTrigger value="creativos">Creativos</TabsTrigger>
+                <TabsTrigger value="ventas">Ventas</TabsTrigger>
+              </TabsList>
 
-            {/* Performance Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <div className="text-2xl font-bold text-foreground">{salesLast7Days}</div>
-                    <div className="text-xs text-muted-foreground">Ventas 7 días</div>
-                  </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <div className="text-2xl font-bold text-foreground">{salesLast30Days}</div>
-                    <div className="text-xs text-muted-foreground">Ventas 30 días</div>
-                  </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <div className="text-2xl font-bold text-success">${revenueGenerated.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">Revenue</div>
-                  </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <div className={cn(
-                      "text-2xl font-bold",
-                      pendingToCollect > 0 ? "text-warning" : "text-muted-foreground"
-                    )}>
-                      ${pendingToCollect.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Por cobrar</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Rentabilidad Real Card (Admin only) */}
-            {isAdmin && realProfitability.hasData && (
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-primary" />
-                    Rentabilidad Real
-                    <span className="text-xs font-normal text-muted-foreground ml-auto">
-                      (basado en ventas pagadas)
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="text-center p-4 bg-secondary rounded-lg">
-                      <div className="text-2xl font-bold text-foreground">
-                        ${realProfitability.totalRevenue.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Ingresos</div>
-                    </div>
-                    <div className="text-center p-4 bg-secondary rounded-lg">
-                      <div className="text-2xl font-bold text-foreground">
-                        ${realProfitability.totalCost.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Costos reales</div>
-                    </div>
-                    <div className={cn(
-                      "text-center p-4 rounded-lg",
-                      realProfitability.netProfit >= 0 ? "bg-emerald-500/10" : "bg-destructive/10"
-                    )}>
-                      <div className={cn(
-                        "text-2xl font-bold",
-                        realProfitability.netProfit >= 0 ? "text-emerald-600" : "text-destructive"
-                      )}>
-                        {realProfitability.netProfit >= 0 ? '+' : ''}${realProfitability.netProfit.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Ganancia neta</div>
-                    </div>
-                    <div className="text-center p-4 bg-secondary rounded-lg">
-                      <div className="text-2xl font-bold text-foreground">
-                        {realProfitability.avgMargin.toFixed(1)}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">Margen prom.</div>
-                    </div>
-                  </div>
-                  
-                  {realProfitability.salesWithLoss > 0 && (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        {realProfitability.salesWithLoss} venta{realProfitability.salesWithLoss > 1 ? 's' : ''} con pérdida
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Creatives Card */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5" />
-                  Creativos ({productCreatives.length})
-                </CardTitle>
-                <Button size="sm" onClick={() => navigate(`/creatives?productId=${id}`)}>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Crear creativo
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {productCreatives.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {productCreatives.slice(0, 6).map((creative) => (
-                      <div 
-                        key={creative.id}
-                        className="aspect-square rounded-lg border border-border bg-secondary overflow-hidden relative group cursor-pointer"
-                        onClick={() => navigate('/creatives')}
-                      >
-                        {creative.imageUrl ? (
-                          <img src={creative.imageUrl} alt={creative.title || ''} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ImageIcon className="w-8 h-8 text-muted-foreground" />
+              {/* Detalles Tab */}
+              <TabsContent value="detalles" className="space-y-6 mt-6">
+                {/* Prices Card (Admin) */}
+                {isAdmin && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <DollarSign className="w-5 h-5" />
+                        Precios y Márgenes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="text-center p-4 bg-secondary rounded-lg">
+                          <div className="text-sm text-muted-foreground mb-1">Costo</div>
+                          <div className="text-xl font-bold text-foreground">
+                            ${product.costPrice.toLocaleString('es-MX')}
                           </div>
-                        )}
-                        <Badge 
-                          className="absolute bottom-2 left-2 text-xs"
-                          variant={creative.status === 'publicado' ? 'default' : 'secondary'}
-                        >
-                          {creative.status}
-                        </Badge>
+                        </div>
+                        <div className="text-center p-4 bg-secondary rounded-lg">
+                          <div className="text-sm text-muted-foreground mb-1">Mayorista</div>
+                          <div className="text-xl font-bold text-foreground">
+                            ${product.wholesalePrice.toLocaleString('es-MX')}
+                          </div>
+                        </div>
+                        <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/20">
+                          <div className="text-sm text-primary mb-1">Precio Final</div>
+                          <div className="text-xl font-bold text-primary">
+                            ${product.retailPrice.toLocaleString('es-MX')}
+                          </div>
+                        </div>
                       </div>
+                      
+                      {/* Margin bar */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Percent className="w-4 h-4" />
+                            Margen
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={cn(
+                              marginLevel === 'alto' ? 'border-success text-success' : 
+                              marginLevel === 'medio' ? 'border-warning text-warning' : 'border-destructive text-destructive'
+                            )}>
+                              {marginLevel.charAt(0).toUpperCase() + marginLevel.slice(1)}
+                            </Badge>
+                            <span className="font-bold">
+                              {(product.marginPercent ?? 0).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-3 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full transition-all rounded-full",
+                              marginLevel === 'alto' ? 'bg-success' : 
+                              marginLevel === 'medio' ? 'bg-warning' : 'bg-destructive'
+                            )}
+                            style={{ width: `${Math.min((product.marginPercent ?? 0), 100)}%` }}
+                          />
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Ganancia por unidad: <span className="font-semibold text-foreground">${(product.marginAmount ?? 0).toFixed(0)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Description */}
+                {product.description && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Descripción</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground whitespace-pre-wrap">{product.description}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Internal Notes (Admin only) */}
+                {isAdmin && product.internalNotes && (
+                  <Card className="bg-secondary">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-muted-foreground">Notas Internas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm whitespace-pre-wrap">{product.internalNotes}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              {/* Performance Tab */}
+              <TabsContent value="performance" className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-4 bg-secondary rounded-lg">
+                        <div className="text-2xl font-bold text-foreground">{salesLast7Days}</div>
+                        <div className="text-xs text-muted-foreground">Ventas 7 días</div>
+                      </div>
+                      <div className="text-center p-4 bg-secondary rounded-lg">
+                        <div className="text-2xl font-bold text-foreground">{salesLast30Days}</div>
+                        <div className="text-xs text-muted-foreground">Ventas 30 días</div>
+                      </div>
+                      <div className="text-center p-4 bg-secondary rounded-lg">
+                        <div className="text-2xl font-bold text-success">${revenueGenerated.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground">Revenue</div>
+                      </div>
+                      <div className="text-center p-4 bg-secondary rounded-lg">
+                        <div className={cn(
+                          "text-2xl font-bold",
+                          pendingToCollect > 0 ? "text-warning" : "text-muted-foreground"
+                        )}>
+                          ${pendingToCollect.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Por cobrar</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Rentabilidad Real Card (Admin only) */}
+                {isAdmin && realProfitability.hasData && (
+                  <Card className="border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-primary" />
+                        Rentabilidad Real
+                        <span className="text-xs font-normal text-muted-foreground ml-auto">
+                          (basado en ventas pagadas)
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="text-center p-4 bg-secondary rounded-lg">
+                          <div className="text-2xl font-bold text-foreground">
+                            ${realProfitability.totalRevenue.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Ingresos</div>
+                        </div>
+                        <div className="text-center p-4 bg-secondary rounded-lg">
+                          <div className="text-2xl font-bold text-foreground">
+                            ${realProfitability.totalCost.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Costos reales</div>
+                        </div>
+                        <div className={cn(
+                          "text-center p-4 rounded-lg",
+                          realProfitability.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"
+                        )}>
+                          <div className={cn(
+                            "text-2xl font-bold",
+                            realProfitability.netProfit >= 0 ? "text-success" : "text-destructive"
+                          )}>
+                            {realProfitability.netProfit >= 0 ? '+' : ''}${realProfitability.netProfit.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Ganancia neta</div>
+                        </div>
+                        <div className="text-center p-4 bg-secondary rounded-lg">
+                          <div className="text-2xl font-bold text-foreground">
+                            {realProfitability.avgMargin.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">Margen prom.</div>
+                        </div>
+                      </div>
+                      
+                      {realProfitability.salesWithLoss > 0 && (
+                        <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {realProfitability.salesWithLoss} venta{realProfitability.salesWithLoss > 1 ? 's' : ''} con pérdida
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              {/* Creativos Tab */}
+              <TabsContent value="creativos" className="mt-6">
+                <ProductCreativesTab 
+                  product={product} 
+                  onCreateClick={() => navigate(`/creatives?productId=${id}`)}
+                />
+              </TabsContent>
+
+              {/* Ventas Tab */}
+              <TabsContent value="ventas" className="mt-6">
+                {productSales.length > 0 ? (
+                  <div className="space-y-3">
+                    {productSales.map((sale) => (
+                      <Card key={sale.id}>
+                        <CardContent className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">{sale.clientName || 'Sin nombre'}</div>
+                              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(sale.saleDate).toLocaleDateString('es-MX')}
+                                <span className="mx-1">•</span>
+                                {sale.quantity} unidad{sale.quantity > 1 ? 'es' : ''}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold">${sale.totalAmount.toLocaleString()}</div>
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs",
+                                  sale.paymentStatus === 'pagado' ? 'border-success text-success' : 'border-warning text-warning'
+                                )}
+                              >
+                                {sale.paymentStatus}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-warning" />
-                    <p className="font-medium">Sin creativos</p>
-                    <p className="text-sm">Crea contenido para promocionar este producto</p>
-                  </div>
+                  <Card className="border-dashed">
+                    <CardContent className="py-12 text-center">
+                      <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" />
+                      <h3 className="font-semibold text-foreground mb-2">Sin ventas aún</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        No hay ventas registradas para este producto
+                      </p>
+                      <Button onClick={() => navigate('/sales')} variant="outline">
+                        Ir a ventas
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Description */}
-            {product.description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Descripción</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground whitespace-pre-wrap">{product.description}</p>
-                </CardContent>
-              </Card>
-            )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}

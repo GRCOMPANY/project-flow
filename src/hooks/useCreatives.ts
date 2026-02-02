@@ -85,6 +85,7 @@ export function useCreatives() {
           vsPreviousId: (c as Record<string, unknown>).vs_previous_id as string || undefined,
           whatChanged: (c as Record<string, unknown>).what_changed as string || undefined,
           automationIntent: (c as Record<string, unknown>).automation_intent as Creative['automationIntent'] || undefined,
+          automationStatus: (c as Record<string, unknown>).automation_status as Creative['automationStatus'] || undefined,
         }))
       );
     }
@@ -96,44 +97,47 @@ export function useCreatives() {
   }, []);
 
   const addCreative = async (creative: Omit<Creative, 'id' | 'createdAt' | 'updatedAt' | 'product'>) => {
+    const insertData: Record<string, unknown> = {
+      product_id: creative.productId || null,
+      type: creative.type,
+      channel: creative.channel,
+      objective: creative.objective,
+      status: creative.status || 'pendiente',
+      result: creative.result || 'sin_evaluar',
+      title: creative.title || null,
+      copy: creative.copy || null,
+      image_url: creative.imageUrl || null,
+      video_url: creative.videoUrl || null,
+      script: creative.script || null,
+      learning: creative.learning || null,
+      ai_prompt: creative.aiPrompt || null,
+      published_at: creative.publishedAt || null,
+      // New Creative Intelligence fields
+      target_audience: creative.targetAudience || null,
+      audience_notes: creative.audienceNotes || null,
+      hook_type: creative.hookType || null,
+      hook_text: creative.hookText || null,
+      variation: creative.variation || 'A',
+      message_approach: creative.messageApproach || null,
+      metric_likes: creative.metricLikes || 0,
+      metric_comments: creative.metricComments || 0,
+      metric_messages: creative.metricMessages || 0,
+      metric_known_people: creative.metricKnownPeople || null,
+      metric_sales: creative.metricSales || 0,
+      metric_impressions: creative.metricImpressions || 0,
+      metric_clicks: creative.metricClicks || 0,
+      metric_cost: creative.metricCost || 0,
+      engagement_level: creative.engagementLevel || null,
+      vs_previous: creative.vsPrevious || null,
+      vs_previous_id: creative.vsPreviousId || null,
+      what_changed: creative.whatChanged || null,
+      automation_intent: creative.automationIntent || null,
+      automation_status: creative.automationStatus || null,
+    };
+
     const { data, error } = await supabase
       .from('creatives')
-      .insert({
-        product_id: creative.productId || null,
-        type: creative.type,
-        channel: creative.channel,
-        objective: creative.objective,
-        status: creative.status || 'pendiente',
-        result: creative.result || 'sin_evaluar',
-        title: creative.title || null,
-        copy: creative.copy || null,
-        image_url: creative.imageUrl || null,
-        video_url: creative.videoUrl || null,
-        script: creative.script || null,
-        learning: creative.learning || null,
-        ai_prompt: creative.aiPrompt || null,
-        published_at: creative.publishedAt || null,
-        // New Creative Intelligence fields
-        target_audience: creative.targetAudience || null,
-        audience_notes: creative.audienceNotes || null,
-        hook_type: creative.hookType || null,
-        hook_text: creative.hookText || null,
-        variation: creative.variation || 'A',
-        message_approach: creative.messageApproach || null,
-        metric_likes: creative.metricLikes || 0,
-        metric_comments: creative.metricComments || 0,
-        metric_messages: creative.metricMessages || 0,
-        metric_known_people: creative.metricKnownPeople || null,
-        metric_sales: creative.metricSales || 0,
-        metric_impressions: creative.metricImpressions || 0,
-        metric_clicks: creative.metricClicks || 0,
-        metric_cost: creative.metricCost || 0,
-        engagement_level: creative.engagementLevel || null,
-        vs_previous: creative.vsPrevious || null,
-        vs_previous_id: creative.vsPreviousId || null,
-        what_changed: creative.whatChanged || null,
-        automation_intent: creative.automationIntent || null,
-      })
+      .insert(insertData as never)
       .select()
       .single();
 
@@ -188,6 +192,7 @@ export function useCreatives() {
     if (updates.vsPreviousId !== undefined) updateData.vs_previous_id = updates.vsPreviousId;
     if (updates.whatChanged !== undefined) updateData.what_changed = updates.whatChanged;
     if (updates.automationIntent !== undefined) updateData.automation_intent = updates.automationIntent;
+    if (updates.automationStatus !== undefined) updateData.automation_status = updates.automationStatus;
 
     const { error } = await supabase
       .from('creatives')

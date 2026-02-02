@@ -23,11 +23,14 @@ export type DeliveryType = 'contra_entrega' | 'anticipado';
 export type MarginLevel = 'alto' | 'medio' | 'bajo';
 
 // Creative types
-export type CreativeType = 'imagen' | 'video' | 'copy';
-export type CreativeChannel = 'whatsapp' | 'instagram' | 'tiktok' | 'facebook' | 'web';
+export type CreativeType = 'imagen' | 'video' | 'copy' | 'historia' | 'carrusel' | 'anuncio';
+export type CreativeChannel = 'whatsapp' | 'instagram' | 'tiktok' | 'facebook' | 'web' | 'marketplace';
 export type CreativeObjective = 'vender' | 'atraer' | 'probar';
 export type CreativeStatus = 'pendiente' | 'generando' | 'generado' | 'publicado' | 'descartado';
 export type CreativeResult = 'sin_evaluar' | 'funciono' | 'no_funciono';
+
+// Automation Status for n8n
+export type AutomationStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface Project {
   id: string;
@@ -271,6 +274,22 @@ export interface Creative {
   
   // Automation
   automationIntent?: AutomationIntent;
+  automationStatus?: AutomationStatus;
+}
+
+// Automation Intent record for n8n
+export interface AutomationIntentRecord {
+  id: string;
+  creativeId: string;
+  productId?: string;
+  intentType: AutomationIntent;
+  status: AutomationStatus;
+  metadata: Record<string, unknown>;
+  triggeredBy?: string;
+  triggeredAt: string;
+  completedAt?: string;
+  resultNotes?: string;
+  createdAt: string;
 }
 
 // Extended Creative with calculated fields

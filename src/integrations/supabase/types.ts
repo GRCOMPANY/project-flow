@@ -14,11 +14,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      creative_automation_intents: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          creative_id: string | null
+          id: string
+          intent_type: string
+          metadata: Json | null
+          product_id: string | null
+          result_notes: string | null
+          status: string | null
+          triggered_at: string | null
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          creative_id?: string | null
+          id?: string
+          intent_type: string
+          metadata?: Json | null
+          product_id?: string | null
+          result_notes?: string | null
+          status?: string | null
+          triggered_at?: string | null
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          creative_id?: string | null
+          id?: string
+          intent_type?: string
+          metadata?: Json | null
+          product_id?: string | null
+          result_notes?: string | null
+          status?: string | null
+          triggered_at?: string | null
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_automation_intents_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_automation_intents_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_automation_intents_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_seller_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creatives: {
         Row: {
           ai_prompt: string | null
           audience_notes: string | null
           automation_intent: string | null
+          automation_status: string | null
           channel: Database["public"]["Enums"]["creative_channel"]
           copy: string | null
           created_at: string
@@ -57,6 +122,7 @@ export type Database = {
           ai_prompt?: string | null
           audience_notes?: string | null
           automation_intent?: string | null
+          automation_status?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
@@ -95,6 +161,7 @@ export type Database = {
           ai_prompt?: string | null
           audience_notes?: string | null
           automation_intent?: string | null
+          automation_status?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
