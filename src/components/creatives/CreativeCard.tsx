@@ -177,28 +177,6 @@ export function CreativeCard({
             <Eye className="w-4 h-4 mr-1" />
             Ver
           </Button>
-          
-          {isAdmin && creative.calculatedPerformance === 'caliente' && onRepeat && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => onRepeat(creative)}
-            >
-              <RotateCcw className="w-4 h-4 mr-1" />
-              Repetir
-            </Button>
-          )}
-          
-          {isAdmin && creative.calculatedPerformance === 'caliente' && onScale && (
-            <Button 
-              variant="default" 
-              size="sm"
-              onClick={() => onScale(creative)}
-            >
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Escalar
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>
