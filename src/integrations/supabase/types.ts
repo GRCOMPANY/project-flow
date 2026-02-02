@@ -17,60 +17,117 @@ export type Database = {
       creatives: {
         Row: {
           ai_prompt: string | null
+          audience_notes: string | null
+          automation_intent: string | null
           channel: Database["public"]["Enums"]["creative_channel"]
           copy: string | null
           created_at: string
+          engagement_level: string | null
+          hook_text: string | null
+          hook_type: string | null
           id: string
           image_url: string | null
           learning: string | null
+          message_approach: string | null
+          metric_clicks: number | null
+          metric_comments: number | null
+          metric_cost: number | null
+          metric_impressions: number | null
+          metric_known_people: string | null
+          metric_likes: number | null
+          metric_messages: number | null
+          metric_sales: number | null
           objective: Database["public"]["Enums"]["creative_objective"]
           product_id: string | null
           published_at: string | null
           result: Database["public"]["Enums"]["creative_result"]
           script: string | null
           status: Database["public"]["Enums"]["creative_status"]
+          target_audience: string | null
           title: string | null
           type: Database["public"]["Enums"]["creative_type"]
           updated_at: string
+          variation: string | null
           video_url: string | null
+          vs_previous: string | null
+          vs_previous_id: string | null
+          what_changed: string | null
         }
         Insert: {
           ai_prompt?: string | null
+          audience_notes?: string | null
+          automation_intent?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
+          engagement_level?: string | null
+          hook_text?: string | null
+          hook_type?: string | null
           id?: string
           image_url?: string | null
           learning?: string | null
+          message_approach?: string | null
+          metric_clicks?: number | null
+          metric_comments?: number | null
+          metric_cost?: number | null
+          metric_impressions?: number | null
+          metric_known_people?: string | null
+          metric_likes?: number | null
+          metric_messages?: number | null
+          metric_sales?: number | null
           objective?: Database["public"]["Enums"]["creative_objective"]
           product_id?: string | null
           published_at?: string | null
           result?: Database["public"]["Enums"]["creative_result"]
           script?: string | null
           status?: Database["public"]["Enums"]["creative_status"]
+          target_audience?: string | null
           title?: string | null
           type?: Database["public"]["Enums"]["creative_type"]
           updated_at?: string
+          variation?: string | null
           video_url?: string | null
+          vs_previous?: string | null
+          vs_previous_id?: string | null
+          what_changed?: string | null
         }
         Update: {
           ai_prompt?: string | null
+          audience_notes?: string | null
+          automation_intent?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
+          engagement_level?: string | null
+          hook_text?: string | null
+          hook_type?: string | null
           id?: string
           image_url?: string | null
           learning?: string | null
+          message_approach?: string | null
+          metric_clicks?: number | null
+          metric_comments?: number | null
+          metric_cost?: number | null
+          metric_impressions?: number | null
+          metric_known_people?: string | null
+          metric_likes?: number | null
+          metric_messages?: number | null
+          metric_sales?: number | null
           objective?: Database["public"]["Enums"]["creative_objective"]
           product_id?: string | null
           published_at?: string | null
           result?: Database["public"]["Enums"]["creative_result"]
           script?: string | null
           status?: Database["public"]["Enums"]["creative_status"]
+          target_audience?: string | null
           title?: string | null
           type?: Database["public"]["Enums"]["creative_type"]
           updated_at?: string
+          variation?: string | null
           video_url?: string | null
+          vs_previous?: string | null
+          vs_previous_id?: string | null
+          what_changed?: string | null
         }
         Relationships: [
           {
@@ -85,6 +142,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products_seller_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creatives_vs_previous_id_fkey"
+            columns: ["vs_previous_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
             referencedColumns: ["id"]
           },
         ]
