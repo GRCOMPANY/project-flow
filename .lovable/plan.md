@@ -1,501 +1,651 @@
 
 
-# Plan: Rediseno Premium Dashboard - Nivel Enterprise/IA/Fintech
+# Plan: Creative Intelligence System - Modulo de Aprendizaje de Contenido
 
-## Diagnostico del Estado Actual
+## Vision del Modulo
 
-Tras revisar los 6 componentes principales del dashboard y el sistema de estilos, identifico las siguientes oportunidades de mejora:
-
-| Componente | Estado Actual | Oportunidad |
-|------------|--------------|-------------|
-| HeroFinancialCard | Funcional pero generico | Falta narrativa financiera, % vs periodo anterior, gradientes mas impactantes |
-| AIRadarPanel | Alertas basicas | Falta "glow" IA, iconos mas sofisticados, numerica contextual |
-| MetricsDashboard | Sparklines simples | Falta contexto comparativo, etiquetas "vs semana anterior" |
-| ProductSpotlight | Card funcional | Imagen pequena, falta estado comercial, metricas sin contexto |
-| AIInsightBanner | Insight basico | Falta efecto "glass", animacion sutil, sensacion de IA |
-| QuickActionsBar | Botones genericos | Falta gradientes premium, iconografia consistente |
+Transformar el modulo de Creativos de un simple CRUD de contenido a un **Sistema de Inteligencia Creativa** que permita:
+- Registrar creativos como **experimentos de venta** con hipotesis claras
+- Medir desempeno de forma estructurada (manual ahora, automatizado despues)
+- Comparar creativos entre si para aprender que funciona
+- Extraer aprendizajes reutilizables para mejorar futuras campanas
+- Servir como base para automatizaciones con n8n
 
 ---
 
-## Arquitectura de Mejoras (6 Bloques)
+## Analisis del Estado Actual
 
-### BLOQUE 1: Hero Financiero Premium
+### Lo que existe hoy
 
-**Archivo:** `src/components/command-center/HeroFinancialCard.tsx`
+| Aspecto | Estado Actual | Limitacion |
+|---------|--------------|------------|
+| Campos basicos | type, channel, objective, status, result | Faltan metricas de performance |
+| Publico objetivo | No existe | No se puede segmentar aprendizajes |
+| Hook / Mensaje | Solo copy generico | No hay tipologia de ganchos |
+| Metricas | Solo "funciono/no funciono" | Sin datos cuantitativos |
+| Comparacion | No existe | No hay aprendizaje automatico |
+| Aprendizaje | Campo learning simple | Sin estructura |
+| Vista | Grid generico | Sin vista por producto |
 
-**Mejoras:**
+### Base de datos actual
 
-1. **Narrativa financiera contextual:**
-   - Mostrar "% del total de ventas recientes" junto al monto en riesgo
-   - Agregar comparativa: "↑ 15% vs ayer" o "↓ 8% vs ayer"
-   - Subtexto: "Esto representa el X% de tus ventas de esta semana"
+```text
+creatives table:
+- id, product_id, type, channel, objective
+- status, result, title, copy
+- image_url, video_url, script
+- learning, ai_prompt
+- published_at, created_at, updated_at
+```
 
-2. **Estado del negocio mejorado:**
-   - Indicador circular animado (pulso suave)
-   - Tres estados: "Oportunidad" (verde), "Requiere Atencion" (amarillo), "Critico" (rojo)
-   - Descripcion contextual: "3 acciones te separan de estabilidad"
+---
 
-3. **Diseno visual premium:**
-   - Gradiente mas sofisticado con efecto "glass"
-   - Numero hero con gradiente dorado sutil
-   - Border con brillo sutil animado
-   - Sombra con color semantico (rojo suave si critico)
+## Nueva Arquitectura del Modulo
 
-4. **CTA mejorado:**
-   - Boton con gradiente y efecto hover premium
-   - Texto contextual: "Cobrar $XXX ahora" con monto visible
-   - Micro-badge con cantidad de acciones
+### Estructura de Bloques (6 Bloques segun requerimiento)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE A: CONTEXTO DEL CREATIVO                                            │
+│  Producto | Canal | Tipo | Objetivo | Publico Objetivo                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE B: MENSAJE / HOOK                                                    │
+│  Tipo de Hook | Texto del Hook | Variacion A/B | Enfoque del Mensaje        │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE C: METRICAS DE PERFORMANCE                                           │
+│  Organico: Likes, Comentarios, Mensajes, Ventas                             │
+│  Meta Ads: Impresiones, Clicks, Mensajes, Ventas, Costo                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE D: RESULTADO AUTOMATICO (Calculado)                                  │
+│  No funciono | Interesante | Funciono (basado en reglas)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE E: COMPARACION INTELIGENTE                                           │
+│  vs Creativo Anterior: Mejor / Peor / Igual | Que cambio | Impacto          │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  BLOQUE F: APRENDIZAJE (Memoria del Negocio)                                 │
+│  Texto libre obligatorio sobre que funciono y por que                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Cambios en Base de Datos (Migracion SQL)
+
+### Nuevos campos para creatives
+
+```sql
+-- BLOQUE A: Contexto extendido
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS target_audience text;
+-- Valores: 'precio_bajo', 'precio_medio', 'regalo', 'uso_personal', 'reventa', 'otro'
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS audience_notes text;
+-- Notas libres sobre el publico
+
+-- BLOQUE B: Mensaje / Hook
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS hook_type text;
+-- Valores: 'precio', 'problema', 'beneficio', 'urgencia', 'prueba_social', 'comparacion'
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS hook_text text;
+-- El texto principal del gancho
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS variation text DEFAULT 'A';
+-- Variacion A/B/C
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS message_approach text;
+-- Valores: 'emocional', 'racional', 'promocional', 'educativo'
+
+-- BLOQUE C: Metricas de Performance
+-- Organico / Marketplace
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_likes integer DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_comments integer DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_messages integer DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_known_people text;
+-- Valores: 'si', 'no', 'mixto'
+
+-- Calculado desde sales pero tambien manual
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_sales integer DEFAULT 0;
+
+-- Meta Ads
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_impressions integer DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_clicks integer DEFAULT 0;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_cost numeric DEFAULT 0;
+
+-- Engagement percibido
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS engagement_level text;
+-- Valores: 'bajo', 'medio', 'alto'
+
+-- BLOQUE D: Resultado calculado (actualizar enum)
+-- Ya existe creative_result, pero agregar 'interesante'
+-- Valores actuales: sin_evaluar, funciono, no_funciono
+-- Nuevos valores: frio, interesante, caliente (mas semanticos)
+
+-- BLOQUE E: Comparacion
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS vs_previous text;
+-- Valores: 'mejor', 'peor', 'igual', null (si es el primero)
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS vs_previous_id uuid REFERENCES creatives(id);
+-- Referencia al creativo anterior para comparacion
+
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS what_changed text;
+-- Descripcion de que cambio respecto al anterior
+
+-- Metadata para automatizacion
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS automation_intent text;
+-- Acciones preparadas: 'generate_new', 'repeat', 'new_audience', 'send_sellers', 'landing'
+```
+
+### Nuevos enums
+
+```sql
+-- Actualizar creative_result para incluir 'interesante'
+ALTER TYPE creative_result ADD VALUE IF NOT EXISTS 'interesante';
+
+-- Nuevos tipos
+CREATE TYPE hook_type AS ENUM (
+  'precio', 
+  'problema', 
+  'beneficio', 
+  'urgencia', 
+  'prueba_social', 
+  'comparacion'
+);
+
+CREATE TYPE target_audience_type AS ENUM (
+  'precio_bajo',
+  'precio_medio', 
+  'regalo',
+  'uso_personal',
+  'reventa',
+  'otro'
+);
+
+CREATE TYPE message_approach_type AS ENUM (
+  'emocional',
+  'racional',
+  'promocional',
+  'educativo'
+);
+
+CREATE TYPE engagement_level_type AS ENUM (
+  'bajo',
+  'medio',
+  'alto'
+);
+
+CREATE TYPE comparison_result AS ENUM (
+  'mejor',
+  'peor',
+  'igual'
+);
+```
+
+---
+
+## Nuevos Tipos TypeScript
+
+### Archivo: src/types/index.ts
 
 ```typescript
-// Props adicionales
-interface HeroFinancialCardProps {
-  // ...existentes
-  percentOfWeeklySales: number;  // % que representa del total semanal
-  changeVsYesterday: number;     // cambio porcentual vs ayer
-  actionsToStability: number;    // acciones para llegar a estable
+// Bloque A: Contexto
+export type TargetAudience = 
+  | 'precio_bajo' 
+  | 'precio_medio' 
+  | 'regalo' 
+  | 'uso_personal' 
+  | 'reventa' 
+  | 'otro';
+
+// Bloque B: Hook
+export type HookType = 
+  | 'precio' 
+  | 'problema' 
+  | 'beneficio' 
+  | 'urgencia' 
+  | 'prueba_social' 
+  | 'comparacion';
+
+export type MessageApproach = 
+  | 'emocional' 
+  | 'racional' 
+  | 'promocional' 
+  | 'educativo';
+
+// Bloque C: Metricas
+export type KnownPeople = 'si' | 'no' | 'mixto';
+export type EngagementLevel = 'bajo' | 'medio' | 'alto';
+
+// Bloque D: Resultado
+export type CreativePerformance = 'frio' | 'interesante' | 'caliente';
+
+// Bloque E: Comparacion
+export type ComparisonResult = 'mejor' | 'peor' | 'igual';
+
+// Acciones de automatizacion
+export type AutomationIntent = 
+  | 'generate_new' 
+  | 'repeat' 
+  | 'new_audience' 
+  | 'send_sellers' 
+  | 'landing';
+
+// Creative Intelligence extendido
+export interface CreativeIntelligence extends Creative {
+  // Bloque A
+  targetAudience?: TargetAudience;
+  audienceNotes?: string;
+  
+  // Bloque B
+  hookType?: HookType;
+  hookText?: string;
+  variation?: string;
+  messageApproach?: MessageApproach;
+  
+  // Bloque C - Metricas
+  metricLikes: number;
+  metricComments: number;
+  metricMessages: number;
+  metricKnownPeople?: KnownPeople;
+  metricSales: number;
+  metricImpressions: number;
+  metricClicks: number;
+  metricCost: number;
+  engagementLevel?: EngagementLevel;
+  
+  // Bloque D - Resultado calculado
+  calculatedPerformance: CreativePerformance;
+  
+  // Bloque E - Comparacion
+  vsPrevious?: ComparisonResult;
+  vsPreviousId?: string;
+  whatChanged?: string;
+  previousCreative?: Creative;
+  
+  // Automatizacion
+  automationIntent?: AutomationIntent;
 }
 ```
 
 ---
 
-### BLOQUE 2: Radar IA Premium
+## Nuevos Componentes
 
-**Archivo:** `src/components/command-center/AIRadarPanel.tsx`
+### Estructura de archivos
 
-**Mejoras:**
+```text
+src/components/creatives/
+├── CreativeCard.tsx           # Card inteligente con metricas
+├── CreativeForm.tsx           # Formulario multi-bloque
+├── CreativeDetail.tsx         # Vista detallada con comparacion
+├── CreativeFilters.tsx        # Filtros avanzados
+├── CreativeMetrics.tsx        # Bloque de metricas
+├── CreativeComparison.tsx     # Comparacion vs anterior
+├── CreativeLearning.tsx       # Bloque de aprendizaje
+├── CreativeActions.tsx        # Botones de automatizacion
+├── ProductCreativesView.tsx   # Vista por producto
+└── CreativeInsights.tsx       # Panel de insights globales
+```
 
-1. **Header con efecto IA:**
-   - Icono de "cerebro" o "radar" con animacion de pulso
-   - Badge "Actualizado hace X min" para sensacion de tiempo real
-   - Gradiente indigo/purple para identidad IA
+### 1. CreativeCard.tsx
 
-2. **Alertas con contexto numerico:**
-   - Cada alerta con impacto economico estimado
-   - Ejemplo: "3 ventas sin confirmar → $450K en riesgo"
-   - Subtext con causalidad: "Porque llevan mas de 2 dias sin contacto"
+Card inteligente que muestra:
+- Imagen/Video del creativo
+- Badge de resultado (Frio / Interesante / Caliente)
+- Metricas clave (mensajes, ventas)
+- Hook type badge
+- Indicador de comparacion vs anterior
+- Quick actions
 
-3. **Jerarquia visual por severidad:**
-   - Critical: Border glow rojo animado
-   - Warning: Border amarillo solido
-   - Opportunity: Border verde con icono de dinero
+```text
+┌─────────────────────────────────────┐
+│  [Imagen/Video]                     │
+│                                     │
+│  🔥 CALIENTE                        │
+│                                     │
+│  Hook: Beneficio                    │
+│  📩 45 mensajes  │  💰 8 ventas    │
+│                                     │
+│  ↑ Mejor que anterior (+120%)       │
+│                                     │
+│  [Ver detalle] [Repetir] [Escalar]  │
+└─────────────────────────────────────┘
+```
 
-4. **Acciones inline:**
-   - Boton pequeno dentro de cada alerta: "Actuar"
-   - Hover reveal del CTA para mantener limpieza
+### 2. CreativeForm.tsx
+
+Formulario estructurado en 6 bloques con tabs o acordeon:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  NUEVO CREATIVO                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  [A. Contexto] [B. Mensaje] [C. Metricas] [F. Aprendizaje]     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  BLOQUE A: CONTEXTO                                              │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
+│  │ Producto    │ │ Canal       │ │ Tipo        │               │
+│  │ [Select]    │ │ [Select]    │ │ [Select]    │               │
+│  └─────────────┘ └─────────────┘ └─────────────┘               │
+│                                                                  │
+│  ┌─────────────┐ ┌─────────────────────────────┐               │
+│  │ Objetivo    │ │ Publico Objetivo            │               │
+│  │ [Select]    │ │ [Select]                    │               │
+│  └─────────────┘ └─────────────────────────────┘               │
+│                                                                  │
+│  [Siguiente →]                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3. CreativeMetrics.tsx
+
+Panel para registrar metricas segun canal:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  METRICAS DE PERFORMANCE                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Canal: Instagram (Organico)                                     │
+│                                                                  │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐              │
+│  │ ❤️ Likes │ │ 💬 Com. │ │ 📩 Msgs │ │ 💰 Ventas│              │
+│  │   124   │ │   23    │ │   45    │ │    8    │              │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘              │
+│                                                                  │
+│  Personas conocidas: [Si] [No] [Mixto]                          │
+│                                                                  │
+│  Engagement percibido: [Bajo] [Medio] [Alto]                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4. CreativeComparison.tsx
+
+Comparacion automatica con creativo anterior:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  🔍 COMPARACION CON ANTERIOR                                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────┐      vs      ┌─────────────────┐          │
+│  │ Este creativo   │              │ Anterior        │          │
+│  │ Hook: Beneficio │              │ Hook: Precio    │          │
+│  │ 📩 45 mensajes  │              │ 📩 20 mensajes  │          │
+│  │ 💰 8 ventas     │              │ 💰 3 ventas     │          │
+│  └─────────────────┘              └─────────────────┘          │
+│                                                                  │
+│  Resultado: ✅ MEJOR (+125% mensajes, +166% ventas)             │
+│                                                                  │
+│  Que cambio:                                                     │
+│  • Hook: Precio → Beneficio                                      │
+│  • Formato: Imagen → Video                                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5. CreativeActions.tsx
+
+Botones preparados para n8n:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚡ ACCIONES INTELIGENTES                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  [🔄 Generar nuevo basado en este]                              │
+│  [🔁 Repetir creativo exitoso]                                   │
+│  [👥 Probar nuevo publico]                                       │
+│  [📤 Enviar a vendedores]                                        │
+│  [🌐 Preparar landing page]                                      │
+│                                                                  │
+│  ℹ️ Estas acciones quedan registradas para automatizacion       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Vista Hibrida de Creativos
+
+### Archivo: src/pages/Creatives.tsx (Rediseno completo)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CREATIVE INTELLIGENCE SYSTEM                                               │
+│  El cerebro de tu contenido de venta                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  [Vista Global] [Por Producto]                      [+ Nuevo Creativo]      │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  FILTROS                                                                     │
+│  Canal: [Todos] [Instagram] [WhatsApp] [TikTok] [Facebook] [Marketplace]    │
+│  Resultado: [Todos] [🔥 Caliente] [🟡 Interesante] [❄️ Frio]                │
+│  Publico: [Todos] [Precio bajo] [Regalo] [Reventa]                          │
+│  Hook: [Todos] [Precio] [Beneficio] [Urgencia] [Prueba social]              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📊 INSIGHTS RAPIDOS                                                         │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
+│  │ 12 creativos │ │ 5 calientes  │ │ Hook top:    │ │ Aprendizaje: │       │
+│  │ este mes     │ │ (42%)        │ │ Beneficio    │ │ Video > Img  │       │
+│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘       │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  CREATIVOS                                                                   │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
+│  │ [Card 1]    │ │ [Card 2]    │ │ [Card 3]    │ │ [Card 4]    │          │
+│  │ 🔥 Caliente │ │ 🟡 Interes. │ │ 🔥 Caliente │ │ ❄️ Frio     │          │
+│  │ Instagram   │ │ WhatsApp    │ │ TikTok      │ │ Facebook    │          │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Vista por Producto
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  🔙 Volver                                      CREATIVOS DE: iPhone Case   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  [Imagen Producto]  │  Estadisticas del Producto                            │
+│                     │  ─────────────────────────                            │
+│                     │  12 creativos totales                                  │
+│                     │  5 calientes (42%)                                     │
+│                     │  Hook mas exitoso: Beneficio                           │
+│                     │  Mejor canal: Instagram                                │
+│                     │                                                        │
+│                     │  [+ Nuevo Creativo para este producto]                 │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  TIMELINE DE CREATIVOS (ordenados por fecha)                                │
+│                                                                              │
+│  [Creativo 5] 🔥 ↑ Mejor → [Creativo 4] 🟡 ↓ Peor → [Creativo 3] 🔥 ...   │
+│                                                                              │
+│  APRENDIZAJES ACUMULADOS                                                     │
+│  • "Video corto genera 2x mas mensajes que imagen"                          │
+│  • "Hook de beneficio supera a precio en 40%"                                │
+│  • "Publico reventa convierte mejor"                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Hook: useCreativeIntelligence
+
+### Archivo: src/hooks/useCreativeIntelligence.ts
 
 ```typescript
-// Mejorar RadarAlert
-interface RadarAlert {
-  // ...existentes
-  estimatedImpact?: number;   // Impacto economico estimado
-  causality?: string;         // "Porque..." 
-  urgencyLevel?: 'now' | 'today' | 'this_week';
+// Funciones principales:
+
+// 1. Calcular performance automatico
+function calculatePerformance(creative: Creative): CreativePerformance {
+  // Reglas:
+  // - Caliente: mensajes > 30 O ventas > 5 O engagement = alto
+  // - Interesante: mensajes > 10 O ventas > 2 O engagement = medio
+  // - Frio: todo lo demas
+}
+
+// 2. Comparar con anterior
+function compareWithPrevious(
+  creative: Creative, 
+  previous: Creative | null
+): ComparisonResult {
+  // Logica de comparacion basada en metricas
+}
+
+// 3. Detectar patrones globales
+function detectPatterns(creatives: Creative[]): Insights {
+  // - Hook mas exitoso
+  // - Canal mas efectivo
+  // - Publico con mejor conversion
+  // - Tendencias temporales
+}
+
+// 4. Generar insights
+function generateInsights(
+  productId: string, 
+  creatives: Creative[]
+): string[] {
+  // Generar aprendizajes automaticos
+}
+
+// 5. Obtener creativo anterior
+function getPreviousCreative(
+  productId: string,
+  channel: string,
+  currentId: string
+): Creative | null {
+  // Buscar el creativo anterior del mismo producto y canal
 }
 ```
 
 ---
 
-### BLOQUE 3: Metricas con Contexto
-
-**Archivo:** `src/components/command-center/MetricsDashboard.tsx`
-
-**Mejoras:**
-
-1. **Comparacion temporal visible:**
-   - Agregar "vs semana anterior" con numero y flecha
-   - Badge: "+$45K vs semana pasada"
-   - Porcentaje de cambio prominente
-
-2. **Tercera metrica: Margen Promedio**
-   - Calcular margen promedio de ventas pagadas
-   - Mostrar tendencia del margen
-   - Alerta visual si margen baja
-
-3. **Sparklines mejorados:**
-   - Area fill con gradiente mas visible
-   - Punto final con "glow" sutil
-   - Hover para ver valor del dia
-
-4. **Layout optimizado:**
-   - Grid 3 columnas en desktop
-   - Cards con mas "aire" y profundidad
-   - Iconos mas grandes y semanticos
+## Logica de Calculo Automatico de Resultado
 
 ```typescript
-// Agregar avgMarginData
-interface MetricsDashboardProps {
-  salesData: SparklineData;
-  profitData: SparklineData;
-  marginData: SparklineData;  // NUEVO: Margen promedio
-}
+// Reglas para calcular performance
+const calculateAutoResult = (creative: CreativeIntelligence): CreativePerformance => {
+  const { 
+    metricMessages, 
+    metricSales, 
+    engagementLevel,
+    vsPrevious 
+  } = creative;
+
+  // Prioridad 1: Ventas directas
+  if (metricSales >= 5) return 'caliente';
+  if (metricSales >= 2) return 'interesante';
+  
+  // Prioridad 2: Mensajes recibidos
+  if (metricMessages >= 30) return 'caliente';
+  if (metricMessages >= 10) return 'interesante';
+  
+  // Prioridad 3: Engagement percibido
+  if (engagementLevel === 'alto') return 'caliente';
+  if (engagementLevel === 'medio') return 'interesante';
+  
+  // Prioridad 4: Comparacion con anterior
+  if (vsPrevious === 'mejor') return 'interesante';
+  
+  return 'frio';
+};
 ```
-
----
-
-### BLOQUE 4: Producto Estrella Premium
-
-**Archivo:** `src/components/command-center/ProductSpotlight.tsx`
-
-**Mejoras:**
-
-1. **Imagen prominente:**
-   - Aumentar tamano de imagen a 250px minimo
-   - Overlay con gradiente sutil
-   - Ring/border con color del tipo de producto
-
-2. **Estado comercial visible:**
-   - Badge grande: "Caliente", "Tibio", "Frio"
-   - Con icono y color semantico
-   - Posicion destacada
-
-3. **Metricas con contexto:**
-   - "12 vendidos esta semana (↑ 4 vs anterior)"
-   - "$156K generado (52% margen)"
-   - Trend indicator visual
-
-4. **Acciones mejoradas:**
-   - Botones con iconos y gradientes
-   - Tercer boton: "Enviar a vendedores"
-   - Layout horizontal en desktop
-
-5. **Causalidad:**
-   - Subtexto: "Este producto esta vendiendo porque..."
-   - Insight de por que es el destacado
-
----
-
-### BLOQUE 5: Insight IA con Glow
-
-**Archivo:** `src/components/command-center/AIInsightBanner.tsx`
-
-**Mejoras:**
-
-1. **Efecto glass premium:**
-   - Background con blur y transparencia
-   - Border con gradiente IA (indigo → purple)
-   - Sombra con glow sutil del color del tipo
-
-2. **Animacion del icono:**
-   - Icono de cerebro con pulso sutil
-   - Efecto de "pensando" cuando hay insight nuevo
-
-3. **Tipografia impactante:**
-   - Texto del insight mas grande (text-xl)
-   - Comillas estilizadas
-   - Font-weight mas bold
-
-4. **Narrativa mejorada:**
-   - Insights con causalidad: "Porque X, puedes hacer Y"
-   - Impacto estimado visible: "→ Impacto estimado: $XXX"
-   - CTA con urgencia: "Actuar ahora"
-
----
-
-### BLOQUE 6: Acciones Rapidas Premium
-
-**Archivo:** `src/components/command-center/QuickActionsBar.tsx`
-
-**Mejoras:**
-
-1. **Botones con gradientes:**
-   - Primary: Gradiente rojo GRC
-   - Secondary: Gradiente dorado
-   - Outline: Border con hover gradiente
-
-2. **Badges mejorados:**
-   - Numeros con fondo contrastante
-   - Animacion de entrada
-   - Posicion consistente
-
-3. **Layout mejorado:**
-   - Flex con gap mayor
-   - Botones mas grandes en desktop
-   - Iconos antes del texto
-
-4. **Hover effects:**
-   - Elevacion sutil
-   - Glow del color del boton
-   - Transicion suave
-
----
-
-## Mejoras de CSS Global
-
-**Archivo:** `src/index.css`
-
-**Agregar:**
-
-```css
-/* ====== PREMIUM DASHBOARD V2 ====== */
-
-/* Hero Financial - Glass Effect */
-.hero-glass {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--card) / 0.95) 0%,
-    hsl(var(--card) / 0.85) 100%
-  );
-  backdrop-filter: blur(16px);
-  border: 1px solid hsl(var(--border) / 0.5);
-}
-
-/* Gradient Borders */
-.gradient-border-ai {
-  position: relative;
-  background: linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
-              linear-gradient(135deg, #6366F1, #8B5CF6, #6366F1) border-box;
-  border: 2px solid transparent;
-}
-
-/* Glow Effects */
-.glow-success { box-shadow: 0 0 24px -4px hsl(var(--success) / 0.4); }
-.glow-warning { box-shadow: 0 0 24px -4px hsl(var(--warning) / 0.4); }
-.glow-danger { box-shadow: 0 0 24px -4px hsl(var(--destructive) / 0.4); }
-.glow-ai { box-shadow: 0 0 32px -4px rgba(99, 102, 241, 0.3); }
-
-/* Hero Number Gradient */
-.hero-number-gold {
-  background: linear-gradient(135deg, #D4AF37 0%, #F5D67B 50%, #B8860B 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Pulse Animation for Status */
-@keyframes pulse-status {
-  0%, 100% { 
-    box-shadow: 0 0 0 0 currentColor;
-    opacity: 1;
-  }
-  50% { 
-    box-shadow: 0 0 0 8px transparent;
-    opacity: 0.8;
-  }
-}
-
-.pulse-status {
-  animation: pulse-status 2s ease-in-out infinite;
-}
-
-/* Radar Alert Glow */
-.radar-glow-critical {
-  box-shadow: inset 4px 0 0 hsl(var(--destructive)),
-              0 2px 12px -2px hsl(var(--destructive) / 0.2);
-}
-
-/* Premium Button Gradients */
-.btn-gradient-primary {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(0 72% 32%) 100%);
-  transition: all 0.2s ease;
-}
-
-.btn-gradient-primary:hover {
-  box-shadow: 0 4px 16px -4px hsl(var(--primary) / 0.5);
-  transform: translateY(-1px);
-}
-
-.btn-gradient-gold {
-  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(42 85% 45%) 100%);
-}
-
-/* Metric Card Premium */
-.metric-card-premium {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.5);
-  box-shadow: 
-    0 1px 2px hsl(var(--foreground) / 0.02),
-    0 4px 16px hsl(var(--foreground) / 0.04);
-  transition: all 0.3s ease;
-}
-
-.metric-card-premium:hover {
-  border-color: hsl(var(--border));
-  box-shadow: 
-    0 2px 8px hsl(var(--foreground) / 0.04),
-    0 8px 32px hsl(var(--foreground) / 0.08);
-  transform: translateY(-2px);
-}
-
-/* Comparison Badge */
-.comparison-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.comparison-badge-up {
-  background: hsl(var(--success) / 0.1);
-  color: hsl(var(--success));
-}
-
-.comparison-badge-down {
-  background: hsl(var(--destructive) / 0.1);
-  color: hsl(var(--destructive));
-}
-```
-
----
-
-## Cambios en CommandCenter.tsx
-
-**Archivo:** `src/pages/CommandCenter.tsx`
-
-**Mejoras:**
-
-1. **Calculos adicionales:**
-   - `percentOfWeeklySales`: Calcular % del total semanal
-   - `changeVsYesterday`: Cambio vs ayer
-   - `avgMarginData`: Data de margen promedio
-
-2. **Layout mejorado:**
-   - Espaciado mas generoso (space-y-10)
-   - Max-width aumentado a max-w-7xl
-   - Animaciones escalonadas mas pronunciadas
-
-3. **Header premium:**
-   - Status "Sistema Activo" con glow
-   - Hora de ultima actualizacion
-   - Badge de version IA
 
 ---
 
 ## Orden de Implementacion
 
-```text
-1. src/index.css
-   → Agregar nuevas clases premium (glass, glow, gradients)
+### Fase 1: Base de Datos (Migracion)
 
-2. src/components/command-center/HeroFinancialCard.tsx
-   → Redisenar con narrativa financiera y efectos premium
+1. Crear migracion SQL con nuevos campos
+2. Actualizar enums existentes
+3. Agregar indices para queries eficientes
 
-3. src/components/command-center/AIRadarPanel.tsx
-   → Mejorar con contexto numerico y efectos IA
+### Fase 2: Tipos y Hook
 
-4. src/components/command-center/MetricsDashboard.tsx
-   → Agregar margen, comparativas, mejorar sparklines
+1. Actualizar `src/types/index.ts` con nuevos tipos
+2. Crear `src/hooks/useCreativeIntelligence.ts`
+3. Actualizar `src/hooks/useCreatives.ts` para mapear nuevos campos
 
-5. src/components/command-center/ProductSpotlight.tsx
-   → Imagen grande, estado comercial, metricas contextuales
+### Fase 3: Componentes Base
 
-6. src/components/command-center/AIInsightBanner.tsx
-   → Efecto glass, glow IA, tipografia impactante
+1. `CreativeCard.tsx` - Card inteligente
+2. `CreativeMetrics.tsx` - Panel de metricas
+3. `CreativeComparison.tsx` - Comparador
+4. `CreativeLearning.tsx` - Bloque aprendizaje
+5. `CreativeActions.tsx` - Acciones n8n
 
-7. src/components/command-center/QuickActionsBar.tsx
-   → Botones con gradientes y efectos hover
+### Fase 4: Formulario
 
-8. src/pages/CommandCenter.tsx
-   → Nuevos calculos y layout mejorado
-```
+1. `CreativeForm.tsx` - Formulario multi-bloque
+2. Validaciones y flujo
 
----
+### Fase 5: Vistas
 
-## Resultado Visual Esperado
+1. `CreativeFilters.tsx` - Filtros avanzados
+2. `ProductCreativesView.tsx` - Vista por producto
+3. `CreativeInsights.tsx` - Panel insights
+4. Redisenar `Creatives.tsx` completo
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ● Sistema Activo                          GRC AI OS v2.0     Ultima act: 2min │
-│  Buenos dias, Carlos                                                            │
-└─────────────────────────────────────────────────────────────────────────────────┘
+### Fase 6: Integracion
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ╔════════════════════════════════════════════════════════════════════════════╗ │
-│  ║  💰 BALANCE CRITICO DEL DIA                                                ║ │
-│  ║                                                                            ║ │
-│  ║     $405.000                          ESTADO: ⚠️ REQUIERE ATENCION        ║ │
-│  ║     en riesgo hoy                     3 acciones para estabilidad          ║ │
-│  ║                                                                            ║ │
-│  ║     📈 ↑15% vs ayer                                                       ║ │
-│  ║     Representa el 23% de ventas semanales                                  ║ │
-│  ║                                                                            ║ │
-│  ║     [3 sin confirmar]  [2 en riesgo]  [$140K pendiente]                   ║ │
-│  ║                                                                            ║ │
-│  ║                         [████ COBRAR $140K AHORA ████]                    ║ │
-│  ╚════════════════════════════════════════════════════════════════════════════╝ │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────┬────────────────────────────────────────────┐
-│  🧠 RADAR IA              (4) ⟳2m │  📊 METRICAS 7 DIAS                        │
-│  ─────────────────────────────────│  ─────────────────────────────────────────  │
-│  ┌────────────────────────────────┐│  ┌───────────┐ ┌───────────┐ ┌───────────┐│
-│  │🔴 3 ventas sin confirmar >2d  ││  │  VENTAS   │ │ GANANCIA  │ │  MARGEN   ││
-│  │   → $450K en riesgo      [→]  ││  │    18     │ │  +$245K   │ │   42%     ││
-│  └────────────────────────────────┘│  │  ~~~~~~~~ │ │ ~~~~~~~~  │ │ ~~~~~~~~  ││
-│  ┌────────────────────────────────┐│  │  +23% ↑   │ │  +12% ↑   │ │  +5% ↑    ││
-│  │🟢 Recupera $250K si cobras hoy││  │ vs ant.   │ │ vs ant.   │ │ vs ant.   ││
-│  │   Porque 3 ventas estan listas││  └───────────┘ └───────────┘ └───────────┘│
-│  └────────────────────────────────┘│                                            │
-└────────────────────────────────────┴────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ✨ PRODUCTO ESTRELLA DE LA SEMANA                                              │
-│  ┌──────────────────────────────────────────────────────────────────────────┐   │
-│  │  ┌─────────────────┐                                                      │   │
-│  │  │                 │  🏆 MAS VENDIDO          🔥 CALIENTE                │   │
-│  │  │     [IMAGEN     │                                                      │   │
-│  │  │      GRANDE]    │  Nombre del Producto Premium                        │   │
-│  │  │                 │                                                      │   │
-│  │  │                 │  12 vendidos  │  $156K generado  │  52% margen      │   │
-│  │  │                 │  (+4 vs ant.) │  (+$32K vs ant.) │  (estable)       │   │
-│  │  └─────────────────┘                                                      │   │
-│  │                                                                           │   │
-│  │  [🚀 Escalar producto]  [🎨 Nuevo creativo]  [📤 Enviar a vendedores]   │   │
-│  └──────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  🧠 GRC AI SUGIERE                                                   [GLOW AI] │
-│  ╔══════════════════════════════════════════════════════════════════════════╗   │
-│  ║                                                                          ║   │
-│  ║  "Hoy puedes recuperar $405.000 si confirmas estos 3 pedidos.           ║   │
-│  ║   Porque llevan mas de 2 dias esperando y el cliente aun responde."      ║   │
-│  ║                                                                          ║   │
-│  ║                          → Impacto estimado: +$405K                      ║   │
-│  ║                                                                          ║   │
-│  ║                                        [Actuar ahora →]                  ║   │
-│  ╚══════════════════════════════════════════════════════════════════════════╝   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  ⚡ ACCIONES RAPIDAS                                                            │
-│                                                                                 │
-│   [💰 Cobrar Ahora (3)]   [🎨 Crear Creativo]   [📈 Escalar]   [⚡ Reactivar] │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+1. Conectar con ventas (related_creative_id)
+2. Logica de comparacion automatica
+3. Generacion de insights
 
 ---
 
-## Principios de Diseno Aplicados
+## Preparacion para n8n
 
-| Principio | Implementacion |
-|-----------|---------------|
-| Visual Intelligence | Sparklines con area, comparativas %, badges de tendencia |
-| Narrativa de dinero | "Representa X%", "→ Impacto estimado", montos en CTAs |
-| IA visible | Header "Radar IA", glow effects, causalidad en insights |
-| Premium sin ruido | Glass effects, gradientes sutiles, espaciado generoso |
-| Alta densidad jerarquizada | Grid 2 columnas, cards con profundidad, tipografia variable |
+Cada accion registra un "intent" en la base de datos:
+
+```typescript
+interface AutomationIntent {
+  creativeId: string;
+  action: 'generate_new' | 'repeat' | 'new_audience' | 'send_sellers' | 'landing';
+  triggeredAt: string;
+  status: 'pending' | 'processing' | 'completed';
+  metadata?: Record<string, unknown>;
+}
+```
+
+n8n puede:
+1. Polling: Consultar intents pendientes
+2. Webhook: Recibir notificacion cuando se crea intent
+3. Ejecutar flujo correspondiente
+4. Actualizar status a completed
 
 ---
 
 ## Lo Que NO Cambia
 
-- Logica de negocio existente en hooks
-- Calculos de metricas base
-- Sistema de navegacion
-- Base de datos
-- Tipos TypeScript (solo extensiones)
+- Logica de ventas existente
+- Sistema de tareas
+- Otros modulos
+- Navegacion principal
 
 ---
 
 ## Criterio de Exito
 
-Cuando el usuario abra el dashboard, debe pensar:
+El modulo estara completo cuando:
 
-> "Esto es otro nivel. Esto entiende mi negocio. Esto me va a hacer ganar mas plata."
-
-El dashboard debe sentirse como un **copiloto inteligente de alto nivel**, no como un admin panel generico.
+1. Un usuario pueda crear un creativo con contexto completo (producto, canal, publico, hook)
+2. Pueda registrar metricas manuales de forma estructurada
+3. Vea automaticamente si el creativo funciono vs el anterior
+4. El aprendizaje quede guardado y visible
+5. Pueda filtrar creativos por multiples criterios
+6. Vea insights globales de que funciona
+7. Las acciones de automatizacion queden registradas para n8n
 
