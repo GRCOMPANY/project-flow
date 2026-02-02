@@ -177,6 +177,11 @@ export function generateRadarAlerts(
     hotProducts: number;
     coldProducts: number;
     needsCreatives: number;
+  },
+  creativesData?: {
+    hotCreatives: number;
+    coldCreatives: number;
+    creativesWithHighMessagesLowSales: number;
   }
 ): RadarAlert[] {
   const alerts: RadarAlert[] = [];
@@ -208,6 +213,19 @@ export function generateRadarAlerts(
     });
   }
 
+  // Opportunity: Hot creatives to scale
+  if (creativesData && creativesData.hotCreatives > 0) {
+    alerts.push({
+      id: 'hot-creatives',
+      severity: 'opportunity',
+      icon: TrendingUp,
+      message: `${creativesData.hotCreatives} creativo${creativesData.hotCreatives > 1 ? 's' : ''} 🔥 listo${creativesData.hotCreatives > 1 ? 's' : ''} para escalar`,
+      estimatedImpact: Math.round(creativesData.hotCreatives * avgSale * 2),
+      causality: 'Contenido que funciona sin maximizar',
+      action: { label: 'Escalar', path: '/creatives?performance=caliente' }
+    });
+  }
+
   // Opportunity: Pending collections
   if (salesData.pendingAmount > 50000) {
     alerts.push({
@@ -221,6 +239,18 @@ export function generateRadarAlerts(
     });
   }
 
+  // Warning: Creatives with high messages but low sales
+  if (creativesData && creativesData.creativesWithHighMessagesLowSales > 0) {
+    alerts.push({
+      id: 'low-conversion-creatives',
+      severity: 'warning',
+      icon: ImageIcon,
+      message: `${creativesData.creativesWithHighMessagesLowSales} creativo${creativesData.creativesWithHighMessagesLowSales > 1 ? 's' : ''} con mensajes pero sin ventas`,
+      causality: 'El mensaje atrae pero no convierte',
+      action: { label: 'Optimizar', path: '/creatives?performance=interesante' }
+    });
+  }
+
   // Warning: Products needing creatives
   if (productData.needsCreatives > 0) {
     alerts.push({
@@ -230,6 +260,18 @@ export function generateRadarAlerts(
       message: `${productData.needsCreatives} producto${productData.needsCreatives > 1 ? 's' : ''} rentable${productData.needsCreatives > 1 ? 's' : ''} sin contenido activo`,
       causality: 'Oportunidad de venta perdida',
       action: { label: 'Crear', path: '/creatives' }
+    });
+  }
+
+  // Warning: Cold creatives
+  if (creativesData && creativesData.coldCreatives >= 3) {
+    alerts.push({
+      id: 'cold-creatives',
+      severity: 'warning',
+      icon: Package,
+      message: `${creativesData.coldCreatives} creativos sin resultados`,
+      causality: 'Contenido que no genera retorno',
+      action: { label: 'Revisar', path: '/creatives?performance=frio' }
     });
   }
 

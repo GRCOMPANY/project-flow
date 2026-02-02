@@ -503,6 +503,92 @@ export function generateSeguimientoTasks(sales: Sale[]): GeneratedTask[] {
 }
 
 // ====================================
+// REGLAS DE CREATIVOS POR PERFORMANCE
+// ====================================
+
+export function generateCreativePerformanceTasks(
+  creatives: Creative[],
+  products: Product[]
+): GeneratedTask[] {
+  const tasks: GeneratedTask[] = [];
+
+  for (const creative of creatives) {
+    // Skip if no metrics
+    const metricMessages = creative.metricMessages || 0;
+    const metricSales = creative.metricSales || 0;
+    const engagementLevel = creative.engagementLevel;
+    
+    // Calculate performance
+    let performance: 'frio' | 'interesante' | 'caliente' = 'frio';
+    if (metricSales >= 3 || metricMessages >= 30 || engagementLevel === 'alto') {
+      performance = 'caliente';
+    } else if (metricSales >= 1 || metricMessages >= 10) {
+      performance = 'interesante';
+    }
+
+    const product = products.find(p => p.id === creative.productId);
+    const productName = product?.name || 'producto';
+    const days = daysSince(creative.createdAt);
+
+    // Regla 1: Creativo FRÍO con más de 7 días
+    if (performance === 'frio' && days > 7 && creative.status === 'publicado') {
+      tasks.push({
+        name: `Cambiar creativo: ${productName}`,
+        description: `Creativo frío sin resultados`,
+        type: 'creativo',
+        priority: 'media',
+        impact: 'crecimiento',
+        triggerReason: `Creativo publicado hace ${days} días sin generar mensajes ni ventas`,
+        consequence: 'Contenido que no funciona sigue ocupando atención sin retorno.',
+        actionLabel: 'Crear nuevo',
+        actionPath: `/creatives?productId=${creative.productId}`,
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId || undefined,
+        dedupKey: `creativo_frio:${creative.id}`,
+      });
+    }
+
+    // Regla 2: Creativo INTERESANTE con muchos mensajes pero pocas ventas
+    if (performance === 'interesante' && metricMessages >= 10 && metricSales < 2) {
+      tasks.push({
+        name: `Optimizar oferta: ${productName}`,
+        description: `${metricMessages} mensajes pero ${metricSales} ventas`,
+        type: 'creativo',
+        priority: 'media',
+        impact: 'dinero',
+        triggerReason: `Creativo genera interés (${metricMessages} msgs) pero baja conversión (${metricSales} ventas)`,
+        consequence: 'Pierdes ventas. El mensaje atrae pero algo falla en cierre.',
+        actionLabel: 'Revisar oferta',
+        actionPath: `/products/${creative.productId}`,
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId || undefined,
+        dedupKey: `creativo_baja_conversion:${creative.id}`,
+      });
+    }
+
+    // Regla 3: Creativo CALIENTE sin intent de escalado
+    if (performance === 'caliente' && !creative.automationIntent) {
+      tasks.push({
+        name: `Escalar creativo: ${productName}`,
+        description: `🔥 Funcionando - listo para escalar`,
+        type: 'creativo',
+        priority: 'alta',
+        impact: 'crecimiento',
+        triggerReason: `Creativo caliente con ${metricSales} ventas y ${metricMessages} mensajes`,
+        consequence: 'Desaprovechas un creativo que funciona. Podrías multiplicar resultados.',
+        actionLabel: 'Escalar',
+        actionPath: '/creatives',
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId || undefined,
+        dedupKey: `creativo_escalar:${creative.id}`,
+      });
+    }
+  }
+
+  return tasks;
+}
+
+// ====================================
 // GENERADOR PRINCIPAL
 // ====================================
 
@@ -517,6 +603,7 @@ export function generateAllTasks(
   allTasks.push(...generateCobroTasks(sales));
   allTasks.push(...generateSeguimientoTasks(sales));
   allTasks.push(...generateCreativoTasks(products, creatives));
+  allTasks.push(...generateCreativePerformanceTasks(creatives, products));
   allTasks.push(...generateEstrategiaTasks(products, sales));
 
   // Ordenar por prioridad
@@ -561,6 +648,15 @@ export function checkTaskStillApplies(
     // Verificar si ahora tiene creativos
     const hasCreatives = creatives.some(c => c.productId === productId);
     return !hasCreatives;
+  }
+
+  // Creative performance tasks
+  if (task.dedupKey?.startsWith('creativo_frio:') || task.dedupKey?.startsWith('creativo_escalar:') || task.dedupKey?.startsWith('creativo_baja_conversion:')) {
+    const creativeId = task.relatedCreativeId;
+    const creative = creatives.find(c => c.id === creativeId);
+    // Remove task if creative has automation intent or is no longer active
+    if (!creative || creative.automationIntent || creative.status === 'descartado') return false;
+    return true;
   }
 
   if (task.dedupKey?.startsWith('sin_ventas:product:')) {

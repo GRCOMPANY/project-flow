@@ -49,7 +49,7 @@ export default function Creatives() {
   const { products } = useProducts();
   const { enrichedCreatives, insights, byProduct } = useCreativeIntelligence(creatives);
   
-  const [viewMode, setViewMode] = useState<'global' | 'product'>('global');
+  const [viewMode, setViewMode] = useState<'global' | 'product'>('product');
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
@@ -195,13 +195,13 @@ export default function Creatives() {
           {/* View Toggle */}
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'global' | 'product')}>
             <TabsList>
-              <TabsTrigger value="global" className="gap-2">
-                <LayoutGrid className="w-4 h-4" />
-                Vista Global
-              </TabsTrigger>
               <TabsTrigger value="product" className="gap-2">
                 <Package className="w-4 h-4" />
                 Por Producto
+              </TabsTrigger>
+              <TabsTrigger value="global" className="gap-2">
+                <LayoutGrid className="w-4 h-4" />
+                Vista Global
               </TabsTrigger>
             </TabsList>
           </Tabs>

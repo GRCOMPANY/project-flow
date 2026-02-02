@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
+import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
@@ -99,6 +100,7 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 export default function Sales() {
   const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
   const { products } = useProducts();
+  const { creatives } = useCreatives();
   const { isAdmin } = useAuth();
 
   // Form state
@@ -118,6 +120,7 @@ export default function Sales() {
   const [orderStatus, setOrderStatus] = useState<OrderStatus>('pendiente');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+  const [relatedCreativeId, setRelatedCreativeId] = useState<string>('');
 
   // Calculated values
   const totalAmount = quantity * unitPrice;
@@ -183,6 +186,7 @@ export default function Sales() {
     setOrderStatus('pendiente');
     setSaleDate(new Date().toISOString().split('T')[0]);
     setNotes('');
+    setRelatedCreativeId('');
     setEditingSale(null);
   };
 
@@ -204,6 +208,7 @@ export default function Sales() {
     setOrderStatus(sale.orderStatus);
     setSaleDate(sale.saleDate.split('T')[0]);
     setNotes(sale.notes || '');
+    setRelatedCreativeId(sale.relatedCreativeId || '');
     setShowForm(true);
   };
 
@@ -233,6 +238,7 @@ export default function Sales() {
       orderStatus,
       saleDate: new Date(saleDate).toISOString(),
       notes: notes || undefined,
+      relatedCreativeId: relatedCreativeId || undefined,
     };
 
     if (editingSale) {
@@ -656,6 +662,31 @@ export default function Sales() {
                   onChange={(e) => setSaleDate(e.target.value)}
                 />
               </div>
+
+              {/* Creative Attribution */}
+              {productId && creatives.filter(c => c.productId === productId).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Creativo origen (opcional)</label>
+                  <Select value={relatedCreativeId} onValueChange={setRelatedCreativeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="¿De qué creativo vino esta venta?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin asignar</SelectItem>
+                      {creatives
+                        .filter(c => c.productId === productId)
+                        .map((creative) => (
+                          <SelectItem key={creative.id} value={creative.id}>
+                            {creative.title || `${creative.type} - ${creative.channel}`}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Atribuir ventas a creativos mejora la inteligencia del sistema
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-sm font-medium mb-1 block">Notas</label>

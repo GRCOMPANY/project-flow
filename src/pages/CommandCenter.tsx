@@ -128,7 +128,30 @@ export default function CommandCenter() {
     return { hotProducts, coldProducts, needsCreatives };
   }, [smartProducts]);
 
-  // Radar alerts with enhanced data
+  // Creative metrics for radar
+  const creativeMetrics = useMemo(() => {
+    const hotCreatives = creatives.filter(c => {
+      const msgs = c.metricMessages || 0;
+      const sales = c.metricSales || 0;
+      return sales >= 3 || msgs >= 30 || c.engagementLevel === 'alto';
+    }).length;
+    
+    const coldCreatives = creatives.filter(c => {
+      const msgs = c.metricMessages || 0;
+      const sales = c.metricSales || 0;
+      return c.status === 'publicado' && sales < 1 && msgs < 10;
+    }).length;
+    
+    const creativesWithHighMessagesLowSales = creatives.filter(c => {
+      const msgs = c.metricMessages || 0;
+      const sales = c.metricSales || 0;
+      return msgs >= 10 && sales < 2;
+    }).length;
+
+    return { hotCreatives, coldCreatives, creativesWithHighMessagesLowSales };
+  }, [creatives]);
+
+  // Radar alerts with enhanced data including creatives
   const radarAlerts = useMemo(() => {
     return generateRadarAlerts(
       {
@@ -138,9 +161,10 @@ export default function CommandCenter() {
         pendingCount: tensionData.pendingCount,
         avgSaleAmount: tensionData.avgSaleAmount,
       },
-      productMetrics
+      productMetrics,
+      creativeMetrics
     );
-  }, [tensionData, productMetrics]);
+  }, [tensionData, productMetrics, creativeMetrics]);
 
   // Trend metrics data (now includes margin)
   const trendData = useMemo(() => {
