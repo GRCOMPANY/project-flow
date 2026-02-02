@@ -1,651 +1,504 @@
 
-
-# Plan: Creative Intelligence System - Modulo de Aprendizaje de Contenido
-
-## Vision del Modulo
-
-Transformar el modulo de Creativos de un simple CRUD de contenido a un **Sistema de Inteligencia Creativa** que permita:
-- Registrar creativos como **experimentos de venta** con hipotesis claras
-- Medir desempeno de forma estructurada (manual ahora, automatizado despues)
-- Comparar creativos entre si para aprender que funciona
-- Extraer aprendizajes reutilizables para mejorar futuras campanas
-- Servir como base para automatizaciones con n8n
-
----
+# Plan: Creative Intelligence System - Rediseno Completo y Conectado
 
 ## Analisis del Estado Actual
 
-### Lo que existe hoy
+### Lo que YA existe (bien implementado)
 
-| Aspecto | Estado Actual | Limitacion |
-|---------|--------------|------------|
-| Campos basicos | type, channel, objective, status, result | Faltan metricas de performance |
-| Publico objetivo | No existe | No se puede segmentar aprendizajes |
-| Hook / Mensaje | Solo copy generico | No hay tipologia de ganchos |
-| Metricas | Solo "funciono/no funciono" | Sin datos cuantitativos |
-| Comparacion | No existe | No hay aprendizaje automatico |
-| Aprendizaje | Campo learning simple | Sin estructura |
-| Vista | Grid generico | Sin vista por producto |
+| Componente | Estado | Evaluacion |
+|------------|--------|------------|
+| Tabla `creatives` con campos extendidos | Completo | Todos los campos de los 6 bloques existen en DB |
+| Types TypeScript | Completo | `Creative`, `CreativeIntelligence`, hooks, audiences definidos |
+| `useCreativeIntelligence` hook | Funcional | Calcula performance, compara creativos, detecta patrones |
+| `useCreatives` hook | Funcional | CRUD completo con mapeo de todos los campos |
+| CreativeForm multi-bloque | Funcional | 4 tabs (Contexto, Mensaje, Metricas, Aprendizaje) |
+| CreativeCard, Filters, Insights | Funcionales | UI basica implementada |
+| `taskRules.ts` | Parcial | Solo genera tareas para productos sin creativos, no para creativos frios/calientes |
+| Sales `relatedCreativeId` | Existe | Campo disponible pero no hay UI para usarlo |
 
-### Base de datos actual
+### Lo que FALTA (segun requerimientos)
 
-```text
-creatives table:
-- id, product_id, type, channel, objective
-- status, result, title, copy
-- image_url, video_url, script
-- learning, ai_prompt
-- published_at, created_at, updated_at
-```
-
----
-
-## Nueva Arquitectura del Modulo
-
-### Estructura de Bloques (6 Bloques segun requerimiento)
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE A: CONTEXTO DEL CREATIVO                                            │
-│  Producto | Canal | Tipo | Objetivo | Publico Objetivo                      │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE B: MENSAJE / HOOK                                                    │
-│  Tipo de Hook | Texto del Hook | Variacion A/B | Enfoque del Mensaje        │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE C: METRICAS DE PERFORMANCE                                           │
-│  Organico: Likes, Comentarios, Mensajes, Ventas                             │
-│  Meta Ads: Impresiones, Clicks, Mensajes, Ventas, Costo                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE D: RESULTADO AUTOMATICO (Calculado)                                  │
-│  No funciono | Interesante | Funciono (basado en reglas)                    │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE E: COMPARACION INTELIGENTE                                           │
-│  vs Creativo Anterior: Mejor / Peor / Igual | Que cambio | Impacto          │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BLOQUE F: APRENDIZAJE (Memoria del Negocio)                                 │
-│  Texto libre obligatorio sobre que funciono y por que                        │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+| Requerimiento | Estado | Prioridad |
+|--------------|--------|-----------|
+| Vista por Producto como principal | No implementada como principal | Alta |
+| Crear creativo desde producto con datos auto-completados | No existe | Alta |
+| Conexion Ventas-Creativos (atribucion) | Campo existe, sin UI | Alta |
+| Tareas automaticas basadas en performance | Solo basicas | Alta |
+| Integracion con Command Center | Parcial (no muestra creativos) | Media |
+| Automation status tracking | Solo intent, falta status | Media |
+| Carrusel/Historia como tipos | No existe en tipos | Baja |
 
 ---
 
-## Cambios en Base de Datos (Migracion SQL)
+## Cambios Propuestos
 
-### Nuevos campos para creatives
+### FASE 1: Modelo de Datos (DB + Types)
+
+#### 1.1 Migracion SQL - Agregar campo `automation_status`
+
+Agregar campo faltante para tracking de automatizacion:
 
 ```sql
--- BLOQUE A: Contexto extendido
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS target_audience text;
--- Valores: 'precio_bajo', 'precio_medio', 'regalo', 'uso_personal', 'reventa', 'otro'
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS audience_notes text;
--- Notas libres sobre el publico
-
--- BLOQUE B: Mensaje / Hook
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS hook_type text;
--- Valores: 'precio', 'problema', 'beneficio', 'urgencia', 'prueba_social', 'comparacion'
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS hook_text text;
--- El texto principal del gancho
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS variation text DEFAULT 'A';
--- Variacion A/B/C
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS message_approach text;
--- Valores: 'emocional', 'racional', 'promocional', 'educativo'
-
--- BLOQUE C: Metricas de Performance
--- Organico / Marketplace
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_likes integer DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_comments integer DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_messages integer DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_known_people text;
--- Valores: 'si', 'no', 'mixto'
-
--- Calculado desde sales pero tambien manual
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_sales integer DEFAULT 0;
-
--- Meta Ads
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_impressions integer DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_clicks integer DEFAULT 0;
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS metric_cost numeric DEFAULT 0;
-
--- Engagement percibido
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS engagement_level text;
--- Valores: 'bajo', 'medio', 'alto'
-
--- BLOQUE D: Resultado calculado (actualizar enum)
--- Ya existe creative_result, pero agregar 'interesante'
--- Valores actuales: sin_evaluar, funciono, no_funciono
--- Nuevos valores: frio, interesante, caliente (mas semanticos)
-
--- BLOQUE E: Comparacion
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS vs_previous text;
--- Valores: 'mejor', 'peor', 'igual', null (si es el primero)
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS vs_previous_id uuid REFERENCES creatives(id);
--- Referencia al creativo anterior para comparacion
-
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS what_changed text;
--- Descripcion de que cambio respecto al anterior
-
--- Metadata para automatizacion
-ALTER TABLE creatives ADD COLUMN IF NOT EXISTS automation_intent text;
--- Acciones preparadas: 'generate_new', 'repeat', 'new_audience', 'send_sellers', 'landing'
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS automation_status text DEFAULT NULL;
+-- Valores: 'pending', 'processing', 'completed', 'failed'
 ```
 
-### Nuevos enums
+#### 1.2 Actualizar Types
 
-```sql
--- Actualizar creative_result para incluir 'interesante'
-ALTER TYPE creative_result ADD VALUE IF NOT EXISTS 'interesante';
+En `src/types/index.ts`:
 
--- Nuevos tipos
-CREATE TYPE hook_type AS ENUM (
-  'precio', 
-  'problema', 
-  'beneficio', 
-  'urgencia', 
-  'prueba_social', 
-  'comparacion'
-);
-
-CREATE TYPE target_audience_type AS ENUM (
-  'precio_bajo',
-  'precio_medio', 
-  'regalo',
-  'uso_personal',
-  'reventa',
-  'otro'
-);
-
-CREATE TYPE message_approach_type AS ENUM (
-  'emocional',
-  'racional',
-  'promocional',
-  'educativo'
-);
-
-CREATE TYPE engagement_level_type AS ENUM (
-  'bajo',
-  'medio',
-  'alto'
-);
-
-CREATE TYPE comparison_result AS ENUM (
-  'mejor',
-  'peor',
-  'igual'
-);
-```
-
----
-
-## Nuevos Tipos TypeScript
-
-### Archivo: src/types/index.ts
+- Agregar `AutomationStatus` type
+- Agregar tipos de creativo adicionales: `historia`, `carrusel`, `anuncio`
+- Agregar campo `automationStatus` a interface `Creative`
 
 ```typescript
-// Bloque A: Contexto
-export type TargetAudience = 
-  | 'precio_bajo' 
-  | 'precio_medio' 
-  | 'regalo' 
-  | 'uso_personal' 
-  | 'reventa' 
-  | 'otro';
+export type CreativeType = 'imagen' | 'video' | 'copy' | 'historia' | 'carrusel' | 'anuncio';
+export type AutomationStatus = 'pending' | 'processing' | 'completed' | 'failed';
+```
 
-// Bloque B: Hook
-export type HookType = 
-  | 'precio' 
-  | 'problema' 
-  | 'beneficio' 
-  | 'urgencia' 
-  | 'prueba_social' 
-  | 'comparacion';
+---
 
-export type MessageApproach = 
-  | 'emocional' 
-  | 'racional' 
-  | 'promocional' 
-  | 'educativo';
+### FASE 2: Conexion Producto-Creativo
 
-// Bloque C: Metricas
-export type KnownPeople = 'si' | 'no' | 'mixto';
-export type EngagementLevel = 'bajo' | 'medio' | 'alto';
+#### 2.1 Pestaña Creativos en ProductDetail
 
-// Bloque D: Resultado
-export type CreativePerformance = 'frio' | 'interesante' | 'caliente';
+Modificar `src/pages/ProductDetail.tsx`:
 
-// Bloque E: Comparacion
-export type ComparisonResult = 'mejor' | 'peor' | 'igual';
+1. Agregar Tab "Creativos" con contenido expandido
+2. Mostrar todos los creativos del producto con metricas
+3. Boton "Crear creativo desde este producto" que:
+   - Pre-llena productId
+   - Auto-completa titulo con nombre producto
+   - Auto-completa descripcion
+   - Muestra imagen del producto en preview
+   - Pre-selecciona canal principal del producto
 
-// Acciones de automatizacion
-export type AutomationIntent = 
-  | 'generate_new' 
-  | 'repeat' 
-  | 'new_audience' 
-  | 'send_sellers' 
-  | 'landing';
+Layout propuesto para la seccion:
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  📦 [Imagen] NOMBRE PRODUCTO                                    │
+│                                                                  │
+│  [Detalles] [Performance] [Creativos ★] [Ventas]               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  CREATIVOS DE ESTE PRODUCTO                                      │
+│                                                                  │
+│  📊 Estadisticas Rapidas                                        │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                  │
+│  │ 5      │ │ 2 🔥   │ │ Hook:  │ │ Canal: │                  │
+│  │ total  │ │ calient│ │ Benef. │ │ IG     │                  │
+│  └────────┘ └────────┘ └────────┘ └────────┘                  │
+│                                                                  │
+│  [+ Crear creativo para este producto]                          │
+│                                                                  │
+│  TIMELINE                                                        │
+│  ────────────────────────────────────────                       │
+│  [Card 5] 🔥 ↑ Mejor                                            │
+│      ↓                                                          │
+│  [Card 4] 🟡 → Igual                                            │
+│      ↓                                                          │
+│  [Card 3] ❄️ ↓ Peor                                              │
+│                                                                  │
+│  APRENDIZAJES ACUMULADOS                                         │
+│  • "Video corto > imagen para este producto"                    │
+│  • "Hook beneficio genera 2x mensajes"                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-// Creative Intelligence extendido
-export interface CreativeIntelligence extends Creative {
-  // Bloque A
-  targetAudience?: TargetAudience;
-  audienceNotes?: string;
-  
-  // Bloque B
-  hookType?: HookType;
-  hookText?: string;
-  variation?: string;
-  messageApproach?: MessageApproach;
-  
-  // Bloque C - Metricas
-  metricLikes: number;
-  metricComments: number;
-  metricMessages: number;
-  metricKnownPeople?: KnownPeople;
-  metricSales: number;
-  metricImpressions: number;
-  metricClicks: number;
-  metricCost: number;
-  engagementLevel?: EngagementLevel;
-  
-  // Bloque D - Resultado calculado
-  calculatedPerformance: CreativePerformance;
-  
-  // Bloque E - Comparacion
-  vsPrevious?: ComparisonResult;
-  vsPreviousId?: string;
-  whatChanged?: string;
-  previousCreative?: Creative;
-  
-  // Automatizacion
-  automationIntent?: AutomationIntent;
+#### 2.2 Nuevo Componente: ProductCreativesTab
+
+Crear `src/components/products/ProductCreativesTab.tsx`:
+
+- Recibe `productId` como prop
+- Usa `useCreatives` filtrado por producto
+- Usa `useCreativeIntelligence` para enriquecer datos
+- Muestra timeline de creativos ordenados por fecha
+- Calcula estadisticas del producto (hook top, canal top)
+- Boton para crear creativo con producto pre-seleccionado
+
+#### 2.3 Modificar CreativeForm para pre-llenado
+
+En `src/components/creatives/CreativeForm.tsx`:
+
+- Agregar prop `prefilledProduct?: Product`
+- Si viene producto, auto-llenar:
+  - `productId`
+  - `title` = `Creativo - ${product.name}`
+  - Mostrar preview de imagen del producto
+  - Pre-seleccionar canal basado en `product.mainChannel`
+
+---
+
+### FASE 3: Conexion Ventas-Creativos
+
+#### 3.1 Modificar Formulario de Venta
+
+En el formulario de registro de venta (`src/pages/Sales.tsx` o componente de form):
+
+- Agregar campo opcional: "Creativo origen"
+- Dropdown con creativos recientes del producto seleccionado
+- Filtrar creativos por `productId` cuando se selecciona producto
+
+#### 3.2 Recalcular `metricSales` automaticamente
+
+Modificar `src/hooks/useSales.ts`:
+
+En `addSale`:
+- Si se especifica `relatedCreativeId`, incrementar `metric_sales` del creativo
+- Llamar `updateCreative(relatedCreativeId, { metricSales: current + quantity })`
+
+En `updateSale`:
+- Si cambia `relatedCreativeId`, ajustar contadores
+
+#### 3.3 Vista de Atribucion en Creativo
+
+Modificar `src/pages/Creatives.tsx` (Sheet de detalle):
+
+- Agregar seccion "Ventas atribuidas"
+- Mostrar lista de ventas con `relatedCreativeId` = este creativo
+- Mostrar total atribuido
+
+---
+
+### FASE 4: Tareas Automaticas por Performance
+
+#### 4.1 Nuevas Reglas en taskRules.ts
+
+Agregar funcion `generateCreativePerformanceTasks`:
+
+```typescript
+export function generateCreativePerformanceTasks(
+  creatives: Creative[],
+  products: Product[]
+): GeneratedTask[] {
+  const tasks: GeneratedTask[] = [];
+
+  for (const creative of creatives) {
+    const performance = calculatePerformance(creative);
+    const product = products.find(p => p.id === creative.productId);
+    const productName = product?.name || 'producto';
+
+    // Regla 1: Creativo FRIO con mas de 7 dias
+    if (performance === 'frio' && daysSince(creative.createdAt) > 7) {
+      tasks.push({
+        name: `Cambiar creativo: ${productName}`,
+        description: `Creativo frio sin resultados`,
+        type: 'creativo',
+        priority: 'media',
+        impact: 'crecimiento',
+        triggerReason: `Creativo publicado hace ${daysSince(creative.createdAt)} dias sin generar mensajes ni ventas`,
+        consequence: 'Contenido que no funciona sigue ocupando atencion sin retorno.',
+        actionLabel: 'Crear nuevo',
+        actionPath: `/creatives?productId=${creative.productId}`,
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId,
+        dedupKey: `creativo_frio:${creative.id}`,
+      });
+    }
+
+    // Regla 2: Creativo INTERESANTE - optimizar
+    if (performance === 'interesante' && creative.metricMessages >= 10 && creative.metricSales < 2) {
+      tasks.push({
+        name: `Optimizar oferta: ${productName}`,
+        description: `${creative.metricMessages} mensajes pero ${creative.metricSales} ventas`,
+        type: 'creativo',
+        priority: 'media',
+        impact: 'dinero',
+        triggerReason: `Creativo genera interes (${creative.metricMessages} msgs) pero baja conversion (${creative.metricSales} ventas)`,
+        consequence: 'Pierdes ventas. El mensaje atrae pero algo falla en cierre.',
+        actionLabel: 'Revisar oferta',
+        actionPath: `/products/${creative.productId}`,
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId,
+        dedupKey: `creativo_baja_conversion:${creative.id}`,
+      });
+    }
+
+    // Regla 3: Creativo CALIENTE - escalar
+    if (performance === 'caliente' && !creative.automationIntent) {
+      tasks.push({
+        name: `Escalar creativo: ${productName}`,
+        description: `🔥 Funcionando - listo para escalar`,
+        type: 'creativo',
+        priority: 'alta',
+        impact: 'crecimiento',
+        triggerReason: `Creativo caliente con ${creative.metricSales} ventas y ${creative.metricMessages} mensajes`,
+        consequence: 'Desaprovechas un creativo que funciona. Podrias multiplicar resultados.',
+        actionLabel: 'Escalar',
+        actionPath: '/creatives',
+        relatedCreativeId: creative.id,
+        relatedProductId: creative.productId,
+        dedupKey: `creativo_escalar:${creative.id}`,
+      });
+    }
+
+    // Regla 4: Producto sin creativos activos
+    // (ya existe pero mejorar contexto)
+  }
+
+  return tasks;
 }
 ```
 
----
+#### 4.2 Integrar en useTasks
 
-## Nuevos Componentes
+Modificar `src/hooks/useTasks.ts`:
 
-### Estructura de archivos
-
-```text
-src/components/creatives/
-├── CreativeCard.tsx           # Card inteligente con metricas
-├── CreativeForm.tsx           # Formulario multi-bloque
-├── CreativeDetail.tsx         # Vista detallada con comparacion
-├── CreativeFilters.tsx        # Filtros avanzados
-├── CreativeMetrics.tsx        # Bloque de metricas
-├── CreativeComparison.tsx     # Comparacion vs anterior
-├── CreativeLearning.tsx       # Bloque de aprendizaje
-├── CreativeActions.tsx        # Botones de automatizacion
-├── ProductCreativesView.tsx   # Vista por producto
-└── CreativeInsights.tsx       # Panel de insights globales
-```
-
-### 1. CreativeCard.tsx
-
-Card inteligente que muestra:
-- Imagen/Video del creativo
-- Badge de resultado (Frio / Interesante / Caliente)
-- Metricas clave (mensajes, ventas)
-- Hook type badge
-- Indicador de comparacion vs anterior
-- Quick actions
-
-```text
-┌─────────────────────────────────────┐
-│  [Imagen/Video]                     │
-│                                     │
-│  🔥 CALIENTE                        │
-│                                     │
-│  Hook: Beneficio                    │
-│  📩 45 mensajes  │  💰 8 ventas    │
-│                                     │
-│  ↑ Mejor que anterior (+120%)       │
-│                                     │
-│  [Ver detalle] [Repetir] [Escalar]  │
-└─────────────────────────────────────┘
-```
-
-### 2. CreativeForm.tsx
-
-Formulario estructurado en 6 bloques con tabs o acordeon:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  NUEVO CREATIVO                                                  │
-├─────────────────────────────────────────────────────────────────┤
-│  [A. Contexto] [B. Mensaje] [C. Metricas] [F. Aprendizaje]     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  BLOQUE A: CONTEXTO                                              │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
-│  │ Producto    │ │ Canal       │ │ Tipo        │               │
-│  │ [Select]    │ │ [Select]    │ │ [Select]    │               │
-│  └─────────────┘ └─────────────┘ └─────────────┘               │
-│                                                                  │
-│  ┌─────────────┐ ┌─────────────────────────────┐               │
-│  │ Objetivo    │ │ Publico Objetivo            │               │
-│  │ [Select]    │ │ [Select]                    │               │
-│  └─────────────┘ └─────────────────────────────┘               │
-│                                                                  │
-│  [Siguiente →]                                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 3. CreativeMetrics.tsx
-
-Panel para registrar metricas segun canal:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  METRICAS DE PERFORMANCE                                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Canal: Instagram (Organico)                                     │
-│                                                                  │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐              │
-│  │ ❤️ Likes │ │ 💬 Com. │ │ 📩 Msgs │ │ 💰 Ventas│              │
-│  │   124   │ │   23    │ │   45    │ │    8    │              │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘              │
-│                                                                  │
-│  Personas conocidas: [Si] [No] [Mixto]                          │
-│                                                                  │
-│  Engagement percibido: [Bajo] [Medio] [Alto]                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 4. CreativeComparison.tsx
-
-Comparacion automatica con creativo anterior:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  🔍 COMPARACION CON ANTERIOR                                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────┐      vs      ┌─────────────────┐          │
-│  │ Este creativo   │              │ Anterior        │          │
-│  │ Hook: Beneficio │              │ Hook: Precio    │          │
-│  │ 📩 45 mensajes  │              │ 📩 20 mensajes  │          │
-│  │ 💰 8 ventas     │              │ 💰 3 ventas     │          │
-│  └─────────────────┘              └─────────────────┘          │
-│                                                                  │
-│  Resultado: ✅ MEJOR (+125% mensajes, +166% ventas)             │
-│                                                                  │
-│  Que cambio:                                                     │
-│  • Hook: Precio → Beneficio                                      │
-│  • Formato: Imagen → Video                                       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 5. CreativeActions.tsx
-
-Botones preparados para n8n:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ⚡ ACCIONES INTELIGENTES                                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  [🔄 Generar nuevo basado en este]                              │
-│  [🔁 Repetir creativo exitoso]                                   │
-│  [👥 Probar nuevo publico]                                       │
-│  [📤 Enviar a vendedores]                                        │
-│  [🌐 Preparar landing page]                                      │
-│                                                                  │
-│  ℹ️ Estas acciones quedan registradas para automatizacion       │
-└─────────────────────────────────────────────────────────────────┘
-```
+- Importar `generateCreativePerformanceTasks`
+- Agregar al pipeline de generacion de tareas automaticas
+- Pasar `creatives` y `products` como parametros
 
 ---
 
-## Vista Hibrida de Creativos
+### FASE 5: Integracion Command Center
 
-### Archivo: src/pages/Creatives.tsx (Rediseno completo)
+#### 5.1 Agregar Bloque de Creativos al Radar
 
+Modificar `src/components/command-center/AIRadarPanel.tsx`:
+
+En `generateRadarAlerts`, agregar alertas de creativos:
+
+```typescript
+// Agregar parametro creativesMetrics
+interface CreativesMetrics {
+  hotCreatives: number;
+  coldCreatives: number;
+  creativesWithoutSales: number;
+  potentialFromScaling: number; // estimado si escalas calientes
+}
+
+// Nuevas alertas
+if (creativesMetrics.hotCreatives > 0) {
+  alerts.push({
+    type: 'opportunity',
+    title: `${creativesMetrics.hotCreatives} creativos listos para escalar`,
+    description: `Contenido que funciona sin maximizar`,
+    estimatedImpact: creativesMetrics.potentialFromScaling,
+    causality: `Porque tienen ventas y mensajes altos sin accion de escalado`,
+    actionPath: '/creatives?performance=caliente',
+    urgencyLevel: 'today',
+  });
+}
+
+if (creativesMetrics.coldCreatives >= 3) {
+  alerts.push({
+    type: 'warning',
+    title: `${creativesMetrics.coldCreatives} creativos sin resultados`,
+    description: `Contenido que no genera retorno`,
+    actionPath: '/creatives?performance=frio',
+    urgencyLevel: 'this_week',
+  });
+}
+```
+
+#### 5.2 Modificar CommandCenter para pasar datos
+
+En `src/pages/CommandCenter.tsx`:
+
+- Calcular metricas de creativos desde `useCreatives` + `useCreativeIntelligence`
+- Pasar a `generateRadarAlerts` como nuevo parametro
+
+---
+
+### FASE 6: Vista Por Producto como Principal
+
+#### 6.1 Reestructurar Creatives.tsx
+
+Modificar `src/pages/Creatives.tsx`:
+
+1. Cambiar default de `viewMode` a `'product'` (vista por producto primero)
+2. Mejorar ProductView component:
+   - Expandir header de producto con mas metricas
+   - Agregar boton "Crear creativo" en cada producto
+   - Mostrar aprendizajes acumulados
+   - Timeline visual de creativos
+
+Layout mejorado para Vista por Producto:
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  CREATIVE INTELLIGENCE SYSTEM                                               │
+│  CREATIVE INTELLIGENCE                                                       │
 │  El cerebro de tu contenido de venta                                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  [Vista Global] [Por Producto]                      [+ Nuevo Creativo]      │
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  FILTROS                                                                     │
-│  Canal: [Todos] [Instagram] [WhatsApp] [TikTok] [Facebook] [Marketplace]    │
-│  Resultado: [Todos] [🔥 Caliente] [🟡 Interesante] [❄️ Frio]                │
-│  Publico: [Todos] [Precio bajo] [Regalo] [Reventa]                          │
-│  Hook: [Todos] [Precio] [Beneficio] [Urgencia] [Prueba social]              │
+│  [Por Producto ★] [Vista Global]                    [+ Nuevo Experimento]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  📊 INSIGHTS RAPIDOS                                                         │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
-│  │ 12 creativos │ │ 5 calientes  │ │ Hook top:    │ │ Aprendizaje: │       │
-│  │ este mes     │ │ (42%)        │ │ Beneficio    │ │ Video > Img  │       │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘       │
+│  [Panel de insights existente]                                               │
 │                                                                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  CREATIVOS                                                                   │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
-│  │ [Card 1]    │ │ [Card 2]    │ │ [Card 3]    │ │ [Card 4]    │          │
-│  │ 🔥 Caliente │ │ 🟡 Interes. │ │ 🔥 Caliente │ │ ❄️ Frio     │          │
-│  │ Instagram   │ │ WhatsApp    │ │ TikTok      │ │ Facebook    │          │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘          │
+│  PRODUCTOS CON CREATIVOS                                                     │
 │                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Vista por Producto
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  🔙 Volver                                      CREATIVOS DE: iPhone Case   │
-├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ 📦 [IMG] iPhone Case Premium                                            ││
+│  │ ────────────────────────────────────────────────────────────────────── ││
+│  │ 5 creativos │ 2 🔥 calientes │ Hook top: Beneficio │ Canal top: IG     ││
+│  │                                                                         ││
+│  │ [+ Crear para este producto]                                            ││
+│  │                                                                         ││
+│  │ APRENDIZAJES:                                                           ││
+│  │ "Video corto genera 2x mas mensajes"                                    ││
+│  │                                                                         ││
+│  │ CREATIVOS:                                                              ││
+│  │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                       ││
+│  │ │ [Card 1]    │ │ [Card 2]    │ │ [Card 3]    │                       ││
+│  │ │ 🔥 Caliente │ │ 🟡 Interes. │ │ ❄️ Frio     │                       ││
+│  │ │ ↑ Mejor     │ │ → Igual     │ │             │                       ││
+│  │ └─────────────┘ └─────────────┘ └─────────────┘                       ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                              │
-│  [Imagen Producto]  │  Estadisticas del Producto                            │
-│                     │  ─────────────────────────                            │
-│                     │  12 creativos totales                                  │
-│                     │  5 calientes (42%)                                     │
-│                     │  Hook mas exitoso: Beneficio                           │
-│                     │  Mejor canal: Instagram                                │
-│                     │                                                        │
-│                     │  [+ Nuevo Creativo para este producto]                 │
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  TIMELINE DE CREATIVOS (ordenados por fecha)                                │
-│                                                                              │
-│  [Creativo 5] 🔥 ↑ Mejor → [Creativo 4] 🟡 ↓ Peor → [Creativo 3] 🔥 ...   │
-│                                                                              │
-│  APRENDIZAJES ACUMULADOS                                                     │
-│  • "Video corto genera 2x mas mensajes que imagen"                          │
-│  • "Hook de beneficio supera a precio en 40%"                                │
-│  • "Publico reventa convierte mejor"                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ 📦 [IMG] Otro Producto                                                  ││
+│  │ ...                                                                     ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Hook: useCreativeIntelligence
+### FASE 7: Automatizacion Ready (n8n)
 
-### Archivo: src/hooks/useCreativeIntelligence.ts
+#### 7.1 Crear tabla de intents (opcional pero recomendado)
 
-```typescript
-// Funciones principales:
+Migracion SQL para tracking estructurado:
 
-// 1. Calcular performance automatico
-function calculatePerformance(creative: Creative): CreativePerformance {
-  // Reglas:
-  // - Caliente: mensajes > 30 O ventas > 5 O engagement = alto
-  // - Interesante: mensajes > 10 O ventas > 2 O engagement = medio
-  // - Frio: todo lo demas
-}
+```sql
+CREATE TABLE IF NOT EXISTS creative_automation_intents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creative_id uuid REFERENCES creatives(id) ON DELETE CASCADE,
+  product_id uuid REFERENCES products(id) ON DELETE SET NULL,
+  intent_type text NOT NULL, -- 'generate_new', 'repeat', 'new_audience', 'send_sellers', 'landing'
+  status text DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+  metadata jsonb DEFAULT '{}',
+  triggered_by uuid,
+  triggered_at timestamp with time zone DEFAULT now(),
+  completed_at timestamp with time zone,
+  result_notes text,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-// 2. Comparar con anterior
-function compareWithPrevious(
-  creative: Creative, 
-  previous: Creative | null
-): ComparisonResult {
-  // Logica de comparacion basada en metricas
-}
+-- RLS
+ALTER TABLE creative_automation_intents ENABLE ROW LEVEL SECURITY;
 
-// 3. Detectar patrones globales
-function detectPatterns(creatives: Creative[]): Insights {
-  // - Hook mas exitoso
-  // - Canal mas efectivo
-  // - Publico con mejor conversion
-  // - Tendencias temporales
-}
+CREATE POLICY "Admins can manage intents" ON creative_automation_intents
+  FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-// 4. Generar insights
-function generateInsights(
-  productId: string, 
-  creatives: Creative[]
-): string[] {
-  // Generar aprendizajes automaticos
-}
-
-// 5. Obtener creativo anterior
-function getPreviousCreative(
-  productId: string,
-  channel: string,
-  currentId: string
-): Creative | null {
-  // Buscar el creativo anterior del mismo producto y canal
-}
+CREATE POLICY "Authenticated can view intents" ON creative_automation_intents
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 ```
+
+#### 7.2 Hook para Intents
+
+Crear `src/hooks/useAutomationIntents.ts`:
+
+- `registerIntent(creativeId, intentType, metadata)`
+- `getIntentsByStatus(status)`
+- `updateIntentStatus(id, status, notes)`
+
+#### 7.3 Actualizar CreativeActions
+
+Modificar `src/components/creatives/CreativeActions.tsx`:
+
+- Usar `useAutomationIntents` en lugar de solo actualizar campo
+- Guardar metadata completa (producto, canal, metricas actuales)
+- Mostrar intents pendientes del creativo
 
 ---
 
-## Logica de Calculo Automatico de Resultado
+## Archivos a Modificar/Crear
 
-```typescript
-// Reglas para calcular performance
-const calculateAutoResult = (creative: CreativeIntelligence): CreativePerformance => {
-  const { 
-    metricMessages, 
-    metricSales, 
-    engagementLevel,
-    vsPrevious 
-  } = creative;
+### Crear (Nuevos)
 
-  // Prioridad 1: Ventas directas
-  if (metricSales >= 5) return 'caliente';
-  if (metricSales >= 2) return 'interesante';
-  
-  // Prioridad 2: Mensajes recibidos
-  if (metricMessages >= 30) return 'caliente';
-  if (metricMessages >= 10) return 'interesante';
-  
-  // Prioridad 3: Engagement percibido
-  if (engagementLevel === 'alto') return 'caliente';
-  if (engagementLevel === 'medio') return 'interesante';
-  
-  // Prioridad 4: Comparacion con anterior
-  if (vsPrevious === 'mejor') return 'interesante';
-  
-  return 'frio';
-};
-```
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/components/products/ProductCreativesTab.tsx` | Tab de creativos en detalle producto |
+| `src/hooks/useAutomationIntents.ts` | Hook para tracking de intents n8n |
+| Migracion `automation_status` | Campo adicional para creativos |
+| Migracion `creative_automation_intents` | Tabla de intents (opcional) |
+
+### Modificar (Existentes)
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/types/index.ts` | Agregar `AutomationStatus`, tipos de creativo adicionales |
+| `src/pages/ProductDetail.tsx` | Agregar Tab Creativos con ProductCreativesTab |
+| `src/pages/Creatives.tsx` | Vista por producto como default, mejorar ProductView |
+| `src/components/creatives/CreativeForm.tsx` | Soporte para producto pre-llenado |
+| `src/pages/Sales.tsx` | Campo para atribuir venta a creativo |
+| `src/hooks/useSales.ts` | Auto-incrementar metricSales al atribuir |
+| `src/hooks/useCreatives.ts` | Mapear `automation_status` |
+| `src/lib/taskRules.ts` | Agregar `generateCreativePerformanceTasks` |
+| `src/hooks/useTasks.ts` | Integrar nuevas reglas de creativos |
+| `src/components/command-center/AIRadarPanel.tsx` | Agregar alertas de creativos |
+| `src/pages/CommandCenter.tsx` | Calcular y pasar metricas de creativos |
+| `src/components/creatives/CreativeActions.tsx` | Usar intents estructurados |
 
 ---
 
 ## Orden de Implementacion
 
-### Fase 1: Base de Datos (Migracion)
+```text
+FASE 1: Modelo de Datos (30 min)
+├── 1.1 Migracion SQL (automation_status)
+├── 1.2 Actualizar types
+└── 1.3 Actualizar useCreatives
 
-1. Crear migracion SQL con nuevos campos
-2. Actualizar enums existentes
-3. Agregar indices para queries eficientes
+FASE 2: Conexion Producto-Creativo (45 min)
+├── 2.1 ProductCreativesTab component
+├── 2.2 Modificar ProductDetail con tabs
+└── 2.3 CreativeForm con pre-llenado
 
-### Fase 2: Tipos y Hook
+FASE 3: Conexion Ventas-Creativos (30 min)
+├── 3.1 Campo en form de venta
+├── 3.2 Auto-incremento de metricSales
+└── 3.3 Vista de atribucion
 
-1. Actualizar `src/types/index.ts` con nuevos tipos
-2. Crear `src/hooks/useCreativeIntelligence.ts`
-3. Actualizar `src/hooks/useCreatives.ts` para mapear nuevos campos
+FASE 4: Tareas Automaticas (30 min)
+├── 4.1 generateCreativePerformanceTasks
+├── 4.2 Integrar en useTasks
+└── 4.3 Probar generacion
 
-### Fase 3: Componentes Base
+FASE 5: Command Center (20 min)
+├── 5.1 Alertas de creativos en Radar
+└── 5.2 Calculos en CommandCenter
 
-1. `CreativeCard.tsx` - Card inteligente
-2. `CreativeMetrics.tsx` - Panel de metricas
-3. `CreativeComparison.tsx` - Comparador
-4. `CreativeLearning.tsx` - Bloque aprendizaje
-5. `CreativeActions.tsx` - Acciones n8n
+FASE 6: Vista Por Producto (30 min)
+├── 6.1 Default a vista producto
+├── 6.2 Mejorar ProductView
+└── 6.3 Aprendizajes acumulados
 
-### Fase 4: Formulario
-
-1. `CreativeForm.tsx` - Formulario multi-bloque
-2. Validaciones y flujo
-
-### Fase 5: Vistas
-
-1. `CreativeFilters.tsx` - Filtros avanzados
-2. `ProductCreativesView.tsx` - Vista por producto
-3. `CreativeInsights.tsx` - Panel insights
-4. Redisenar `Creatives.tsx` completo
-
-### Fase 6: Integracion
-
-1. Conectar con ventas (related_creative_id)
-2. Logica de comparacion automatica
-3. Generacion de insights
+FASE 7: Automation Ready (30 min)
+├── 7.1 Tabla intents (opcional)
+├── 7.2 useAutomationIntents hook
+└── 7.3 Actualizar CreativeActions
+```
 
 ---
 
-## Preparacion para n8n
+## Criterios de Exito
 
-Cada accion registra un "intent" en la base de datos:
+El modulo estara completo cuando:
 
-```typescript
-interface AutomationIntent {
-  creativeId: string;
-  action: 'generate_new' | 'repeat' | 'new_audience' | 'send_sellers' | 'landing';
-  triggeredAt: string;
-  status: 'pending' | 'processing' | 'completed';
-  metadata?: Record<string, unknown>;
-}
-```
-
-n8n puede:
-1. Polling: Consultar intents pendientes
-2. Webhook: Recibir notificacion cuando se crea intent
-3. Ejecutar flujo correspondiente
-4. Actualizar status a completed
+1. Desde ProductDetail puedo ver todos los creativos del producto con metricas y aprendizajes
+2. Puedo crear un creativo pre-llenado desde cualquier producto
+3. Al registrar una venta, puedo atribuirla a un creativo
+4. Las ventas atribuidas incrementan automaticamente `metricSales` del creativo
+5. Creativos frios generan tarea "Cambiar creativo"
+6. Creativos con mensajes pero sin ventas generan tarea "Optimizar oferta"
+7. Creativos calientes generan tarea "Escalar"
+8. El Command Center muestra alertas de creativos calientes para escalar
+9. Los intents de automatizacion quedan registrados con metadata para n8n
+10. La vista por producto es la principal y muestra timeline + aprendizajes
 
 ---
 
 ## Lo Que NO Cambia
 
-- Logica de ventas existente
-- Sistema de tareas
-- Otros modulos
-- Navegacion principal
-
----
-
-## Criterio de Exito
-
-El modulo estara completo cuando:
-
-1. Un usuario pueda crear un creativo con contexto completo (producto, canal, publico, hook)
-2. Pueda registrar metricas manuales de forma estructurada
-3. Vea automaticamente si el creativo funciono vs el anterior
-4. El aprendizaje quede guardado y visible
-5. Pueda filtrar creativos por multiples criterios
-6. Vea insights globales de que funciona
-7. Las acciones de automatizacion queden registradas para n8n
+- Logica de calculo de performance (ya funciona bien)
+- Sistema de comparacion entre creativos (ya implementado)
+- Estructura de 6 bloques en el formulario (ya correcto)
+- Flujos de navegacion principales
+- RLS policies existentes
 
