@@ -32,8 +32,6 @@ import { CreativeCard } from '@/components/creatives/CreativeCard';
 import { CreativeFilters, CreativeFiltersState } from '@/components/creatives/CreativeFilters';
 import { CreativeInsightsPanel } from '@/components/creatives/CreativeInsights';
 import { CreativeForm } from '@/components/creatives/CreativeForm';
-import { CreativeComparison } from '@/components/creatives/CreativeComparison';
-import { CreativeActions } from '@/components/creatives/CreativeActions';
 import { Creative, CreativeIntelligence } from '@/types';
 import { 
   Plus, 
@@ -131,16 +129,6 @@ export default function Creatives() {
     setSelectedCreative(creative);
   };
 
-  const handleRepeat = (creative: CreativeIntelligence) => {
-    // Register repeat intent
-    updateCreative(creative.id, { automationIntent: 'repeat' });
-  };
-
-  const handleScale = (creative: CreativeIntelligence) => {
-    // Register scale intent
-    updateCreative(creative.id, { automationIntent: 'generate_new' });
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -227,8 +215,6 @@ export default function Creatives() {
                       key={creative.id}
                       creative={creative}
                       onView={handleView}
-                      onRepeat={handleRepeat}
-                      onScale={handleScale}
                       isAdmin={isAdmin}
                     />
                   ))}
@@ -241,8 +227,6 @@ export default function Creatives() {
                 byProduct={byProduct} 
                 products={products}
                 onView={handleView}
-                onRepeat={handleRepeat}
-                onScale={handleScale}
                 isAdmin={isAdmin}
               />
             )}
@@ -317,21 +301,6 @@ export default function Creatives() {
                 </div>
               )}
 
-              {/* Comparison */}
-              <CreativeComparison
-                current={selectedCreative}
-                previous={selectedCreative.previousCreative as CreativeIntelligence | undefined}
-              />
-
-              {/* Actions */}
-              {isAdmin && (
-                <CreativeActions
-                  creative={selectedCreative}
-                  onIntentRegistered={(intent) => {
-                    updateCreative(selectedCreative.id, { automationIntent: intent });
-                  }}
-                />
-              )}
 
               {/* Edit/Delete buttons */}
               {isAdmin && (
@@ -410,15 +379,11 @@ function ProductView({
   byProduct, 
   products,
   onView,
-  onRepeat,
-  onScale,
   isAdmin,
 }: {
   byProduct: Map<string, CreativeIntelligence[]>;
   products: { id: string; name: string; imageUrl?: string }[];
   onView: (c: CreativeIntelligence) => void;
-  onRepeat: (c: CreativeIntelligence) => void;
-  onScale: (c: CreativeIntelligence) => void;
   isAdmin: boolean;
 }) {
   if (byProduct.size === 0) {
@@ -462,8 +427,6 @@ function ProductView({
                   key={creative.id}
                   creative={creative}
                   onView={onView}
-                  onRepeat={onRepeat}
-                  onScale={onScale}
                   isAdmin={isAdmin}
                 />
               ))}

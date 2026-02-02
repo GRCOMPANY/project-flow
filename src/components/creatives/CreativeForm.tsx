@@ -154,14 +154,14 @@ export function CreativeForm({
           <div>
             <Label>Producto</Label>
             <Select
-              value={formData.productId}
-              onValueChange={(v) => setFormData({ ...formData, productId: v })}
+              value={formData.productId || 'none'}
+              onValueChange={(v) => setFormData({ ...formData, productId: v === 'none' ? '' : v })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar producto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sin producto</SelectItem>
+                <SelectItem value="none">Sin producto</SelectItem>
                 {products.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
