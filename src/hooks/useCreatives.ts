@@ -38,11 +38,9 @@ export function useCreatives() {
             description: c.product.description || undefined,
             createdAt: c.product.created_at,
             updatedAt: c.product.updated_at,
-            // New pricing fields
             costPrice: Number(c.product.supplier_price) || 0,
             wholesalePrice: Number(c.product.wholesale_price) || 0,
             retailPrice: Number(c.product.suggested_price) || 0,
-            // Legacy fields
             supplierPrice: Number(c.product.supplier_price) || 0,
             suggestedPrice: Number(c.product.suggested_price) || 0,
             status: c.product.status as Product['status'],
@@ -67,6 +65,26 @@ export function useCreatives() {
           publishedAt: c.published_at || undefined,
           createdAt: c.created_at,
           updatedAt: c.updated_at,
+          // New Creative Intelligence fields
+          targetAudience: (c as Record<string, unknown>).target_audience as Creative['targetAudience'] || undefined,
+          audienceNotes: (c as Record<string, unknown>).audience_notes as string || undefined,
+          hookType: (c as Record<string, unknown>).hook_type as Creative['hookType'] || undefined,
+          hookText: (c as Record<string, unknown>).hook_text as string || undefined,
+          variation: (c as Record<string, unknown>).variation as string || 'A',
+          messageApproach: (c as Record<string, unknown>).message_approach as Creative['messageApproach'] || undefined,
+          metricLikes: Number((c as Record<string, unknown>).metric_likes) || 0,
+          metricComments: Number((c as Record<string, unknown>).metric_comments) || 0,
+          metricMessages: Number((c as Record<string, unknown>).metric_messages) || 0,
+          metricKnownPeople: (c as Record<string, unknown>).metric_known_people as Creative['metricKnownPeople'] || undefined,
+          metricSales: Number((c as Record<string, unknown>).metric_sales) || 0,
+          metricImpressions: Number((c as Record<string, unknown>).metric_impressions) || 0,
+          metricClicks: Number((c as Record<string, unknown>).metric_clicks) || 0,
+          metricCost: Number((c as Record<string, unknown>).metric_cost) || 0,
+          engagementLevel: (c as Record<string, unknown>).engagement_level as Creative['engagementLevel'] || undefined,
+          vsPrevious: (c as Record<string, unknown>).vs_previous as Creative['vsPrevious'] || undefined,
+          vsPreviousId: (c as Record<string, unknown>).vs_previous_id as string || undefined,
+          whatChanged: (c as Record<string, unknown>).what_changed as string || undefined,
+          automationIntent: (c as Record<string, unknown>).automation_intent as Creative['automationIntent'] || undefined,
         }))
       );
     }
@@ -95,6 +113,26 @@ export function useCreatives() {
         learning: creative.learning || null,
         ai_prompt: creative.aiPrompt || null,
         published_at: creative.publishedAt || null,
+        // New Creative Intelligence fields
+        target_audience: creative.targetAudience || null,
+        audience_notes: creative.audienceNotes || null,
+        hook_type: creative.hookType || null,
+        hook_text: creative.hookText || null,
+        variation: creative.variation || 'A',
+        message_approach: creative.messageApproach || null,
+        metric_likes: creative.metricLikes || 0,
+        metric_comments: creative.metricComments || 0,
+        metric_messages: creative.metricMessages || 0,
+        metric_known_people: creative.metricKnownPeople || null,
+        metric_sales: creative.metricSales || 0,
+        metric_impressions: creative.metricImpressions || 0,
+        metric_clicks: creative.metricClicks || 0,
+        metric_cost: creative.metricCost || 0,
+        engagement_level: creative.engagementLevel || null,
+        vs_previous: creative.vsPrevious || null,
+        vs_previous_id: creative.vsPreviousId || null,
+        what_changed: creative.whatChanged || null,
+        automation_intent: creative.automationIntent || null,
       })
       .select()
       .single();
@@ -130,6 +168,26 @@ export function useCreatives() {
     if (updates.learning !== undefined) updateData.learning = updates.learning;
     if (updates.aiPrompt !== undefined) updateData.ai_prompt = updates.aiPrompt;
     if (updates.publishedAt !== undefined) updateData.published_at = updates.publishedAt;
+    // New Creative Intelligence fields
+    if (updates.targetAudience !== undefined) updateData.target_audience = updates.targetAudience;
+    if (updates.audienceNotes !== undefined) updateData.audience_notes = updates.audienceNotes;
+    if (updates.hookType !== undefined) updateData.hook_type = updates.hookType;
+    if (updates.hookText !== undefined) updateData.hook_text = updates.hookText;
+    if (updates.variation !== undefined) updateData.variation = updates.variation;
+    if (updates.messageApproach !== undefined) updateData.message_approach = updates.messageApproach;
+    if (updates.metricLikes !== undefined) updateData.metric_likes = updates.metricLikes;
+    if (updates.metricComments !== undefined) updateData.metric_comments = updates.metricComments;
+    if (updates.metricMessages !== undefined) updateData.metric_messages = updates.metricMessages;
+    if (updates.metricKnownPeople !== undefined) updateData.metric_known_people = updates.metricKnownPeople;
+    if (updates.metricSales !== undefined) updateData.metric_sales = updates.metricSales;
+    if (updates.metricImpressions !== undefined) updateData.metric_impressions = updates.metricImpressions;
+    if (updates.metricClicks !== undefined) updateData.metric_clicks = updates.metricClicks;
+    if (updates.metricCost !== undefined) updateData.metric_cost = updates.metricCost;
+    if (updates.engagementLevel !== undefined) updateData.engagement_level = updates.engagementLevel;
+    if (updates.vsPrevious !== undefined) updateData.vs_previous = updates.vsPrevious;
+    if (updates.vsPreviousId !== undefined) updateData.vs_previous_id = updates.vsPreviousId;
+    if (updates.whatChanged !== undefined) updateData.what_changed = updates.whatChanged;
+    if (updates.automationIntent !== undefined) updateData.automation_intent = updates.automationIntent;
 
     const { error } = await supabase
       .from('creatives')

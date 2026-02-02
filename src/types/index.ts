@@ -172,7 +172,53 @@ export interface Sale {
   statusUpdatedAt?: string;
 }
 
-// Creative Intelligence
+// ====================================
+// CREATIVE INTELLIGENCE SYSTEM
+// ====================================
+
+// Bloque A: Target Audience
+export type TargetAudience = 
+  | 'precio_bajo' 
+  | 'precio_medio' 
+  | 'regalo' 
+  | 'uso_personal' 
+  | 'reventa' 
+  | 'otro';
+
+// Bloque B: Hook Types
+export type HookType = 
+  | 'precio' 
+  | 'problema' 
+  | 'beneficio' 
+  | 'urgencia' 
+  | 'prueba_social' 
+  | 'comparacion';
+
+export type MessageApproach = 
+  | 'emocional' 
+  | 'racional' 
+  | 'promocional' 
+  | 'educativo';
+
+// Bloque C: Metrics
+export type KnownPeople = 'si' | 'no' | 'mixto';
+export type EngagementLevel = 'bajo' | 'medio' | 'alto';
+
+// Bloque D: Performance Result
+export type CreativePerformance = 'frio' | 'interesante' | 'caliente';
+
+// Bloque E: Comparison
+export type ComparisonResult = 'mejor' | 'peor' | 'igual';
+
+// Automation Intent for n8n
+export type AutomationIntent = 
+  | 'generate_new' 
+  | 'repeat' 
+  | 'new_audience' 
+  | 'send_sellers' 
+  | 'landing';
+
+// Base Creative Interface
 export interface Creative {
   id: string;
   productId?: string;
@@ -192,6 +238,52 @@ export interface Creative {
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Bloque A: Context Extended
+  targetAudience?: TargetAudience;
+  audienceNotes?: string;
+  
+  // Bloque B: Hook / Message
+  hookType?: HookType;
+  hookText?: string;
+  variation?: string;
+  messageApproach?: MessageApproach;
+  
+  // Bloque C: Performance Metrics - Organic
+  metricLikes?: number;
+  metricComments?: number;
+  metricMessages?: number;
+  metricKnownPeople?: KnownPeople;
+  metricSales?: number;
+  
+  // Bloque C: Performance Metrics - Meta Ads
+  metricImpressions?: number;
+  metricClicks?: number;
+  metricCost?: number;
+  
+  // Engagement
+  engagementLevel?: EngagementLevel;
+  
+  // Bloque E: Comparison
+  vsPrevious?: ComparisonResult;
+  vsPreviousId?: string;
+  whatChanged?: string;
+  
+  // Automation
+  automationIntent?: AutomationIntent;
+}
+
+// Extended Creative with calculated fields
+export interface CreativeIntelligence extends Creative {
+  // Calculated performance
+  calculatedPerformance: CreativePerformance;
+  
+  // Previous creative reference
+  previousCreative?: Creative;
+  
+  // Calculated metrics
+  messagesDelta?: number;
+  salesDelta?: number;
 }
 
 // ====================================
