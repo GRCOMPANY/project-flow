@@ -78,7 +78,7 @@ export function useSales() {
             id: s.seller.id,
             name: s.seller.name,
             contact: s.seller.contact || undefined,
-            commission: Number(s.seller.commission) || 0,
+            type: (s.seller.type as ResellerType) || 'revendedor',
             status: s.seller.status as Seller['status'],
             notes: s.seller.notes || undefined,
             createdAt: s.seller.created_at,
