@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType, SaleType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Labels para estados operativos
