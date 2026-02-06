@@ -267,24 +267,45 @@ export default function Sales() {
     setProductId(id);
     const product = products.find(p => p.id === id);
     if (product) {
-      // Auto-fill with wholesale price for reseller
-      setResellerPrice(product.wholesalePrice || product.price);
-      setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
+      // Auto-fill prices based on sale type
+      if (saleType === 'directa') {
+        setFinalPrice(product.retailPrice || product.suggestedPrice || product.price);
+      } else {
+        setResellerPrice(product.wholesalePrice || product.price);
+        setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
+      }
+    }
+  };
+
+  const handleSaleTypeChange = (type: SaleType) => {
+    setSaleType(type);
+    // Reset reseller if switching to direct
+    if (type === 'directa') {
+      setResellerId('');
+    }
+    // Update prices if product is selected
+    if (selectedProduct) {
+      if (type === 'directa') {
+        setFinalPrice(selectedProduct.retailPrice || selectedProduct.suggestedPrice || selectedProduct.price);
+      } else {
+        setResellerPrice(selectedProduct.wholesalePrice || selectedProduct.price);
+      }
     }
   };
 
   const handleSubmit = async () => {
-    if (!productId) {
+    if (!productId || !saleType) {
       return;
     }
 
     const saleData = {
+      saleType,
       productId,
-      sellerId: resellerId || undefined,
+      sellerId: saleType === 'revendedor' ? (resellerId || undefined) : undefined,
       quantity,
-      unitPrice: resellerPrice,
+      unitPrice: saleType === 'directa' ? finalPrice : resellerPrice,
       totalAmount,
-      resellerPrice,
+      resellerPrice: saleType === 'revendedor' ? resellerPrice : undefined,
       finalPrice: finalPrice || undefined,
       clientName: clientName || undefined,
       clientPhone: clientPhone || undefined,
