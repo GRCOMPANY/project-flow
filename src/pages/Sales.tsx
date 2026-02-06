@@ -231,7 +231,9 @@ export default function Sales() {
     setProductId(id);
     const product = products.find(p => p.id === id);
     if (product) {
-      setUnitPrice(product.price);
+      // Auto-fill with wholesale price for reseller
+      setResellerPrice(product.wholesalePrice || product.price);
+      setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
     }
   };
 
