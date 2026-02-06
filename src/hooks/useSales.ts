@@ -147,21 +147,27 @@ export function useSales() {
   }, []);
 
   const addSale = async (sale: SaleInput) => {
-    // CONGELADO FINANCIERO: Capturar costo del producto al momento de la venta
+    // RESELLER MODEL: Capture costs and calculate margins
     let costAtSale = 0;
     let marginAtSale = 0;
     let marginPercentAtSale = 0;
+    let resellerPrice = sale.resellerPrice || sale.unitPrice;
+    let finalPrice = sale.finalPrice || 0;
+    let resellerProfit = 0;
 
     if (sale.productId) {
       const product = await getProductForFreeze(sale.productId);
       if (product) {
         costAtSale = product.costPrice || 0;
-        // Calcular margen usando el precio unitario de la venta
-        marginAtSale = sale.unitPrice - costAtSale;
-        // Calcular porcentaje (evitar división por cero)
+        // Your margin = resellerPrice - your cost
+        marginAtSale = resellerPrice - costAtSale;
         marginPercentAtSale = costAtSale > 0 
-          ? Math.round(((sale.unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+          ? Math.round(((resellerPrice - costAtSale) / costAtSale) * 100 * 100) / 100
           : 0;
+        // Reseller's profit (informational)
+        if (finalPrice > 0) {
+          resellerProfit = finalPrice - resellerPrice;
+        }
       }
     }
 
@@ -174,17 +180,21 @@ export function useSales() {
         client_phone: sale.clientPhone || null,
         sales_channel: sale.salesChannel || 'whatsapp',
         quantity: sale.quantity,
-        unit_price: sale.unitPrice,
-        total_amount: sale.totalAmount,
+        unit_price: resellerPrice,
+        total_amount: resellerPrice * sale.quantity,
         payment_method: sale.paymentMethod || null,
         payment_status: sale.paymentStatus || 'pendiente',
         order_status: sale.orderStatus || 'pendiente',
         sale_date: sale.saleDate,
         notes: sale.notes || null,
-        // Campos de congelado financiero
+        // Financial freeze fields
         cost_at_sale: costAtSale,
         margin_at_sale: marginAtSale,
         margin_percent_at_sale: marginPercentAtSale,
+        // Reseller model fields
+        reseller_price: resellerPrice,
+        final_price: finalPrice,
+        reseller_profit: resellerProfit,
         related_creative_id: sale.relatedCreativeId || null,
       })
       .select()

@@ -180,14 +180,14 @@ export function ResellerDetailSheet({
                         {format(new Date(purchase.sale_date), 'dd MMM yyyy', { locale: es })}
                       </p>
                     </div>
-                    <div className="text-right">
+                  <div className="text-right">
                       <p className="font-bold">${purchase.total_amount.toLocaleString()}</p>
                       <Badge 
                         variant={purchase.payment_status === 'pagado' ? 'default' : 'secondary'}
                         className={
                           purchase.payment_status === 'pagado' 
-                            ? 'bg-emerald-600 text-white text-xs' 
-                            : 'bg-amber-500 text-white text-xs'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-xs' 
+                            : 'bg-amber-500 hover:bg-amber-600 text-xs'
                         }
                       >
                         {purchase.payment_status === 'pagado' ? 'Pagado' : 'Pendiente'}
