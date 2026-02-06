@@ -126,8 +126,15 @@ export default function Sales() {
   const [notes, setNotes] = useState('');
   const [relatedCreativeId, setRelatedCreativeId] = useState<string>('');
 
-  // Calculated values
-  const totalAmount = quantity * unitPrice;
+  // Selected product for calculations
+  const selectedProduct = products.find(p => p.id === productId);
+  const productCost = selectedProduct?.costPrice || 0;
+  
+  // Calculated values - Reseller Model
+  const totalAmount = quantity * resellerPrice;          // Your revenue
+  const myProfit = resellerPrice - productCost;          // Your profit per unit
+  const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
+  const resellerProfitCalc = finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
   // Dashboard stats
   const stats = useMemo(() => {
