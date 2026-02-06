@@ -149,41 +149,81 @@ export function useSales() {
   }, []);
 
   const addSale = async (sale: SaleInput) => {
-    // RESELLER MODEL: Capture costs and calculate margins
+    // Validación obligatoria: tipo de venta
+    if (!sale.saleType) {
+      toast({
+        title: 'Error',
+        description: 'Debes seleccionar el tipo de venta',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    // Validaciones según tipo
+    if (sale.saleType === 'revendedor' && !sale.sellerId) {
+      toast({
+        title: 'Error',
+        description: 'Debes seleccionar un revendedor para ventas a revendedor',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    if (sale.saleType === 'directa' && !sale.finalPrice) {
+      toast({
+        title: 'Error',
+        description: 'El precio final es obligatorio en ventas directas',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    // Calcular precios según tipo de venta
     let costAtSale = 0;
     let marginAtSale = 0;
     let marginPercentAtSale = 0;
-    let resellerPrice = sale.resellerPrice || sale.unitPrice;
-    let finalPrice = sale.finalPrice || 0;
     let resellerProfit = 0;
+    let unitPrice = 0;
+    let totalAmount = 0;
 
     if (sale.productId) {
       const product = await getProductForFreeze(sale.productId);
       if (product) {
         costAtSale = product.costPrice || 0;
-        // Your margin = resellerPrice - your cost
-        marginAtSale = resellerPrice - costAtSale;
-        marginPercentAtSale = costAtSale > 0 
-          ? Math.round(((resellerPrice - costAtSale) / costAtSale) * 100 * 100) / 100
-          : 0;
-        // Reseller's profit (informational)
-        if (finalPrice > 0) {
-          resellerProfit = finalPrice - resellerPrice;
+
+        if (sale.saleType === 'directa') {
+          // VENTA DIRECTA: unitPrice = finalPrice
+          unitPrice = sale.finalPrice || 0;
+          marginAtSale = unitPrice - costAtSale;
+        } else {
+          // VENTA A REVENDEDOR: unitPrice = resellerPrice
+          unitPrice = sale.resellerPrice || sale.unitPrice;
+          marginAtSale = unitPrice - costAtSale;
+          // Ganancia del revendedor (informativa)
+          if (sale.finalPrice && sale.finalPrice > 0) {
+            resellerProfit = sale.finalPrice - unitPrice;
+          }
         }
+
+        totalAmount = unitPrice * sale.quantity;
+        marginPercentAtSale = costAtSale > 0 
+          ? Math.round(((unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+          : 0;
       }
     }
 
     const { data, error } = await supabase
       .from('sales')
       .insert({
+        sale_type: sale.saleType,
         product_id: sale.productId,
-        seller_id: sale.sellerId || null,
+        seller_id: sale.saleType === 'revendedor' ? (sale.sellerId || null) : null,
         client_name: sale.clientName || null,
         client_phone: sale.clientPhone || null,
         sales_channel: sale.salesChannel || 'whatsapp',
         quantity: sale.quantity,
-        unit_price: resellerPrice,
-        total_amount: resellerPrice * sale.quantity,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
         payment_method: sale.paymentMethod || null,
         payment_status: sale.paymentStatus || 'pendiente',
         order_status: sale.orderStatus || 'pendiente',
@@ -193,9 +233,9 @@ export function useSales() {
         cost_at_sale: costAtSale,
         margin_at_sale: marginAtSale,
         margin_percent_at_sale: marginPercentAtSale,
-        // Reseller model fields
-        reseller_price: resellerPrice,
-        final_price: finalPrice,
+        // Pricing fields
+        reseller_price: sale.saleType === 'revendedor' ? (sale.resellerPrice || unitPrice) : null,
+        final_price: sale.finalPrice || null,
         reseller_profit: resellerProfit,
         related_creative_id: sale.relatedCreativeId || null,
       })
@@ -219,7 +259,8 @@ export function useSales() {
         variant: 'destructive',
       });
     } else {
-      toast({ title: 'Venta registrada' });
+      const typeLabel = sale.saleType === 'directa' ? 'directa' : 'a revendedor';
+      toast({ title: `Venta ${typeLabel} registrada` });
     }
 
     fetchSales();
