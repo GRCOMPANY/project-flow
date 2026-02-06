@@ -17,6 +17,9 @@ export type OperationalStatus =
   | 'riesgo_devolucion';
 export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' | 'otro';
 
+// Tipo de venta (obligatorio) - gobierna lógica de precios y métricas
+export type SaleType = 'directa' | 'revendedor';
+
 // Product types
 export type ProductChannel = 'whatsapp' | 'marketplace' | 'instagram' | 'tiktok' | 'otro';
 export type DeliveryType = 'contra_entrega' | 'anticipado';
