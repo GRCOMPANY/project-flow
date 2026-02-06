@@ -49,6 +49,8 @@ export function useSales() {
       setSales(
         (data || []).map((s) => ({
           id: s.id,
+          // Tipo de venta - mapear desde DB
+          saleType: (s.sale_type as SaleType) || (s.seller_id ? 'revendedor' : 'directa'),
           productId: s.product_id || '',
           product: s.product ? {
             id: s.product.id,
