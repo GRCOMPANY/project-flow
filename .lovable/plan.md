@@ -1,403 +1,456 @@
 
-# Plan: Reseller/Wholesale Business Model Redesign
+# Plan: Tipo de Venta Obligatorio - Separación Directa vs Revendedor
 
-## Executive Summary
+## Resumen Ejecutivo
 
-This plan transforms the system from a commission-based seller model to a **reseller/wholesale model** where:
-- You import products and sell them to resellers at a wholesale price
-- Resellers buy from you and sell to end customers
-- Your profit comes from the sale TO the reseller, not from commissions
+Este plan implementa la separación explícita entre **Venta Directa** (al cliente final) y **Venta a Revendedor** (mayorista), eliminando cualquier ambiguedad conceptual. El campo "Tipo de Venta" será obligatorio y gobernará toda la lógica del formulario, cálculos y métricas.
 
 ---
 
-## Current State vs Target State
+## Estado Actual vs Estado Objetivo
 
-| Aspect | Current | Target |
-|--------|---------|--------|
-| Seller concept | Employee with commission | Reseller/wholesaler who buys from you |
-| Sale meaning | Your sale to end customer | Your sale TO the reseller |
-| Profit calculation | Margin on retail sale | Margin on wholesale sale |
-| Seller earnings | Commission % | Their own retail margin (informational) |
-| Payment tracking | Customer payment | Reseller payment to you |
+| Aspecto | Actual | Objetivo |
+|---------|--------|----------|
+| Tipo de venta | Implícito (si hay reseller o no) | **Explícito y obligatorio** |
+| Campo revendedor | Siempre visible (opcional) | Solo si tipo = "revendedor" |
+| Precio final | Opcional en todos los casos | **Obligatorio** en venta directa |
+| Precio revendedor | Siempre visible | Solo en venta a revendedor |
+| Dashboard | Métricas globales | Métricas **separadas por tipo** |
+| UX | Confusa | Clara con mensajes contextuales |
 
 ---
 
-## Phase 1: Database Schema Changes
+## Fase 1: Cambios en Base de Datos
 
-### 1.1 Modify `sellers` Table
-
-```sql
--- Remove commission (deprecated but keep for migration safety)
--- Add type field for categorization
-
-ALTER TABLE sellers ADD COLUMN IF NOT EXISTS type text DEFAULT 'revendedor';
--- Valid values: 'revendedor', 'mayorista', 'interno'
-
-COMMENT ON COLUMN sellers.commission IS 'DEPRECATED - Reseller model does not use commission';
-```
-
-### 1.2 Modify `sales` Table
-
-Add new pricing columns for the reseller model:
+### 1.1 Agregar campo `sale_type` a tabla `sales`
 
 ```sql
--- Reseller-specific pricing
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS reseller_price numeric DEFAULT 0;
--- Price you sell to the reseller
+-- Tipo de venta obligatorio
+CREATE TYPE sale_type AS ENUM ('directa', 'revendedor');
 
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS final_price numeric DEFAULT 0;
--- Optional: Price reseller sells to end customer (informational)
+ALTER TABLE sales ADD COLUMN sale_type sale_type NOT NULL DEFAULT 'revendedor';
 
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS reseller_profit numeric DEFAULT 0;
--- Calculated: final_price - reseller_price (informational)
+-- Migrar datos existentes
+UPDATE sales 
+SET sale_type = CASE 
+  WHEN seller_id IS NOT NULL THEN 'revendedor'::sale_type
+  ELSE 'directa'::sale_type
+END;
 
--- Rename/clarify existing columns conceptually:
--- cost_at_sale = Your product cost (China + import)
--- unit_price = Price sold to reseller (same as reseller_price)
--- margin_at_sale = Your profit per unit (reseller_price - cost)
+COMMENT ON COLUMN sales.sale_type IS 
+  'Tipo de venta: directa (cliente final) o revendedor (mayorista). Gobierna toda la lógica de precios y métricas.';
 ```
 
 ---
 
-## Phase 2: TypeScript Type Updates
+## Fase 2: Actualización de Tipos TypeScript
 
-### 2.1 Update Seller Interface
+### 2.1 Nuevo tipo `SaleType`
 
 ```typescript
 // src/types/index.ts
 
-export type ResellerType = 'revendedor' | 'mayorista' | 'interno';
+export type SaleType = 'directa' | 'revendedor';
 
-export interface Seller {
-  id: string;
-  name: string;
-  contact?: string;
-  type?: ResellerType;        // NEW
-  status: SellerStatus;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  // REMOVED: commission (deprecated)
-  
-  // Computed fields (from sales aggregation)
-  totalPurchased?: number;     // Sum of all sales to this reseller
-  totalPaid?: number;          // Sum of paid sales
-  pendingBalance?: number;     // totalPurchased - totalPaid
-  lastSaleDate?: string;       // Most recent sale
-  salesCount?: number;         // Number of transactions
-}
-```
-
-### 2.2 Update Sale Interface
-
-```typescript
 export interface Sale {
   id: string;
+  
+  // NUEVO: Tipo de venta (obligatorio)
+  saleType: SaleType;
+  
+  // Producto (siempre obligatorio)
   productId: string;
   product?: Product;
   
-  // Reseller info
-  resellerId?: string;         // Renamed from sellerId conceptually
-  reseller?: Seller;
+  // Revendedor (solo si saleType = 'revendedor')
+  sellerId?: string;
+  seller?: Seller;
   
-  // Pricing (CRITICAL for reseller model)
-  productCost: number;         // Your cost (costAtSale)
-  resellerPrice: number;       // Price you sell to reseller
-  finalPrice?: number;         // Optional: reseller's retail price
+  // Cliente final (nombre/telefono)
+  // Obligatorio si saleType = 'directa'
+  // Opcional si saleType = 'revendedor'
+  clientName?: string;
+  clientPhone?: string;
   
-  // Calculated margins
-  myProfit: number;            // resellerPrice - productCost
-  myMarginPercent: number;     // ((resellerPrice - productCost) / productCost) * 100
-  resellerProfit?: number;     // finalPrice - resellerPrice (informational)
-  
-  // Quantity and totals
+  // Precios
   quantity: number;
-  totalAmount: number;         // resellerPrice * quantity (your revenue)
+  unitPrice: number;           // Precio de venta (obligatorio)
+  totalAmount: number;
   
-  // Optional end customer (informational)
-  endCustomerName?: string;
-  endCustomerPhone?: string;
+  // Precio revendedor: solo si saleType = 'revendedor'
+  resellerPrice?: number;
   
-  // States
-  paymentStatus: PaymentStatus;   // Did reseller pay YOU?
-  orderStatus: OrderStatus;       // Delivery to reseller
-  operationalStatus: OperationalStatus;
+  // Precio final: 
+  // - OBLIGATORIO si saleType = 'directa'
+  // - Opcional (informativo) si saleType = 'revendedor'
+  finalPrice?: number;
   
-  // ... other existing fields
+  // Ganancia del revendedor (informativo)
+  resellerProfit?: number;
+  
+  // ... resto de campos existentes
 }
 ```
 
 ---
 
-## Phase 3: Hook Updates
+## Fase 3: Lógica del Hook `useSales`
 
-### 3.1 Update useSellers.ts
-
-```text
-Changes:
-- Remove commission from CRUD operations
-- Add type field handling
-- Add computed stats fetcher (aggregates from sales)
-- New function: getResellerStats(resellerId) 
-  - Returns: totalPurchased, totalPaid, pendingBalance, salesCount
-```
-
-### 3.2 Update useSales.ts
+### 3.1 Actualizar `addSale` con validaciones por tipo
 
 ```text
-Changes:
-- Update addSale to capture reseller pricing:
-  - productCost (from product.costPrice at sale time)
-  - resellerPrice (from product.wholesalePrice or manual)
-  - finalPrice (optional, from product.retailPrice or manual)
-- Calculate myProfit = resellerPrice - productCost
-- Store frozen values for audit trail
-- Update stats calculation to reflect reseller model
+VENTA DIRECTA (saleType = 'directa'):
+├── Validaciones:
+│   ├── finalPrice → OBLIGATORIO (es tu precio de venta)
+│   ├── sellerId → IGNORAR (null)
+│   └── resellerPrice → IGNORAR (null)
+├── Cálculos:
+│   ├── unitPrice = finalPrice
+│   ├── totalAmount = finalPrice × quantity
+│   ├── costAtSale = product.costPrice
+│   ├── marginAtSale = finalPrice - costAtSale
+│   └── marginPercentAtSale = ((finalPrice - cost) / cost) × 100
+
+VENTA A REVENDEDOR (saleType = 'revendedor'):
+├── Validaciones:
+│   ├── sellerId → OBLIGATORIO
+│   ├── resellerPrice → OBLIGATORIO
+│   └── finalPrice → OPCIONAL (informativo)
+├── Cálculos:
+│   ├── unitPrice = resellerPrice
+│   ├── totalAmount = resellerPrice × quantity
+│   ├── costAtSale = product.costPrice
+│   ├── marginAtSale = resellerPrice - costAtSale
+│   ├── marginPercentAtSale = ((resellerPrice - cost) / cost) × 100
+│   └── resellerProfit = finalPrice - resellerPrice (si hay finalPrice)
 ```
 
 ---
 
-## Phase 4: UI Redesign
+## Fase 4: Rediseño del Formulario "Nueva Venta"
 
-### 4.1 Sellers Page (Revendedores)
+### 4.1 Estructura del Formulario Condicional
 
-**Header:**
-```
-REVENDEDORES
-Gestiona tus canales de reventa
-```
-
-**List View - Each Card Shows:**
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  👤 [Name]                                    [Activo/Inactivo] │
-│  📱 [Contact]                                                   │
+│  NUEVA VENTA                                                     │
+│  ═══════════════════════════════════════════════════════════    │
+│                                                                  │
+│  🎯 TIPO DE VENTA (Obligatorio)                                  │
 │  ─────────────────────────────────────────────────────────────  │
+│  ┌─────────────────────────┐ ┌─────────────────────────┐        │
+│  │ 🔵 VENTA DIRECTA        │ │ 🟢 VENTA A REVENDEDOR   │        │
+│  │    Cliente final        │ │    Mayorista            │        │
+│  │    Ingreso directo      │ │    Venta por volumen    │        │
+│  └─────────────────────────┘ └─────────────────────────┘        │
 │                                                                  │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
-│  │ $25,000      │ │ $8,500       │ │ 15 ventas    │            │
-│  │ Total        │ │ Pendiente    │ │ Totales      │            │
-│  │ comprado     │ │ por pagar    │ │              │            │
-│  └──────────────┘ └──────────────┘ └──────────────┘            │
+│  [Mensaje contextual según selección]                            │
 │                                                                  │
-│  Ultima venta: hace 3 dias                                       │
+│══════════════════════════════════════════════════════════════   │
 │                                                                  │
-│  [Ver detalle]                              [Edit] [Delete]     │
+│  📦 PRODUCTO (siempre visible)                                   │
+│  ─────────────────────────────────────────────────────────────  │
+│  [Select: Producto *]         Cantidad: [1]                      │
+│                                                                  │
+│══════════════════════════════════════════════════════════════   │
+│                                                                  │
+│  [SECCIÓN CONDICIONAL SEGÚN TIPO]                                │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Detail View (Sheet/Dialog):**
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  DETALLE DE REVENDEDOR                                          │
-│  ═══════════════════════════════════════════════════════════    │
-│                                                                  │
-│  RESUMEN FINANCIERO                                              │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
-│  │ $25,000      │ │ $16,500      │ │ $8,500       │            │
-│  │ Total        │ │ Pagado       │ │ Pendiente    │            │
-│  │ comprado     │ │              │ │              │            │
-│  └──────────────┘ └──────────────┘ └──────────────┘            │
-│                                                                  │
-│  HISTORIAL DE COMPRAS                                            │
-│  ─────────────────────────────────────────────────────────────  │
-│  │ Fecha       │ Producto        │ Precio rev. │ Estado      │ │
-│  │ 05 Feb 2026 │ iPhone Case     │ $450        │ 🟢 Pagado   │ │
-│  │ 02 Feb 2026 │ AirPods Pro     │ $1,800      │ 🟡 Pendiente│ │
-│  │ ...                                                         │ │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                  │
-│  NOTAS                                                           │
-│  [Strategic notes about this reseller]                           │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Form - Remove Commission Field:**
-- Name (required)
-- Contact (phone/WhatsApp/email)
-- Type: Revendedor | Mayorista | Interno
-- Status: Activo | Inactivo
-- Notes
-
-### 4.2 Sales Page - New Form Flow
-
-**"Nueva Venta" Form - Redesigned:**
+### 4.2 Sección Condicional: VENTA DIRECTA
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  NUEVA VENTA A REVENDEDOR                                       │
-│  ═══════════════════════════════════════════════════════════    │
-│                                                                  │
-│  📦 PRODUCTO                                                     │
+│  💵 VENTA DIRECTA - Cliente Final                                │
 │  ─────────────────────────────────────────────────────────────  │
-│  [Select: Producto *]                                            │
+│  "Esta venta genera ingreso directo para GRC"                    │
 │                                                                  │
-│  Al seleccionar, se autocompletara:                              │
-│  • Costo real: $XXX (solo admin)                                 │
-│  • Precio revendedor sugerido: $XXX                              │
-│  • Precio final sugerido: $XXX                                   │
+│  📞 CLIENTE                                                      │
+│  ┌─────────────────────┐ ┌─────────────────────┐                │
+│  │ Nombre *            │ │ Teléfono (WhatsApp) │                │
+│  └─────────────────────┘ └─────────────────────┘                │
 │                                                                  │
-│  👤 REVENDEDOR                                                   │
-│  ─────────────────────────────────────────────────────────────  │
-│  [Select: Revendedor *]                                          │
-│                                                                  │
-│  💰 PRECIOS                                                      │
-│  ─────────────────────────────────────────────────────────────  │
-│  Cantidad:        [1]                                            │
-│  Precio revendedor: [$XXX] (editable si hubo ajuste)             │
-│  Precio final:    [$XXX] (opcional, informativo)                 │
-│                                                                  │
+│  💰 PRECIO                                                       │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ CALCULO EN TIEMPO REAL                                      ││
-│  │ ───────────────────────────────────────────────────────     ││
-│  │ Tu costo:           $300                                    ││
-│  │ Precio revendedor:  $450                                    ││
-│  │ ─────────────────────────────────────                       ││
-│  │ TU GANANCIA NETA:   +$150  (50%)  ✅                        ││
-│  │                                                             ││
-│  │ Ganancia revendedor: $150 (info)                            ││
+│  │ Precio de venta (final) *:  [$600]                          ││
 │  └─────────────────────────────────────────────────────────────┘│
 │                                                                  │
-│  📞 CLIENTE FINAL (opcional)                                     │
-│  ─────────────────────────────────────────────────────────────  │
-│  Nombre: [____________]                                          │
-│  Telefono: [____________]                                        │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ CÁLCULO AUTOMÁTICO (Admin)                                  ││
+│  │ ───────────────────────────────────────────────────         ││
+│  │ Tu costo:           $300                                    ││
+│  │ Precio de venta:    $600                                    ││
+│  │ ─────────────────────────────────────                       ││
+│  │ TU GANANCIA:        +$300 (100%)  ✅                        ││
+│  └─────────────────────────────────────────────────────────────┘│
 │                                                                  │
-│  📋 ESTADO                                                       │
-│  ─────────────────────────────────────────────────────────────  │
-│  Estado de pago: [Pendiente / Pagado]                            │
-│  Estado pedido:  [Pendiente / En proceso / Entregado]            │
-│                                                                  │
-│  [Cancelar]                          [Registrar venta]           │
+│  👤 Revendedor:  ❌ NO APLICA (oculto)                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 Sales Dashboard - Reflects YOUR Business
+### 4.3 Sección Condicional: VENTA A REVENDEDOR
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  🤝 VENTA A REVENDEDOR - Mayorista                               │
+│  ─────────────────────────────────────────────────────────────  │
+│  "GRC vende el producto al revendedor, no al cliente final"      │
+│                                                                  │
+│  👤 REVENDEDOR                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Seleccionar revendedor *:  [Dropdown]                       ││
+│  │ + Crear nuevo revendedor                                    ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  💰 PRECIOS                                                      │
+│  ┌─────────────────────┐ ┌─────────────────────┐                │
+│  │ Precio revendedor * │ │ Precio final (opc.) │                │
+│  │ [$450]              │ │ [$600]              │                │
+│  │ (tu ingreso)        │ │ (informativo)       │                │
+│  └─────────────────────┘ └─────────────────────┘                │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ CÁLCULO AUTOMÁTICO (Admin)                                  ││
+│  │ ───────────────────────────────────────────────────         ││
+│  │ Tu costo:                $300                               ││
+│  │ Precio revendedor:       $450                               ││
+│  │ ─────────────────────────────────────                       ││
+│  │ TU GANANCIA:             +$150 (50%)  ✅                    ││
+│  │                                                             ││
+│  │ Ganancia revendedor:     $150 (informativo)                 ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  📞 CLIENTE FINAL (Opcional)                                     │
+│  ┌─────────────────────┐ ┌─────────────────────┐                │
+│  │ Nombre              │ │ Teléfono            │                │
+│  │ (solo referencia)   │ │ (solo referencia)   │                │
+│  └─────────────────────┘ └─────────────────────┘                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fase 5: Rediseño del Dashboard
+
+### 5.1 Métricas Separadas por Tipo
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  DASHBOARD DE VENTAS                                             │
-│  Tu flujo de dinero real                                         │
 │  ═══════════════════════════════════════════════════════════    │
 │                                                                  │
-│  INGRESOS (lo que recibes de revendedores)                       │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐                   │
-│  │ $45,000    │ │ $12,000    │ │ $33,000    │                   │
-│  │ Total      │ │ Pendiente  │ │ Cobrado    │                   │
-│  │ vendido    │ │ por cobrar │ │            │                   │
-│  └────────────┘ └────────────┘ └────────────┘                   │
+│  📊 RESUMEN GLOBAL                                               │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐   │
+│  │ $75,000    │ │ $15,000    │ │ $60,000    │ │ $28,000    │   │
+│  │ Total      │ │ Pendiente  │ │ Cobrado    │ │ Ganancia   │   │
+│  │ vendido    │ │ por cobrar │ │            │ │ neta       │   │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘   │
 │                                                                  │
-│  RENTABILIDAD (tu negocio real)                                  │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐                   │
-│  │ $28,000    │ │ $17,000    │ │ 60.7%      │                   │
-│  │ Costo      │ │ Ganancia   │ │ Margen     │                   │
-│  │ total      │ │ neta       │ │ promedio   │                   │
-│  └────────────┘ └────────────┘ └────────────┘                   │
+│  ═══════════════════════════════════════════════════════════    │
 │                                                                  │
-│  SEGUIMIENTO                                                     │
+│  🔵 VENTAS DIRECTAS                🟢 VENTAS A REVENDEDORES     │
+│  ─────────────────────────────     ─────────────────────────    │
+│  │ $30,000 (12 ventas)     │       │ $45,000 (28 ventas)   │    │
+│  │ Pendiente: $5,000       │       │ Pendiente: $10,000    │    │
+│  │ Cobrado: $25,000        │       │ Cobrado: $35,000      │    │
+│  │ Margen: 85%             │       │ Margen: 45%           │    │
+│  └─────────────────────────┘       └─────────────────────────┘  │
+│                                                                  │
+│  📋 SEGUIMIENTO                                                  │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐                   │
 │  │ 5          │ │ 2          │ │ 8          │                   │
 │  │ Sin        │ │ En riesgo  │ │ Pendiente  │                   │
-│  │ confirmar  │ │            │ │ accion     │                   │
+│  │ confirmar  │ │            │ │ acción     │                   │
 │  └────────────┘ └────────────┘ └────────────┘                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 5: Data Relationships
+## Fase 6: Tarjeta de Venta (SaleCard) con Tipo Visible
+
+### 6.1 Indicador Visual de Tipo
 
 ```text
-PRODUCT (1) ──────────< SALE (many)
-                            │
-RESELLER (1) ──────────< SALE (many)
-                            │
-                      [Each sale captures:]
-                      - product_cost (frozen)
-                      - reseller_price (frozen)
-                      - my_profit (calculated)
-                      - payment_status (reseller paid you?)
+┌─────────────────────────────────────────────────────────────────┐
+│  [🔵 DIRECTA] o [🟢 REVENDEDOR]                                  │
+│                                                                  │
+│  📦 iPhone Case ×2                                    $900      │
+│                                                                  │
+│  👤 María González  📱 +52 55 1234 5678                          │
+│  📅 06 Feb 2026  💬 WhatsApp  💳 Contra entrega                  │
+│                                                                  │
+│  [Si es REVENDEDOR, mostrar:]                                    │
+│  🤝 Revendedor: Carlos Mendoza                                   │
+│                                                                  │
+│  [Badges de estado...]                                           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Files to Modify
+## Archivos a Modificar
 
-### Database
-| File | Changes |
-|------|---------|
-| New migration | Add `type` to sellers, add `reseller_price`/`final_price`/`reseller_profit` to sales |
+### Base de Datos
+| Archivo | Cambios |
+|---------|---------|
+| Nueva migración | Crear tipo `sale_type`, agregar columna a `sales` |
 
-### Types
-| File | Changes |
-|------|---------|
-| `src/types/index.ts` | Update `Seller` (remove commission, add type, add computed stats), Update `Sale` (add reseller pricing fields) |
+### Tipos
+| Archivo | Cambios |
+|---------|---------|
+| `src/types/index.ts` | Agregar `SaleType`, actualizar `Sale` interface |
 
 ### Hooks
-| File | Changes |
-|------|---------|
-| `src/hooks/useSellers.ts` | Remove commission handling, add type, add stats aggregation |
-| `src/hooks/useSales.ts` | Update to capture reseller pricing, update stats calculation |
+| Archivo | Cambios |
+|---------|---------|
+| `src/hooks/useSales.ts` | Validaciones por tipo, lógica de cálculos condicional |
 
-### UI Pages
-| File | Changes |
-|------|---------|
-| `src/pages/Sellers.tsx` | Complete redesign - remove commission, show purchase stats, add detail view |
-| `src/pages/Sales.tsx` | Update form to focus on reseller sale, show reseller in card, real-time margin calculation |
+### Páginas
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/Sales.tsx` | Formulario condicional, dashboard separado, SaleCard con tipo |
 
-### Components (if needed)
-| File | Changes |
-|------|---------|
-| New: `ResellerCard.tsx` | Card with stats for reseller list |
-| New: `ResellerDetailSheet.tsx` | Detail view with purchase history |
+### Integración Supabase
+| Archivo | Cambios |
+|---------|---------|
+| `src/integrations/supabase/types.ts` | Actualizar con nuevo campo `sale_type` |
 
 ---
 
-## Implementation Order
+## Orden de Implementación
 
 ```text
-Step 1: Database migration (add columns)
-        ├── Add type to sellers
-        ├── Add reseller_price, final_price, reseller_profit to sales
-        └── Update Supabase types
+Paso 1: Migración de base de datos
+        ├── Crear enum sale_type
+        ├── Agregar columna sale_type a sales
+        └── Migrar datos existentes
 
-Step 2: Update TypeScript types
-        ├── Seller interface (remove commission, add type, computed fields)
-        └── Sale interface (add reseller pricing)
+Paso 2: Actualizar tipos TypeScript
+        ├── Agregar SaleType
+        └── Actualizar Sale interface
 
-Step 3: Update hooks
-        ├── useSellers.ts (remove commission, add stats)
-        └── useSales.ts (reseller pricing logic)
+Paso 3: Actualizar hook useSales
+        ├── Agregar validaciones por tipo
+        ├── Lógica de cálculos condicional
+        └── Mapear nuevo campo desde/hacia DB
 
-Step 4: Update Sellers page
-        ├── Remove commission from form
-        ├── Add purchase stats to cards
-        └── Add detail view with history
+Paso 4: Rediseñar formulario Sales.tsx
+        ├── Selector de tipo de venta (obligatorio)
+        ├── Secciones condicionales
+        └── Mensajes contextuales
 
-Step 5: Update Sales page
-        ├── Update form for reseller model
-        ├── Real-time margin calculation
-        └── Dashboard reflects your business
+Paso 5: Actualizar dashboard
+        ├── Métricas separadas por tipo
+        └── Totales globales
+
+Paso 6: Actualizar SaleCard
+        ├── Badge de tipo visible
+        └── Info condicional según tipo
 ```
 
 ---
 
-## What This Achieves
+## Validaciones Críticas
 
-1. **Correct Business Model**: System reflects that you sell TO resellers, not through them
-2. **Real Profit Tracking**: Your profit = resellerPrice - productCost (not commission)
-3. **Reseller Control**: Track who owes you money, not who you owe
-4. **Scalable**: Ready for n8n automation (detect pending payments, active resellers)
-5. **Clean Data**: Each sale freezes costs/prices at transaction time
-6. **Future Ready**: Can later add reseller portals, bulk orders, tiered pricing
+| Validación | Venta Directa | Venta Revendedor |
+|------------|---------------|------------------|
+| Tipo de venta | OBLIGATORIO | OBLIGATORIO |
+| Producto | OBLIGATORIO | OBLIGATORIO |
+| Revendedor | NO APLICA | OBLIGATORIO |
+| Precio revendedor | NO APLICA | OBLIGATORIO |
+| Precio final | OBLIGATORIO | Opcional |
+| Cliente nombre | Recomendado | Opcional |
+| Cliente teléfono | Recomendado | Opcional |
 
 ---
 
-## What NOT Implemented (n8n Ready)
+## Mensajes de UI
 
-Structure prepared but no automation yet:
-- Detecting pending payments automatically
-- Alerting on inactive resellers
-- Calculating commissions (deprecated)
-- Payment integrations
-- Connecting to creatives (already in place)
+### Venta Directa
+- Header: "💵 Venta directa al cliente final"
+- Subtítulo: "Esta venta genera ingreso directo para GRC"
+
+### Venta a Revendedor
+- Header: "🤝 Venta a revendedor (mayorista)"
+- Subtítulo: "GRC vende el producto al revendedor, no al cliente final"
+
+---
+
+## Resultado Esperado
+
+1. **Claridad total**: El tipo de venta es explícito y obligatorio
+2. **Sin ambigüedades**: Campos y cálculos dependen del tipo seleccionado
+3. **Dashboard informativo**: Métricas separadas por tipo de venta
+4. **Validaciones robustas**: No se pueden crear ventas inconsistentes
+5. **UI intuitiva**: Mensajes claros que explican cada tipo
+6. **Escalable**: Preparado para filtros, reportes y automatización futura
+
+---
+
+## Sección Técnica
+
+### Enum en PostgreSQL
+
+```sql
+CREATE TYPE sale_type AS ENUM ('directa', 'revendedor');
+```
+
+### Validación en Hook
+
+```typescript
+const addSale = async (sale: SaleInput) => {
+  // Validación obligatoria
+  if (!sale.saleType) {
+    toast({ title: 'Error', description: 'Debes seleccionar el tipo de venta', variant: 'destructive' });
+    return null;
+  }
+  
+  if (sale.saleType === 'revendedor' && !sale.sellerId) {
+    toast({ title: 'Error', description: 'Debes seleccionar un revendedor', variant: 'destructive' });
+    return null;
+  }
+  
+  if (sale.saleType === 'directa' && !sale.finalPrice) {
+    toast({ title: 'Error', description: 'El precio final es obligatorio en ventas directas', variant: 'destructive' });
+    return null;
+  }
+  
+  // Cálculos según tipo...
+};
+```
+
+### Estado del Formulario
+
+```typescript
+// Nuevo estado
+const [saleType, setSaleType] = useState<SaleType | null>(null);
+
+// Computed: mostrar/ocultar secciones
+const showResellerSection = saleType === 'revendedor';
+const showDirectPricingSection = saleType === 'directa';
+const isResellerRequired = saleType === 'revendedor';
+const isFinalPriceRequired = saleType === 'directa';
+```
+
+### Cálculo de Stats Separados
+
+```typescript
+const stats = useMemo(() => {
+  const directSales = sales.filter(s => s.saleType === 'directa');
+  const resellerSales = sales.filter(s => s.saleType === 'revendedor');
+  
+  return {
+    // Globales
+    totalSold: sales.reduce((sum, s) => sum + s.totalAmount, 0),
+    // Por tipo
+    directTotal: directSales.reduce((sum, s) => sum + s.totalAmount, 0),
+    directCount: directSales.length,
+    resellerTotal: resellerSales.reduce((sum, s) => sum + s.totalAmount, 0),
+    resellerCount: resellerSales.length,
+    // ... más métricas
+  };
+}, [sales]);
+```
