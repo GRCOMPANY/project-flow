@@ -368,6 +368,7 @@ export type Database = {
           reseller_price: number | null
           reseller_profit: number | null
           sale_date: string
+          sale_type: Database["public"]["Enums"]["sale_type"]
           sales_channel: string | null
           seller_id: string | null
           status_updated_at: string | null
@@ -397,6 +398,7 @@ export type Database = {
           reseller_price?: number | null
           reseller_profit?: number | null
           sale_date?: string
+          sale_type?: Database["public"]["Enums"]["sale_type"]
           sales_channel?: string | null
           seller_id?: string | null
           status_updated_at?: string | null
@@ -426,6 +428,7 @@ export type Database = {
           reseller_price?: number | null
           reseller_profit?: number | null
           sale_date?: string
+          sale_type?: Database["public"]["Enums"]["sale_type"]
           sales_channel?: string | null
           seller_id?: string | null
           status_updated_at?: string | null
@@ -808,6 +811,7 @@ export type Database = {
       order_status: "pendiente" | "en_progreso" | "entregado"
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
+      sale_type: "directa" | "revendedor"
       seller_status: "activo" | "inactivo"
       task_impact: "dinero" | "crecimiento" | "operacion"
       task_outcome_result: "exitoso" | "fallido" | "reprogramado" | "cancelado"
@@ -971,6 +975,7 @@ export const Constants = {
       order_status: ["pendiente", "en_progreso", "entregado"],
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
+      sale_type: ["directa", "revendedor"],
       seller_status: ["activo", "inactivo"],
       task_impact: ["dinero", "crecimiento", "operacion"],
       task_outcome_result: ["exitoso", "fallido", "reprogramado", "cancelado"],
