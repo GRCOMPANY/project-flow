@@ -571,41 +571,179 @@ export default function Sales() {
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            {/* Product Section */}
+            {/* TIPO DE VENTA - OBLIGATORIO */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                📦 Producto
+                🎯 Tipo de venta <span className="text-destructive">*</span>
               </h4>
               
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Producto <span className="text-destructive">*</span>
-                </label>
-                <Select value={productId} onValueChange={handleProductChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar producto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.filter(p => p.status === 'activo').map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.wholesalePrice || product.price}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSaleTypeChange('directa')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    saleType === 'directa'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Store className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Venta directa</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Cliente final • Ingreso directo</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => handleSaleTypeChange('revendedor')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    saleType === 'revendedor'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Venta a revendedor</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Mayorista • Venta por volumen</p>
+                </button>
               </div>
 
-              {/* Reseller Select */}
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  👤 Revendedor
-                </label>
+              {/* Mensaje contextual */}
+              {saleType && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  saleType === 'directa' 
+                    ? 'bg-primary/10 text-primary' 
+                    : 'bg-secondary text-secondary-foreground'
+                }`}>
+                  {saleType === 'directa' 
+                    ? '💵 Esta venta genera ingreso directo para GRC'
+                    : '🤝 GRC vende el producto al revendedor, no al cliente final'
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Product Section - siempre visible si hay tipo */}
+            {saleType && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  📦 Producto
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium mb-1 block">
+                      Producto <span className="text-destructive">*</span>
+                    </label>
+                    <Select value={productId} onValueChange={handleProductChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.filter(p => p.status === 'activo').map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${(saleType === 'directa' ? product.retailPrice : product.wholesalePrice) || product.price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Cantidad</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN CONDICIONAL: VENTA DIRECTA */}
+            {saleType === 'directa' && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  📞 Cliente
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nombre</label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Nombre del cliente"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Teléfono (WhatsApp)</label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="+52 123 456 7890"
+                    />
+                  </div>
+                </div>
+
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  💰 Precio de venta
+                </h4>
+                
+                <div>
+                  <label className="text-sm font-medium mb-1 block">
+                    Precio final <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={finalPrice}
+                    onChange={(e) => setFinalPrice(Number(e.target.value))}
+                    placeholder="Precio de venta al cliente"
+                  />
+                </div>
+
+                {/* Cálculo de margen - Venta Directa */}
+                {productId && isAdmin && (
+                  <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tu costo:</span>
+                      <span>${productCost.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Precio de venta:</span>
+                      <span>${finalPrice.toLocaleString()}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        <span>TU GANANCIA:</span>
+                        <span>
+                          {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECCIÓN CONDICIONAL: VENTA A REVENDEDOR */}
+            {saleType === 'revendedor' && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  👤 Revendedor <span className="text-destructive">*</span>
+                </h4>
+                
                 <Select value={resellerId || 'none'} onValueChange={(v) => setResellerId(v === 'none' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar revendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Sin asignar (venta directa)</SelectItem>
+                    <SelectItem value="none" disabled>Seleccionar...</SelectItem>
                     {sellers.filter(s => s.status === 'activo').map((seller) => (
                       <SelectItem key={seller.id} value={seller.id}>
                         {seller.name}
@@ -613,91 +751,97 @@ export default function Sales() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
 
-            {/* Pricing Section - Reseller Model */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                💰 Precios
-              </h4>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Cantidad</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                  />
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  💰 Precios
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">
+                      Precio revendedor <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={resellerPrice}
+                      onChange={(e) => setResellerPrice(Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Tu ingreso</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Precio final (opc.)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={finalPrice}
+                      onChange={(e) => setFinalPrice(Number(e.target.value))}
+                      placeholder="Precio retail"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Informativo</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Precio revendedor</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={resellerPrice}
-                    onChange={(e) => setResellerPrice(Number(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Precio final (opc.)</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={finalPrice}
-                    onChange={(e) => setFinalPrice(Number(e.target.value))}
-                    placeholder="Precio retail"
-                  />
-                </div>
-              </div>
 
-              {/* Real-time Margin Calculation */}
-              {productId && isAdmin && (
-                <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tu costo:</span>
-                    <span>${productCost.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Precio revendedor:</span>
-                    <span>${resellerPrice.toLocaleString()}</span>
-                  </div>
-                  <div className="border-t pt-2 mt-2">
-                    <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                      <span>TU GANANCIA:</span>
-                      <span>
-                        {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
-                      </span>
+                {/* Cálculo de margen - Venta a Revendedor */}
+                {productId && isAdmin && (
+                  <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tu costo:</span>
+                      <span>${productCost.toLocaleString()}</span>
                     </div>
-                  </div>
-                  {finalPrice > 0 && (
-                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                      <span>Ganancia revendedor:</span>
-                      <span>${resellerProfitCalc.toLocaleString()}</span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Precio revendedor:</span>
+                      <span>${resellerPrice.toLocaleString()}</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="border-t pt-2 mt-2">
+                      <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        <span>TU GANANCIA:</span>
+                        <span>
+                          {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
+                        </span>
+                      </div>
+                    </div>
+                    {finalPrice > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                        <span>Ganancia revendedor:</span>
+                        <span>${resellerProfitCalc.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Total */}
-              <div className="flex justify-between items-center pt-2">
+                {/* Cliente final opcional para revendedor */}
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  📞 Cliente final (opcional)
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nombre</label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Solo referencia"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Teléfono</label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Solo referencia"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Total - siempre visible si hay tipo y producto */}
+            {saleType && productId && (
+              <div className="flex justify-between items-center pt-2 border-t">
                 <span className="font-medium">Total de la venta:</span>
                 <span className="text-2xl font-bold">${totalAmount.toLocaleString()}</span>
               </div>
-            </div>
-
-            {/* End Customer Section (Optional) */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                📞 Cliente final (opcional)
-              </h4>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Nombre</label>
-                  <Input
+            )}
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Nombre del cliente final"
