@@ -102,6 +102,10 @@ export function useSales() {
           marginAtSale: Number(s.margin_at_sale) || 0,
           marginPercentAtSale: Number(s.margin_percent_at_sale) || 0,
           relatedCreativeId: s.related_creative_id || undefined,
+          // Reseller pricing fields
+          resellerPrice: Number(s.reseller_price) || Number(s.unit_price) || 0,
+          finalPrice: Number(s.final_price) || 0,
+          resellerProfit: Number(s.reseller_profit) || 0,
           // Operational tracking fields
           operationalStatus: (s.operational_status as OperationalStatus) || 'nuevo',
           statusUpdatedAt: s.status_updated_at || undefined,
