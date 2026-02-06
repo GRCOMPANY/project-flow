@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
+import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
