@@ -187,8 +187,10 @@ export default function Sales() {
 
   const resetForm = () => {
     setProductId('');
+    setResellerId('');
     setQuantity(1);
-    setUnitPrice(0);
+    setResellerPrice(0);
+    setFinalPrice(0);
     setClientName('');
     setClientPhone('');
     setSalesChannel('whatsapp');
