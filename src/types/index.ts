@@ -133,15 +133,27 @@ export interface Supplier {
   updatedAt: string;
 }
 
+// Reseller types (wholesale model)
+export type ResellerType = 'revendedor' | 'mayorista' | 'interno';
+
 export interface Seller {
   id: string;
   name: string;
   contact?: string;
-  commission: number;
+  type?: ResellerType;        // revendedor, mayorista, interno
   status: SellerStatus;
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // DEPRECATED: commission is no longer used in reseller model
+  commission?: number;        // Legacy field - ignored
+  
+  // Computed stats (from sales aggregation)
+  totalPurchased?: number;    // Sum of all sales to this reseller
+  totalPaid?: number;         // Sum of paid sales
+  pendingBalance?: number;    // totalPurchased - totalPaid
+  lastSaleDate?: string;      // Most recent sale
+  salesCount?: number;        // Number of transactions
 }
 
 export interface Sale {
