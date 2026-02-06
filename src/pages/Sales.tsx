@@ -134,11 +134,12 @@ export default function Sales() {
   const selectedProduct = products.find(p => p.id === productId);
   const productCost = selectedProduct?.costPrice || 0;
   
-  // Calculated values - Reseller Model
-  const totalAmount = quantity * resellerPrice;          // Your revenue
-  const myProfit = resellerPrice - productCost;          // Your profit per unit
+  // Calculated values - dependen del tipo de venta
+  const effectivePrice = saleType === 'directa' ? finalPrice : resellerPrice;
+  const totalAmount = quantity * effectivePrice;
+  const myProfit = effectivePrice - productCost;
   const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
-  const resellerProfitCalc = finalPrice > 0 ? finalPrice - resellerPrice : 0;
+  const resellerProfitCalc = saleType === 'revendedor' && finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
   // Dashboard stats
   const stats = useMemo(() => {
