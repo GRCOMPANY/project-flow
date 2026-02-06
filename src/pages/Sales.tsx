@@ -113,12 +113,13 @@ export default function Sales() {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
 
-  // Form fields - Reseller Model
+  // Form fields - Sale Type First (OBLIGATORIO)
+  const [saleType, setSaleType] = useState<SaleType | null>(null);
   const [productId, setProductId] = useState('');
   const [resellerId, setResellerId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [resellerPrice, setResellerPrice] = useState(0);  // Price to reseller
-  const [finalPrice, setFinalPrice] = useState(0);        // Optional: retail price
+  const [resellerPrice, setResellerPrice] = useState(0);  // Price to reseller (solo tipo revendedor)
+  const [finalPrice, setFinalPrice] = useState(0);        // Precio final (obligatorio en directa)
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('whatsapp');
