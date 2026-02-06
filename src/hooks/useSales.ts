@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Labels para estados operativos
@@ -14,10 +14,13 @@ export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
   riesgo_devolucion: 'En riesgo',
 };
 
-// Tipo para input de venta con campos de congelado financiero opcionales
+// Tipo para input de venta con campos de reseller model
 interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt'> {
   relatedCreativeId?: string;
   operationalStatus?: OperationalStatus;
+  // Reseller pricing fields
+  resellerPrice?: number;
+  finalPrice?: number;
 }
 
 export function useSales() {
