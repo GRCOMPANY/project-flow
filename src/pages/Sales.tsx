@@ -211,8 +211,10 @@ export default function Sales() {
   const openEditForm = (sale: Sale) => {
     setEditingSale(sale);
     setProductId(sale.productId);
+    setResellerId(sale.sellerId || '');
     setQuantity(sale.quantity);
-    setUnitPrice(sale.unitPrice);
+    setResellerPrice(sale.resellerPrice || sale.unitPrice);
+    setFinalPrice(sale.finalPrice || 0);
     setClientName(sale.clientName || '');
     setClientPhone(sale.clientPhone || '');
     setSalesChannel(sale.salesChannel || 'whatsapp');
