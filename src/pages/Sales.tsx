@@ -244,9 +244,12 @@ export default function Sales() {
 
     const saleData = {
       productId,
+      sellerId: resellerId || undefined,
       quantity,
-      unitPrice,
+      unitPrice: resellerPrice,
       totalAmount,
+      resellerPrice,
+      finalPrice: finalPrice || undefined,
       clientName: clientName || undefined,
       clientPhone: clientPhone || undefined,
       salesChannel,
