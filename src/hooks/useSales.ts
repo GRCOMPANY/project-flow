@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Labels para estados operativos
@@ -14,10 +14,13 @@ export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
   riesgo_devolucion: 'En riesgo',
 };
 
-// Tipo para input de venta con campos de congelado financiero opcionales
+// Tipo para input de venta con campos de reseller model
 interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt'> {
   relatedCreativeId?: string;
   operationalStatus?: OperationalStatus;
+  // Reseller pricing fields
+  resellerPrice?: number;
+  finalPrice?: number;
 }
 
 export function useSales() {
@@ -75,7 +78,7 @@ export function useSales() {
             id: s.seller.id,
             name: s.seller.name,
             contact: s.seller.contact || undefined,
-            commission: Number(s.seller.commission) || 0,
+            type: (s.seller.type as ResellerType) || 'revendedor',
             status: s.seller.status as Seller['status'],
             notes: s.seller.notes || undefined,
             createdAt: s.seller.created_at,
@@ -99,6 +102,10 @@ export function useSales() {
           marginAtSale: Number(s.margin_at_sale) || 0,
           marginPercentAtSale: Number(s.margin_percent_at_sale) || 0,
           relatedCreativeId: s.related_creative_id || undefined,
+          // Reseller pricing fields
+          resellerPrice: Number(s.reseller_price) || Number(s.unit_price) || 0,
+          finalPrice: Number(s.final_price) || 0,
+          resellerProfit: Number(s.reseller_profit) || 0,
           // Operational tracking fields
           operationalStatus: (s.operational_status as OperationalStatus) || 'nuevo',
           statusUpdatedAt: s.status_updated_at || undefined,
@@ -140,21 +147,27 @@ export function useSales() {
   }, []);
 
   const addSale = async (sale: SaleInput) => {
-    // CONGELADO FINANCIERO: Capturar costo del producto al momento de la venta
+    // RESELLER MODEL: Capture costs and calculate margins
     let costAtSale = 0;
     let marginAtSale = 0;
     let marginPercentAtSale = 0;
+    let resellerPrice = sale.resellerPrice || sale.unitPrice;
+    let finalPrice = sale.finalPrice || 0;
+    let resellerProfit = 0;
 
     if (sale.productId) {
       const product = await getProductForFreeze(sale.productId);
       if (product) {
         costAtSale = product.costPrice || 0;
-        // Calcular margen usando el precio unitario de la venta
-        marginAtSale = sale.unitPrice - costAtSale;
-        // Calcular porcentaje (evitar división por cero)
+        // Your margin = resellerPrice - your cost
+        marginAtSale = resellerPrice - costAtSale;
         marginPercentAtSale = costAtSale > 0 
-          ? Math.round(((sale.unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+          ? Math.round(((resellerPrice - costAtSale) / costAtSale) * 100 * 100) / 100
           : 0;
+        // Reseller's profit (informational)
+        if (finalPrice > 0) {
+          resellerProfit = finalPrice - resellerPrice;
+        }
       }
     }
 
@@ -167,17 +180,21 @@ export function useSales() {
         client_phone: sale.clientPhone || null,
         sales_channel: sale.salesChannel || 'whatsapp',
         quantity: sale.quantity,
-        unit_price: sale.unitPrice,
-        total_amount: sale.totalAmount,
+        unit_price: resellerPrice,
+        total_amount: resellerPrice * sale.quantity,
         payment_method: sale.paymentMethod || null,
         payment_status: sale.paymentStatus || 'pendiente',
         order_status: sale.orderStatus || 'pendiente',
         sale_date: sale.saleDate,
         notes: sale.notes || null,
-        // Campos de congelado financiero
+        // Financial freeze fields
         cost_at_sale: costAtSale,
         margin_at_sale: marginAtSale,
         margin_percent_at_sale: marginPercentAtSale,
+        // Reseller model fields
+        reseller_price: resellerPrice,
+        final_price: finalPrice,
+        reseller_profit: resellerProfit,
         related_creative_id: sale.relatedCreativeId || null,
       })
       .select()

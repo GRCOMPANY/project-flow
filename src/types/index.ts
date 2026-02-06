@@ -133,44 +133,71 @@ export interface Supplier {
   updatedAt: string;
 }
 
+// Reseller types (wholesale model)
+export type ResellerType = 'revendedor' | 'mayorista' | 'interno';
+
 export interface Seller {
   id: string;
   name: string;
   contact?: string;
-  commission: number;
+  type?: ResellerType;        // revendedor, mayorista, interno
   status: SellerStatus;
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // DEPRECATED: commission is no longer used in reseller model
+  commission?: number;        // Legacy field - ignored
+  
+  // Computed stats (from sales aggregation)
+  totalPurchased?: number;    // Sum of all sales to this reseller
+  totalPaid?: number;         // Sum of paid sales
+  pendingBalance?: number;    // totalPurchased - totalPaid
+  lastSaleDate?: string;      // Most recent sale
+  salesCount?: number;        // Number of transactions
 }
 
 export interface Sale {
   id: string;
   productId: string;
   product?: Product;
-  sellerId?: string;
-  seller?: Seller;
-  clientName?: string;
-  clientPhone?: string;
+  
+  // Reseller info (who bought FROM you)
+  sellerId?: string;             // Reseller ID
+  seller?: Seller;               // Reseller data
+  
+  // End customer info (optional, informational)
+  clientName?: string;           // End customer name
+  clientPhone?: string;          // End customer phone
+  
+  // Sales channel
   salesChannel?: SalesChannel;
+  
+  // Pricing (RESELLER MODEL)
   quantity: number;
-  unitPrice: number;
-  totalAmount: number;
+  unitPrice: number;             // Price to reseller (legacy, same as resellerPrice)
+  totalAmount: number;           // Your revenue: resellerPrice * quantity
+  
+  // Reseller-specific pricing
+  resellerPrice?: number;        // Price you sell to reseller
+  finalPrice?: number;           // Optional: reseller's retail price (informational)
+  resellerProfit?: number;       // Calculated: finalPrice - resellerPrice (informational)
+  
+  // Payment and order status
   paymentMethod?: string;
-  paymentStatus: PaymentStatus;
+  paymentStatus: PaymentStatus;  // Did reseller pay YOU?
   orderStatus: OrderStatus;
   saleDate: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
   
-  // Congelado Financiero (Fase 1)
-  costAtSale?: number;           // Costo del producto al momento de la venta
-  marginAtSale?: number;         // Margen calculado y congelado
-  marginPercentAtSale?: number;  // Porcentaje de margen congelado
-  relatedCreativeId?: string;    // Creativo que originó la venta
+  // Financial Freeze (captured at sale time)
+  costAtSale?: number;           // Your product cost (frozen)
+  marginAtSale?: number;         // Your profit per unit: resellerPrice - costAtSale
+  marginPercentAtSale?: number;  // Your margin percentage
+  relatedCreativeId?: string;    // Creative that generated this sale
   
-  // Seguimiento operativo (Fase 2)
+  // Operational tracking
   operationalStatus: OperationalStatus;
   statusUpdatedAt?: string;
 }

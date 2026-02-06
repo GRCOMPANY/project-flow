@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit2, Users, Phone, Percent } from 'lucide-react';
-import { useSellers } from '@/hooks/useSellers';
+import { Plus, Users } from 'lucide-react';
+import { useSellers, RESELLER_TYPE_LABELS } from '@/hooks/useSellers';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Seller, SellerStatus } from '@/types';
+import { Seller, SellerStatus, ResellerType } from '@/types';
+import { ResellerCard } from '@/components/resellers/ResellerCard';
+import { ResellerDetailSheet } from '@/components/resellers/ResellerDetailSheet';
 import {
   Dialog,
   DialogContent,
@@ -39,18 +40,19 @@ const Sellers = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailSeller, setDetailSeller] = useState<Seller | null>(null);
 
   // Form state
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
-  const [commission, setCommission] = useState('0');
+  const [type, setType] = useState<ResellerType>('revendedor');
   const [status, setStatus] = useState<SellerStatus>('activo');
   const [notes, setNotes] = useState('');
 
   const resetForm = () => {
     setName('');
     setContact('');
-    setCommission('0');
+    setType('revendedor');
     setStatus('activo');
     setNotes('');
   };
@@ -58,7 +60,7 @@ const Sellers = () => {
   const openEditForm = (seller: Seller) => {
     setName(seller.name);
     setContact(seller.contact || '');
-    setCommission(seller.commission?.toString() || '0');
+    setType(seller.type || 'revendedor');
     setStatus(seller.status);
     setNotes(seller.notes || '');
     setEditingSeller(seller);
@@ -73,7 +75,7 @@ const Sellers = () => {
       await updateSeller(editingSeller.id, {
         name: name.trim(),
         contact: contact.trim() || undefined,
-        commission: parseFloat(commission) || 0,
+        type,
         status,
         notes: notes.trim() || undefined,
       });
@@ -81,7 +83,7 @@ const Sellers = () => {
       await addSeller({
         name: name.trim(),
         contact: contact.trim() || undefined,
-        commission: parseFloat(commission) || 0,
+        type,
         status,
         notes: notes.trim() || undefined,
       });
@@ -101,6 +103,10 @@ const Sellers = () => {
 
   const activeSellers = sellers.filter(s => s.status === 'activo');
   const inactiveSellers = sellers.filter(s => s.status === 'inactivo');
+  
+  // Calculate totals
+  const totalPending = sellers.reduce((sum, s) => sum + (s.pendingBalance || 0), 0);
+  const totalPurchased = sellers.reduce((sum, s) => sum + (s.totalPurchased || 0), 0);
 
   if (loading) {
     return (
@@ -118,12 +124,37 @@ const Sellers = () => {
       <CommandCenterNav />
 
       <div className="container max-w-5xl mx-auto px-4 py-8">
-        <header className="mb-10">
-          <h1 className="text-5xl font-bold text-foreground mb-2">Vendedores</h1>
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Revendedores</h1>
           <p className="text-muted-foreground">
-            Gestiona tu equipo de ventas y comisiones
+            Gestiona tus canales de reventa y mayoreo
           </p>
         </header>
+
+        {/* Summary Stats */}
+        {sellers.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Total revendedores</p>
+              <p className="text-2xl font-bold">{sellers.length}</p>
+              <p className="text-xs text-muted-foreground">
+                {activeSellers.length} activos
+              </p>
+            </div>
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Total vendido</p>
+              <p className="text-2xl font-bold">${totalPurchased.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">A todos los revendedores</p>
+            </div>
+            <div className={`bg-card border rounded-lg p-4 ${totalPending > 0 ? 'border-amber-500/50' : ''}`}>
+              <p className="text-sm text-muted-foreground">Pendiente por cobrar</p>
+              <p className={`text-2xl font-bold ${totalPending > 0 ? 'text-amber-600' : ''}`}>
+                ${totalPending.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">De todos los revendedores</p>
+            </div>
+          </div>
+        )}
 
         {sellers.length > 0 ? (
           <>
@@ -131,7 +162,7 @@ const Sellers = () => {
               <div className="flex justify-end mb-6">
                 <Button onClick={() => { resetForm(); setFormOpen(true); }} className="gap-2">
                   <Plus className="w-4 h-4" />
-                  Nuevo vendedor
+                  Nuevo revendedor
                 </Button>
               </div>
             )}
@@ -139,15 +170,18 @@ const Sellers = () => {
             {/* Active Sellers */}
             {activeSellers.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-lg font-medium text-foreground mb-4">Activos ({activeSellers.length})</h2>
+                <h2 className="text-lg font-medium text-foreground mb-4">
+                  Activos ({activeSellers.length})
+                </h2>
                 <div className="grid gap-4">
                   {activeSellers.map((seller) => (
-                    <SellerCard 
+                    <ResellerCard 
                       key={seller.id} 
                       seller={seller} 
                       isAdmin={isAdmin}
                       onEdit={() => openEditForm(seller)}
                       onDelete={() => setDeleteId(seller.id)}
+                      onViewDetail={() => setDetailSeller(seller)}
                     />
                   ))}
                 </div>
@@ -157,15 +191,18 @@ const Sellers = () => {
             {/* Inactive Sellers */}
             {inactiveSellers.length > 0 && (
               <div>
-                <h2 className="text-lg font-medium text-muted-foreground mb-4">Inactivos ({inactiveSellers.length})</h2>
+                <h2 className="text-lg font-medium text-muted-foreground mb-4">
+                  Inactivos ({inactiveSellers.length})
+                </h2>
                 <div className="grid gap-4 opacity-60">
                   {inactiveSellers.map((seller) => (
-                    <SellerCard 
+                    <ResellerCard 
                       key={seller.id} 
                       seller={seller} 
                       isAdmin={isAdmin}
                       onEdit={() => openEditForm(seller)}
                       onDelete={() => setDeleteId(seller.id)}
+                      onViewDetail={() => setDetailSeller(seller)}
                     />
                   ))}
                 </div>
@@ -177,13 +214,13 @@ const Sellers = () => {
             <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-6 border-2 border-border">
               <Users className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-2xl text-foreground mb-2">Sin vendedores aún</h3>
+            <h3 className="text-2xl text-foreground mb-2">Sin revendedores aún</h3>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Agrega tu equipo de ventas para hacer seguimiento
+              Agrega tus canales de reventa para hacer seguimiento de ventas
             </p>
             {isAdmin && (
               <Button onClick={() => { resetForm(); setFormOpen(true); }}>
-                + Agregar primer vendedor
+                + Agregar primer revendedor
               </Button>
             )}
           </div>
@@ -194,7 +231,7 @@ const Sellers = () => {
       <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) { resetForm(); setEditingSeller(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingSeller ? 'Editar vendedor' : 'Nuevo vendedor'}</DialogTitle>
+            <DialogTitle>{editingSeller ? 'Editar revendedor' : 'Nuevo revendedor'}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,7 +241,7 @@ const Sellers = () => {
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre del vendedor"
+                placeholder="Nombre del revendedor"
                 required
               />
             </div>
@@ -215,23 +252,23 @@ const Sellers = () => {
                 id="contact"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="Teléfono, email, etc."
+                placeholder="Teléfono, WhatsApp o email"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="commission">Comisión (%)</Label>
-                <Input
-                  id="commission"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={commission}
-                  onChange={(e) => setCommission(e.target.value)}
-                  placeholder="0"
-                />
+                <Label>Tipo</Label>
+                <Select value={type} onValueChange={(v) => setType(v as ResellerType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="revendedor">Revendedor</SelectItem>
+                    <SelectItem value="mayorista">Mayorista</SelectItem>
+                    <SelectItem value="interno">Interno</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -249,12 +286,12 @@ const Sellers = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
+              <Label htmlFor="notes">Notas estratégicas</Label>
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observaciones..."
+                placeholder="Observaciones sobre este revendedor..."
                 rows={2}
               />
             </div>
@@ -264,20 +301,27 @@ const Sellers = () => {
                 Cancelar
               </Button>
               <Button type="submit" disabled={!name.trim()}>
-                {editingSeller ? 'Guardar cambios' : 'Crear vendedor'}
+                {editingSeller ? 'Guardar cambios' : 'Crear revendedor'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* Detail Sheet */}
+      <ResellerDetailSheet
+        seller={detailSeller}
+        open={!!detailSeller}
+        onOpenChange={(open) => !open && setDetailSeller(null)}
+      />
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar vendedor?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar revendedor?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer.
+              Esta acción no se puede deshacer. Las ventas asociadas no se eliminarán.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -291,54 +335,5 @@ const Sellers = () => {
     </div>
   );
 };
-
-function SellerCard({ seller, isAdmin, onEdit, onDelete }: { 
-  seller: Seller; 
-  isAdmin: boolean; 
-  onEdit: () => void; 
-  onDelete: () => void;
-}) {
-  return (
-    <div className="grc-card p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Users className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-foreground">{seller.name}</h3>
-              <Badge variant={seller.status === 'activo' ? 'default' : 'secondary'}>
-                {seller.status}
-              </Badge>
-            </div>
-            {seller.contact && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                <Phone className="w-3 h-3" /> {seller.contact}
-              </p>
-            )}
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <Percent className="w-3 h-3" /> Comisión: {seller.commission}%
-            </p>
-            {seller.notes && (
-              <p className="text-sm text-muted-foreground mt-2 italic">{seller.notes}</p>
-            )}
-          </div>
-        </div>
-        
-        {isAdmin && (
-          <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={onEdit}>
-              <Edit2 className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default Sellers;

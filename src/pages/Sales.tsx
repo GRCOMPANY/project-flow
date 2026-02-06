@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
+import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
@@ -100,6 +101,7 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 export default function Sales() {
   const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
   const { products } = useProducts();
+  const { sellers } = useSellers();
   const { creatives } = useCreatives();
   const { isAdmin } = useAuth();
 
@@ -108,10 +110,12 @@ export default function Sales() {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
 
-  // Form fields
+  // Form fields - Reseller Model
   const [productId, setProductId] = useState('');
+  const [resellerId, setResellerId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [unitPrice, setUnitPrice] = useState(0);
+  const [resellerPrice, setResellerPrice] = useState(0);  // Price to reseller
+  const [finalPrice, setFinalPrice] = useState(0);        // Optional: retail price
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('whatsapp');
@@ -122,8 +126,15 @@ export default function Sales() {
   const [notes, setNotes] = useState('');
   const [relatedCreativeId, setRelatedCreativeId] = useState<string>('');
 
-  // Calculated values
-  const totalAmount = quantity * unitPrice;
+  // Selected product for calculations
+  const selectedProduct = products.find(p => p.id === productId);
+  const productCost = selectedProduct?.costPrice || 0;
+  
+  // Calculated values - Reseller Model
+  const totalAmount = quantity * resellerPrice;          // Your revenue
+  const myProfit = resellerPrice - productCost;          // Your profit per unit
+  const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
+  const resellerProfitCalc = finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
   // Dashboard stats
   const stats = useMemo(() => {
@@ -176,8 +187,10 @@ export default function Sales() {
 
   const resetForm = () => {
     setProductId('');
+    setResellerId('');
     setQuantity(1);
-    setUnitPrice(0);
+    setResellerPrice(0);
+    setFinalPrice(0);
     setClientName('');
     setClientPhone('');
     setSalesChannel('whatsapp');
@@ -198,8 +211,10 @@ export default function Sales() {
   const openEditForm = (sale: Sale) => {
     setEditingSale(sale);
     setProductId(sale.productId);
+    setResellerId(sale.sellerId || '');
     setQuantity(sale.quantity);
-    setUnitPrice(sale.unitPrice);
+    setResellerPrice(sale.resellerPrice || sale.unitPrice);
+    setFinalPrice(sale.finalPrice || 0);
     setClientName(sale.clientName || '');
     setClientPhone(sale.clientPhone || '');
     setSalesChannel(sale.salesChannel || 'whatsapp');
@@ -216,7 +231,9 @@ export default function Sales() {
     setProductId(id);
     const product = products.find(p => p.id === id);
     if (product) {
-      setUnitPrice(product.price);
+      // Auto-fill with wholesale price for reseller
+      setResellerPrice(product.wholesalePrice || product.price);
+      setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
     }
   };
 
@@ -227,9 +244,12 @@ export default function Sales() {
 
     const saleData = {
       productId,
+      sellerId: resellerId || undefined,
       quantity,
-      unitPrice,
+      unitPrice: resellerPrice,
       totalAmount,
+      resellerPrice,
+      finalPrice: finalPrice || undefined,
       clientName: clientName || undefined,
       clientPhone: clientPhone || undefined,
       salesChannel,
@@ -497,7 +517,7 @@ export default function Sales() {
             {/* Product Section */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Producto
+                📦 Producto
               </h4>
               
               <div>
@@ -511,13 +531,40 @@ export default function Sales() {
                   <SelectContent>
                     {products.filter(p => p.status === 'activo').map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.price}
+                        {product.name} - ${product.wholesalePrice || product.price}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Reseller Select */}
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  👤 Revendedor
+                </label>
+                <Select value={resellerId || 'none'} onValueChange={(v) => setResellerId(v === 'none' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar revendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin asignar (venta directa)</SelectItem>
+                    {sellers.filter(s => s.status === 'activo').map((seller) => (
+                      <SelectItem key={seller.id} value={seller.id}>
+                        {seller.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Pricing Section - Reseller Model */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                💰 Precios
+              </h4>
+              
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-sm font-medium mb-1 block">Cantidad</label>
@@ -529,27 +576,65 @@ export default function Sales() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Precio unit.</label>
+                  <label className="text-sm font-medium mb-1 block">Precio revendedor</label>
                   <Input
                     type="number"
                     min={0}
-                    value={unitPrice}
-                    onChange={(e) => setUnitPrice(Number(e.target.value))}
+                    value={resellerPrice}
+                    onChange={(e) => setResellerPrice(Number(e.target.value))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Total</label>
-                  <div className="h-10 px-3 py-2 bg-muted rounded-md flex items-center font-medium">
-                    ${totalAmount.toLocaleString()}
-                  </div>
+                  <label className="text-sm font-medium mb-1 block">Precio final (opc.)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={finalPrice}
+                    onChange={(e) => setFinalPrice(Number(e.target.value))}
+                    placeholder="Precio retail"
+                  />
                 </div>
+              </div>
+
+              {/* Real-time Margin Calculation */}
+              {productId && isAdmin && (
+                <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tu costo:</span>
+                    <span>${productCost.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Precio revendedor:</span>
+                    <span>${resellerPrice.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2">
+                    <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      <span>TU GANANCIA:</span>
+                      <span>
+                        {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
+                      </span>
+                    </div>
+                  </div>
+                  {finalPrice > 0 && (
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                      <span>Ganancia revendedor:</span>
+                      <span>${resellerProfitCalc.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between items-center pt-2">
+                <span className="font-medium">Total de la venta:</span>
+                <span className="text-2xl font-bold">${totalAmount.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Client Section */}
+            {/* End Customer Section (Optional) */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Cliente
+                📞 Cliente final (opcional)
               </h4>
               
               <div className="grid grid-cols-2 gap-3">
@@ -558,11 +643,11 @@ export default function Sales() {
                   <Input
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Nombre del cliente"
+                    placeholder="Nombre del cliente final"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Teléfono (WhatsApp)</label>
+                  <label className="text-sm font-medium mb-1 block">Teléfono</label>
                   <Input
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
