@@ -220,6 +220,7 @@ export default function Sales() {
   }, [sales]);
 
   const resetForm = () => {
+    setSaleType(null);
     setProductId('');
     setResellerId('');
     setQuantity(1);
@@ -244,6 +245,7 @@ export default function Sales() {
 
   const openEditForm = (sale: Sale) => {
     setEditingSale(sale);
+    setSaleType(sale.saleType || (sale.sellerId ? 'revendedor' : 'directa'));
     setProductId(sale.productId);
     setResellerId(sale.sellerId || '');
     setQuantity(sale.quantity);
