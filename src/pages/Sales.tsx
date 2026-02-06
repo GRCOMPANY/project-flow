@@ -141,8 +141,11 @@ export default function Sales() {
   const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
   const resellerProfitCalc = saleType === 'revendedor' && finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
-  // Dashboard stats
+  // Dashboard stats - separadas por tipo
   const stats = useMemo(() => {
+    const directSales = sales.filter(s => s.saleType === 'directa');
+    const resellerSales = sales.filter(s => s.saleType === 'revendedor');
+    
     const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
     const pending = sales.filter(s => s.paymentStatus === 'pendiente');
     const paid = sales.filter(s => s.paymentStatus === 'pagado');
@@ -172,6 +175,21 @@ export default function Sales() {
       !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
     ).length;
 
+    // Stats por tipo
+    const directTotal = directSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const directPending = directSales.filter(s => s.paymentStatus === 'pendiente').reduce((sum, s) => sum + s.totalAmount, 0);
+    const directPaid = directSales.filter(s => s.paymentStatus === 'pagado').reduce((sum, s) => sum + s.totalAmount, 0);
+    const directMarginAvg = directSales.length > 0 
+      ? directSales.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / directSales.length 
+      : 0;
+
+    const resellerTotal = resellerSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const resellerPending = resellerSales.filter(s => s.paymentStatus === 'pendiente').reduce((sum, s) => sum + s.totalAmount, 0);
+    const resellerPaid = resellerSales.filter(s => s.paymentStatus === 'pagado').reduce((sum, s) => sum + s.totalAmount, 0);
+    const resellerMarginAvg = resellerSales.length > 0 
+      ? resellerSales.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / resellerSales.length 
+      : 0;
+
     return {
       totalSold,
       totalSales: sales.length,
@@ -187,6 +205,17 @@ export default function Sales() {
       sinConfirmar,
       enRiesgo,
       pendienteAccion,
+      // Por tipo
+      directTotal,
+      directCount: directSales.length,
+      directPending,
+      directPaid,
+      directMarginAvg,
+      resellerTotal,
+      resellerCount: resellerSales.length,
+      resellerPending,
+      resellerPaid,
+      resellerMarginAvg,
     };
   }, [sales]);
 
