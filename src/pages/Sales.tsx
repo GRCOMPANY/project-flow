@@ -4,7 +4,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
+import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,9 @@ import {
   ThumbsUp,
   PhoneOff,
   ShieldAlert,
+  Users,
+  UserCheck,
+  Store,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
