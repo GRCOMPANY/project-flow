@@ -14,11 +14,11 @@ export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
   riesgo_devolucion: 'En riesgo',
 };
 
-// Tipo para input de venta con campos de reseller model
+// Tipo para input de venta - ahora con saleType obligatorio
 interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt'> {
   relatedCreativeId?: string;
   operationalStatus?: OperationalStatus;
-  // Reseller pricing fields
+  // Pricing fields
   resellerPrice?: number;
   finalPrice?: number;
 }
