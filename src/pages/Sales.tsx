@@ -101,6 +101,7 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 export default function Sales() {
   const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
   const { products } = useProducts();
+  const { sellers } = useSellers();
   const { creatives } = useCreatives();
   const { isAdmin } = useAuth();
 
@@ -109,10 +110,12 @@ export default function Sales() {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
 
-  // Form fields
+  // Form fields - Reseller Model
   const [productId, setProductId] = useState('');
+  const [resellerId, setResellerId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [unitPrice, setUnitPrice] = useState(0);
+  const [resellerPrice, setResellerPrice] = useState(0);  // Price to reseller
+  const [finalPrice, setFinalPrice] = useState(0);        // Optional: retail price
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('whatsapp');
