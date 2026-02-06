@@ -4,7 +4,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus } from '@/types';
+import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,8 @@ import {
   ThumbsUp,
   PhoneOff,
   ShieldAlert,
+  Users,
+  Store,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
@@ -110,12 +112,13 @@ export default function Sales() {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
 
-  // Form fields - Reseller Model
+  // Form fields - Sale Type First (OBLIGATORIO)
+  const [saleType, setSaleType] = useState<SaleType | null>(null);
   const [productId, setProductId] = useState('');
   const [resellerId, setResellerId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [resellerPrice, setResellerPrice] = useState(0);  // Price to reseller
-  const [finalPrice, setFinalPrice] = useState(0);        // Optional: retail price
+  const [resellerPrice, setResellerPrice] = useState(0);
+  const [finalPrice, setFinalPrice] = useState(0);
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('whatsapp');
@@ -130,42 +133,49 @@ export default function Sales() {
   const selectedProduct = products.find(p => p.id === productId);
   const productCost = selectedProduct?.costPrice || 0;
   
-  // Calculated values - Reseller Model
-  const totalAmount = quantity * resellerPrice;          // Your revenue
-  const myProfit = resellerPrice - productCost;          // Your profit per unit
+  // Calculated values - dependen del tipo de venta
+  const effectivePrice = saleType === 'directa' ? finalPrice : resellerPrice;
+  const totalAmount = quantity * effectivePrice;
+  const myProfit = effectivePrice - productCost;
   const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
-  const resellerProfitCalc = finalPrice > 0 ? finalPrice - resellerPrice : 0;
+  const resellerProfitCalc = saleType === 'revendedor' && finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
-  // Dashboard stats
+  // Dashboard stats - separadas por tipo
   const stats = useMemo(() => {
+    const directSales = sales.filter(s => s.saleType === 'directa');
+    const resellerSales = sales.filter(s => s.saleType === 'revendedor');
+    
     const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
     const pending = sales.filter(s => s.paymentStatus === 'pendiente');
     const paid = sales.filter(s => s.paymentStatus === 'pagado');
     const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
     const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
 
-    // KPIs de rentabilidad (usando campos congelados)
-    const totalCost = sales.reduce((sum, s) => 
-      sum + ((s.costAtSale || 0) * s.quantity), 0
-    );
-    const netProfit = sales.reduce((sum, s) => 
-      sum + ((s.marginAtSale || 0) * s.quantity), 0
-    );
+    const totalCost = sales.reduce((sum, s) => sum + ((s.costAtSale || 0) * s.quantity), 0);
+    const netProfit = sales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
     const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined && s.marginPercentAtSale !== null);
     const avgMargin = salesWithMargin.length > 0
       ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
       : 0;
     const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
 
-    // KPIs de seguimiento operativo
     const sinConfirmar = sales.filter(s => s.operationalStatus === 'nuevo').length;
     const enRiesgo = sales.filter(s => 
       s.operationalStatus === 'riesgo_devolucion' || s.operationalStatus === 'sin_respuesta'
     ).length;
-    const pendienteAccion = sales.filter(s => 
-      s.operationalStatus !== 'entregado' && 
-      !(s.orderStatus === 'entregado' && s.paymentStatus === 'pagado')
-    ).length;
+
+    // Stats por tipo
+    const directTotal = directSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const directPending = directSales.filter(s => s.paymentStatus === 'pendiente').reduce((sum, s) => sum + s.totalAmount, 0);
+    const directMarginAvg = directSales.length > 0 
+      ? directSales.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / directSales.length 
+      : 0;
+
+    const resellerTotal = resellerSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const resellerPending = resellerSales.filter(s => s.paymentStatus === 'pendiente').reduce((sum, s) => sum + s.totalAmount, 0);
+    const resellerMarginAvg = resellerSales.length > 0 
+      ? resellerSales.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / resellerSales.length 
+      : 0;
 
     return {
       totalSold,
@@ -178,14 +188,21 @@ export default function Sales() {
       netProfit,
       avgMargin,
       salesWithLoss,
-      // Seguimiento
       sinConfirmar,
       enRiesgo,
-      pendienteAccion,
+      directTotal,
+      directCount: directSales.length,
+      directPending,
+      directMarginAvg,
+      resellerTotal,
+      resellerCount: resellerSales.length,
+      resellerPending,
+      resellerMarginAvg,
     };
   }, [sales]);
 
   const resetForm = () => {
+    setSaleType(null);
     setProductId('');
     setResellerId('');
     setQuantity(1);
@@ -210,6 +227,7 @@ export default function Sales() {
 
   const openEditForm = (sale: Sale) => {
     setEditingSale(sale);
+    setSaleType(sale.saleType || (sale.sellerId ? 'revendedor' : 'directa'));
     setProductId(sale.productId);
     setResellerId(sale.sellerId || '');
     setQuantity(sale.quantity);
@@ -231,24 +249,42 @@ export default function Sales() {
     setProductId(id);
     const product = products.find(p => p.id === id);
     if (product) {
-      // Auto-fill with wholesale price for reseller
-      setResellerPrice(product.wholesalePrice || product.price);
-      setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
+      if (saleType === 'directa') {
+        setFinalPrice(product.retailPrice || product.suggestedPrice || product.price);
+      } else {
+        setResellerPrice(product.wholesalePrice || product.price);
+        setFinalPrice(product.retailPrice || product.suggestedPrice || 0);
+      }
+    }
+  };
+
+  const handleSaleTypeChange = (type: SaleType) => {
+    setSaleType(type);
+    if (type === 'directa') {
+      setResellerId('');
+    }
+    if (selectedProduct) {
+      if (type === 'directa') {
+        setFinalPrice(selectedProduct.retailPrice || selectedProduct.suggestedPrice || selectedProduct.price);
+      } else {
+        setResellerPrice(selectedProduct.wholesalePrice || selectedProduct.price);
+      }
     }
   };
 
   const handleSubmit = async () => {
-    if (!productId) {
+    if (!productId || !saleType) {
       return;
     }
 
     const saleData = {
+      saleType,
       productId,
-      sellerId: resellerId || undefined,
+      sellerId: saleType === 'revendedor' ? (resellerId || undefined) : undefined,
       quantity,
-      unitPrice: resellerPrice,
+      unitPrice: saleType === 'directa' ? finalPrice : resellerPrice,
       totalAmount,
-      resellerPrice,
+      resellerPrice: saleType === 'revendedor' ? resellerPrice : undefined,
       finalPrice: finalPrice || undefined,
       clientName: clientName || undefined,
       clientPhone: clientPhone || undefined,
@@ -317,8 +353,8 @@ export default function Sales() {
           )}
         </div>
 
-        {/* Dashboard Stats - Row 1: Ingresos */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Dashboard Stats - Global */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -341,7 +377,7 @@ export default function Sales() {
                   <Clock className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pendiente por cobrar</p>
+                  <p className="text-sm text-muted-foreground">Pendiente</p>
                   <p className="text-2xl font-bold text-amber-600">${stats.pendingAmount.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">{stats.pendingCount} ventas</p>
                 </div>
@@ -363,25 +399,8 @@ export default function Sales() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Dashboard Stats - Row 2: Rentabilidad (solo admin) */}
-        {isAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-muted rounded-lg">
-                    <Wallet className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Costo total</p>
-                    <p className="text-2xl font-bold">${stats.totalCost.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
+          {isAdmin && (
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -393,79 +412,101 @@ export default function Sales() {
                     <p className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {stats.netProfit >= 0 ? '+' : ''}${stats.netProfit.toLocaleString()}
                     </p>
+                    <p className="text-xs text-muted-foreground">{stats.avgMargin.toFixed(0)}% margen</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Stats por tipo */}
+        {isAdmin && (stats.directCount > 0 || stats.resellerCount > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Store className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Ventas Directas</span>
+                  <Badge variant="secondary">{stats.directCount}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Total</p>
+                    <p className="font-bold">${stats.directTotal.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Pendiente</p>
+                    <p className="font-bold text-amber-600">${stats.directPending.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Margen</p>
+                    <p className="font-bold">{stats.directMarginAvg.toFixed(0)}%</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-secondary">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Percent className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Ventas a Revendedores</span>
+                  <Badge variant="secondary">{stats.resellerCount}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Total</p>
+                    <p className="font-bold">${stats.resellerTotal.toLocaleString()}</p>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Margen promedio</p>
-                    <p className="text-2xl font-bold">{stats.avgMargin.toFixed(1)}%</p>
+                  <div>
+                    <p className="text-muted-foreground">Pendiente</p>
+                    <p className="font-bold text-amber-600">${stats.resellerPending.toLocaleString()}</p>
                   </div>
-                  {stats.salesWithLoss > 0 && (
-                    <Badge variant="destructive" className="gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      {stats.salesWithLoss} con pérdida
-                    </Badge>
-                  )}
+                  <div>
+                    <p className="text-muted-foreground">Margen</p>
+                    <p className="font-bold">{stats.resellerMarginAvg.toFixed(0)}%</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Dashboard Stats - Row 3: Seguimiento (solo admin) */}
+        {/* Seguimiento alerts */}
         {isAdmin && (stats.sinConfirmar > 0 || stats.enRiesgo > 0) && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-muted rounded-lg">
-                    <CircleDot className="w-5 h-5 text-muted-foreground" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {stats.sinConfirmar > 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-muted rounded-lg">
+                      <CircleDot className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Sin confirmar</p>
+                      <p className="text-2xl font-bold">{stats.sinConfirmar}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Sin confirmar</p>
-                    <p className="text-2xl font-bold">{stats.sinConfirmar}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card className={stats.enRiesgo > 0 ? 'border-destructive/50' : ''}>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${stats.enRiesgo > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
-                    <ShieldAlert className={`w-5 h-5 ${stats.enRiesgo > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+            {stats.enRiesgo > 0 && (
+              <Card className="border-destructive/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-destructive/10 rounded-lg">
+                      <ShieldAlert className="w-5 h-5 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">En riesgo</p>
+                      <p className="text-2xl font-bold text-destructive">{stats.enRiesgo}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">En riesgo</p>
-                    <p className={`text-2xl font-bold ${stats.enRiesgo > 0 ? 'text-destructive' : ''}`}>
-                      {stats.enRiesgo}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <PhoneCall className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Pendiente acción</p>
-                    <p className="text-2xl font-bold">{stats.pendienteAccion}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -514,41 +555,176 @@ export default function Sales() {
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            {/* Product Section */}
+            {/* TIPO DE VENTA - OBLIGATORIO */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                📦 Producto
+                🎯 Tipo de venta <span className="text-destructive">*</span>
               </h4>
               
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Producto <span className="text-destructive">*</span>
-                </label>
-                <Select value={productId} onValueChange={handleProductChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar producto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.filter(p => p.status === 'activo').map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.wholesalePrice || product.price}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSaleTypeChange('directa')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    saleType === 'directa'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Store className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Venta directa</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Cliente final • Ingreso directo</p>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => handleSaleTypeChange('revendedor')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    saleType === 'revendedor'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Venta a revendedor</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Mayorista • Venta por volumen</p>
+                </button>
               </div>
 
-              {/* Reseller Select */}
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  👤 Revendedor
-                </label>
+              {saleType && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  saleType === 'directa' 
+                    ? 'bg-primary/10 text-primary' 
+                    : 'bg-secondary text-secondary-foreground'
+                }`}>
+                  {saleType === 'directa' 
+                    ? '💵 Esta venta genera ingreso directo para GRC'
+                    : '🤝 GRC vende el producto al revendedor, no al cliente final'
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Product Section */}
+            {saleType && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  📦 Producto
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium mb-1 block">
+                      Producto <span className="text-destructive">*</span>
+                    </label>
+                    <Select value={productId} onValueChange={handleProductChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.filter(p => p.status === 'activo').map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${(saleType === 'directa' ? product.retailPrice : product.wholesalePrice) || product.price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Cantidad</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN CONDICIONAL: VENTA DIRECTA */}
+            {saleType === 'directa' && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  📞 Cliente
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nombre</label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Nombre del cliente"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Teléfono</label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="+52 123 456 7890"
+                    />
+                  </div>
+                </div>
+
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  💰 Precio de venta
+                </h4>
+                
+                <div>
+                  <label className="text-sm font-medium mb-1 block">
+                    Precio final <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={finalPrice}
+                    onChange={(e) => setFinalPrice(Number(e.target.value))}
+                  />
+                </div>
+
+                {productId && isAdmin && (
+                  <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tu costo:</span>
+                      <span>${productCost.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Precio de venta:</span>
+                      <span>${finalPrice.toLocaleString()}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        <span>TU GANANCIA:</span>
+                        <span>
+                          {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECCIÓN CONDICIONAL: VENTA A REVENDEDOR */}
+            {saleType === 'revendedor' && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  👤 Revendedor <span className="text-destructive">*</span>
+                </h4>
+                
                 <Select value={resellerId || 'none'} onValueChange={(v) => setResellerId(v === 'none' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar revendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Sin asignar (venta directa)</SelectItem>
+                    <SelectItem value="none" disabled>Seleccionar...</SelectItem>
                     {sellers.filter(s => s.status === 'activo').map((seller) => (
                       <SelectItem key={seller.id} value={seller.id}>
                         {seller.name}
@@ -556,240 +732,231 @@ export default function Sales() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
 
-            {/* Pricing Section - Reseller Model */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                💰 Precios
-              </h4>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Cantidad</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                  />
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  💰 Precios
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">
+                      Precio revendedor <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={resellerPrice}
+                      onChange={(e) => setResellerPrice(Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Tu ingreso</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Precio final (opc.)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={finalPrice}
+                      onChange={(e) => setFinalPrice(Number(e.target.value))}
+                      placeholder="Precio retail"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Informativo</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Precio revendedor</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={resellerPrice}
-                    onChange={(e) => setResellerPrice(Number(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Precio final (opc.)</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={finalPrice}
-                    onChange={(e) => setFinalPrice(Number(e.target.value))}
-                    placeholder="Precio retail"
-                  />
-                </div>
-              </div>
 
-              {/* Real-time Margin Calculation */}
-              {productId && isAdmin && (
-                <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tu costo:</span>
-                    <span>${productCost.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Precio revendedor:</span>
-                    <span>${resellerPrice.toLocaleString()}</span>
-                  </div>
-                  <div className="border-t pt-2 mt-2">
-                    <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                      <span>TU GANANCIA:</span>
-                      <span>
-                        {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
-                      </span>
+                {productId && isAdmin && (
+                  <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tu costo:</span>
+                      <span>${productCost.toLocaleString()}</span>
                     </div>
-                  </div>
-                  {finalPrice > 0 && (
-                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                      <span>Ganancia revendedor:</span>
-                      <span>${resellerProfitCalc.toLocaleString()}</span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Precio revendedor:</span>
+                      <span>${resellerPrice.toLocaleString()}</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="border-t pt-2 mt-2">
+                      <div className={`flex justify-between font-bold ${myProfit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        <span>TU GANANCIA:</span>
+                        <span>
+                          {myProfit >= 0 ? '+' : ''}${myProfit.toLocaleString()} ({myMarginPercent.toFixed(0)}%)
+                        </span>
+                      </div>
+                    </div>
+                    {finalPrice > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                        <span>Ganancia revendedor:</span>
+                        <span>${resellerProfitCalc.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Total */}
-              <div className="flex justify-between items-center pt-2">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide pt-2">
+                  📞 Cliente final (opcional)
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nombre</label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Solo referencia"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Teléfono</label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Solo referencia"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Total */}
+            {saleType && productId && (
+              <div className="flex justify-between items-center pt-2 border-t">
                 <span className="font-medium">Total de la venta:</span>
                 <span className="text-2xl font-bold">${totalAmount.toLocaleString()}</span>
               </div>
-            </div>
-
-            {/* End Customer Section (Optional) */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                📞 Cliente final (opcional)
-              </h4>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Nombre</label>
-                  <Input
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Nombre del cliente final"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Teléfono</label>
-                  <Input
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="+52 123 456 7890"
-                  />
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Commercial Section */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Datos comerciales
-              </h4>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Canal de venta</label>
-                  <Select value={salesChannel} onValueChange={(v) => setSalesChannel(v as SalesChannel)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SALES_CHANNELS.map((channel) => (
-                        <SelectItem key={channel.value} value={channel.value}>
-                          {channel.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Método de pago</label>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((method) => (
-                        <SelectItem key={method.value} value={method.value}>
-                          {method.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Status Section */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                Estados
-              </h4>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Estado de pago</label>
-                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">🟡 Pendiente</SelectItem>
-                      <SelectItem value="pagado">🟢 Pagado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Estado del pedido</label>
-                  <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as OrderStatus)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDER_STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.value === 'pendiente' && '🟡 '}
-                          {status.value === 'en_progreso' && '🔵 '}
-                          {status.value === 'entregado' && '🟢 '}
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Other Section */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Fecha de venta</label>
-                <Input
-                  type="date"
-                  value={saleDate}
-                  onChange={(e) => setSaleDate(e.target.value)}
-                />
-              </div>
-
-              {/* Creative Attribution */}
-              {productId && creatives.filter(c => c.productId === productId).length > 0 && (
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Creativo origen (opcional)</label>
-                  <Select value={relatedCreativeId} onValueChange={setRelatedCreativeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="¿De qué creativo vino esta venta?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Sin asignar</SelectItem>
-                      {creatives
-                        .filter(c => c.productId === productId)
-                        .map((creative) => (
-                          <SelectItem key={creative.id} value={creative.id}>
-                            {creative.title || `${creative.type} - ${creative.channel}`}
+            {saleType && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Datos comerciales
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Canal de venta</label>
+                    <Select value={salesChannel} onValueChange={(v) => setSalesChannel(v as SalesChannel)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SALES_CHANNELS.map((channel) => (
+                          <SelectItem key={channel.value} value={channel.value}>
+                            {channel.label}
                           </SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Atribuir ventas a creativos mejora la inteligencia del sistema
-                  </p>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Método de pago</label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((method) => (
+                          <SelectItem key={method.value} value={method.value}>
+                            {method.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              )}
-
-              <div>
-                <label className="text-sm font-medium mb-1 block">Notas</label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notas adicionales..."
-                  rows={2}
-                />
               </div>
-            </div>
+            )}
+
+            {/* Status Section */}
+            {saleType && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Estados
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Estado de pago</label>
+                    <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">🟡 Pendiente</SelectItem>
+                        <SelectItem value="pagado">🟢 Pagado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Estado del pedido</label>
+                    <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as OrderStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORDER_STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.value === 'pendiente' && '🟡 '}
+                            {status.value === 'en_progreso' && '🔵 '}
+                            {status.value === 'entregado' && '🟢 '}
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Other Section */}
+            {saleType && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Fecha de venta</label>
+                  <Input
+                    type="date"
+                    value={saleDate}
+                    onChange={(e) => setSaleDate(e.target.value)}
+                  />
+                </div>
+
+                {productId && creatives.filter(c => c.productId === productId).length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Creativo origen (opcional)</label>
+                    <Select value={relatedCreativeId} onValueChange={setRelatedCreativeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="¿De qué creativo vino esta venta?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Sin asignar</SelectItem>
+                        {creatives
+                          .filter(c => c.productId === productId)
+                          .map((creative) => (
+                            <SelectItem key={creative.id} value={creative.id}>
+                              {creative.title || `${creative.type} - ${creative.channel}`}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Notas</label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Notas adicionales..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowForm(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={!productId}>
+            <Button onClick={handleSubmit} disabled={!productId || !saleType}>
               {editingSale ? 'Guardar cambios' : 'Registrar venta'}
             </Button>
           </div>
@@ -848,7 +1015,6 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
   const orderStatusOption = getOrderStatusOption(sale.orderStatus);
   const operationalStatusOption = getOperationalStatusOption(sale.operationalStatus);
 
-  // Cálculos de margen (usando campos congelados)
   const totalCost = (sale.costAtSale || 0) * sale.quantity;
   const totalMargin = (sale.marginAtSale || 0) * sale.quantity;
   const hasLoss = (sale.marginAtSale || 0) < 0;
@@ -861,6 +1027,24 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
           {/* Main Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
+              {/* Sale Type Badge */}
+              <Badge 
+                variant={sale.saleType === 'directa' ? 'default' : 'secondary'}
+                className="gap-1"
+              >
+                {sale.saleType === 'directa' ? (
+                  <>
+                    <Store className="w-3 h-3" />
+                    Directa
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-3 h-3" />
+                    Revendedor
+                  </>
+                )}
+              </Badge>
+              
               <Package className="w-4 h-4 text-muted-foreground" />
               <span className="font-medium truncate">
                 {sale.product?.name || 'Producto eliminado'}
@@ -878,6 +1062,13 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {/* Mostrar revendedor si aplica */}
+              {sale.saleType === 'revendedor' && sale.seller && (
+                <span className="flex items-center gap-1 text-foreground font-medium">
+                  <Users className="w-3 h-3" />
+                  {sale.seller.name}
+                </span>
+              )}
               {sale.clientName && (
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3" />
@@ -904,7 +1095,6 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
               </span>
             </div>
 
-            {/* Margin Info (Admin only) */}
             {isAdmin && hasMarginData && (
               <div className="flex items-center gap-3 text-xs mt-2 pt-2 border-t border-dashed">
                 <span className="text-muted-foreground">
@@ -921,7 +1111,6 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
 
           {/* Status Badges */}
           <div className="flex flex-col items-end gap-2">
-            {/* Payment Status - Clickable */}
             <Badge
               variant={sale.paymentStatus === 'pagado' ? 'default' : 'secondary'}
               className={`cursor-pointer transition-colors ${
@@ -935,7 +1124,6 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
               {sale.paymentStatus === 'pagado' ? 'Pagado' : 'Pendiente'}
             </Badge>
 
-            {/* Order Status - Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Badge
@@ -967,7 +1155,6 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Operational Status - Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Badge
@@ -995,14 +1182,12 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
           </div>
         </div>
 
-        {/* Notes */}
         {sale.notes && (
           <p className="text-sm text-muted-foreground mt-2 pt-2 border-t">
             {sale.notes}
           </p>
         )}
 
-        {/* Actions */}
         {isAdmin && (
           <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
             <Button variant="ghost" size="sm" onClick={onEdit}>

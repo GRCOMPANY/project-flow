@@ -17,6 +17,9 @@ export type OperationalStatus =
   | 'riesgo_devolucion';
 export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' | 'otro';
 
+// Tipo de venta (obligatorio) - gobierna lógica de precios y métricas
+export type SaleType = 'directa' | 'revendedor';
+
 // Product types
 export type ProductChannel = 'whatsapp' | 'marketplace' | 'instagram' | 'tiktok' | 'otro';
 export type DeliveryType = 'contra_entrega' | 'anticipado';
@@ -158,33 +161,45 @@ export interface Seller {
 
 export interface Sale {
   id: string;
+  
+  // TIPO DE VENTA (obligatorio) - gobierna toda la lógica
+  saleType: SaleType;
+  
   productId: string;
   product?: Product;
   
-  // Reseller info (who bought FROM you)
-  sellerId?: string;             // Reseller ID
-  seller?: Seller;               // Reseller data
+  // Reseller info (solo si saleType = 'revendedor')
+  sellerId?: string;
+  seller?: Seller;
   
-  // End customer info (optional, informational)
-  clientName?: string;           // End customer name
-  clientPhone?: string;          // End customer phone
+  // Cliente final
+  // Obligatorio si saleType = 'directa'
+  // Opcional si saleType = 'revendedor'
+  clientName?: string;
+  clientPhone?: string;
   
   // Sales channel
   salesChannel?: SalesChannel;
   
-  // Pricing (RESELLER MODEL)
+  // Pricing
   quantity: number;
-  unitPrice: number;             // Price to reseller (legacy, same as resellerPrice)
-  totalAmount: number;           // Your revenue: resellerPrice * quantity
+  unitPrice: number;             // Precio de venta (resellerPrice o finalPrice según tipo)
+  totalAmount: number;           // Tu ingreso total
   
-  // Reseller-specific pricing
-  resellerPrice?: number;        // Price you sell to reseller
-  finalPrice?: number;           // Optional: reseller's retail price (informational)
-  resellerProfit?: number;       // Calculated: finalPrice - resellerPrice (informational)
+  // Precio revendedor: solo si saleType = 'revendedor'
+  resellerPrice?: number;
+  
+  // Precio final:
+  // - OBLIGATORIO si saleType = 'directa' (es tu precio de venta)
+  // - Opcional si saleType = 'revendedor' (informativo)
+  finalPrice?: number;
+  
+  // Ganancia del revendedor (informativo, solo saleType = 'revendedor')
+  resellerProfit?: number;
   
   // Payment and order status
   paymentMethod?: string;
-  paymentStatus: PaymentStatus;  // Did reseller pay YOU?
+  paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
   saleDate: string;
   notes?: string;
@@ -192,10 +207,10 @@ export interface Sale {
   updatedAt: string;
   
   // Financial Freeze (captured at sale time)
-  costAtSale?: number;           // Your product cost (frozen)
-  marginAtSale?: number;         // Your profit per unit: resellerPrice - costAtSale
-  marginPercentAtSale?: number;  // Your margin percentage
-  relatedCreativeId?: string;    // Creative that generated this sale
+  costAtSale?: number;
+  marginAtSale?: number;
+  marginPercentAtSale?: number;
+  relatedCreativeId?: string;
   
   // Operational tracking
   operationalStatus: OperationalStatus;
