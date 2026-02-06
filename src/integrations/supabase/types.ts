@@ -351,6 +351,7 @@ export type Database = {
           client_phone: string | null
           cost_at_sale: number | null
           created_at: string
+          final_price: number | null
           id: string
           margin_at_sale: number | null
           margin_percent_at_sale: number | null
@@ -364,6 +365,8 @@ export type Database = {
           product_id: string | null
           quantity: number
           related_creative_id: string | null
+          reseller_price: number | null
+          reseller_profit: number | null
           sale_date: string
           sales_channel: string | null
           seller_id: string | null
@@ -377,6 +380,7 @@ export type Database = {
           client_phone?: string | null
           cost_at_sale?: number | null
           created_at?: string
+          final_price?: number | null
           id?: string
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
@@ -390,6 +394,8 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           related_creative_id?: string | null
+          reseller_price?: number | null
+          reseller_profit?: number | null
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
@@ -403,6 +409,7 @@ export type Database = {
           client_phone?: string | null
           cost_at_sale?: number | null
           created_at?: string
+          final_price?: number | null
           id?: string
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
@@ -416,6 +423,8 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           related_creative_id?: string | null
+          reseller_price?: number | null
+          reseller_profit?: number | null
           sale_date?: string
           sales_channel?: string | null
           seller_id?: string | null
@@ -464,6 +473,7 @@ export type Database = {
           name: string
           notes: string | null
           status: Database["public"]["Enums"]["seller_status"]
+          type: string | null
           updated_at: string
         }
         Insert: {
@@ -474,6 +484,7 @@ export type Database = {
           name: string
           notes?: string | null
           status?: Database["public"]["Enums"]["seller_status"]
+          type?: string | null
           updated_at?: string
         }
         Update: {
@@ -484,6 +495,7 @@ export type Database = {
           name?: string
           notes?: string | null
           status?: Database["public"]["Enums"]["seller_status"]
+          type?: string | null
           updated_at?: string
         }
         Relationships: []
