@@ -23,6 +23,7 @@ import {
   Product,
 } from '@/types';
 import { CreativeMetricsForm } from './CreativeMetricsForm';
+import { CreativeFileUploader } from './CreativeFileUploader';
 import { 
   HOOK_TYPE_LABELS, 
   TARGET_AUDIENCE_LABELS,
@@ -404,43 +405,71 @@ export function CreativeForm({
 
         {/* BLOQUE C: Media (NUEVO) */}
         <TabsContent value="media" className="space-y-4 pt-4">
-          <div className="p-4 bg-muted/50 rounded-lg border border-border">
-            <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Archivos del creativo
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              Adjunta la imagen o video final de este experimento.
-            </p>
-          </div>
-
-          <div>
-            <Label>URL de imagen</Label>
-            <div className="flex gap-2">
-              <Input
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                placeholder="https://... o sube una imagen"
-              />
+          {/* File Uploader - Only show if editing an existing creative */}
+          {isEditing && initialData?.id && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  🖼️ Archivos del Creativo
+                </h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Sube las imágenes o videos reales de este experimento.
+                </p>
+                <CreativeFileUploader creativeId={initialData.id} />
+              </div>
             </div>
-            {formData.imageUrl && (
-              <div className="mt-2">
-                <img 
-                  src={formData.imageUrl} 
-                  alt="Preview" 
-                  className="w-32 h-32 object-cover rounded-lg border"
+          )}
+
+          {/* Message for new creatives */}
+          {!isEditing && (
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Archivos del creativo
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                ⚠️ Guarda el creativo primero, luego podrás subir archivos desde la edición.
+              </p>
+            </div>
+          )}
+
+          {/* Alternative URLs (fallback) */}
+          <div className="pt-4 border-t">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">
+              URLs alternativas (opcional)
+            </h4>
+            
+            <div className="space-y-3">
+              <div>
+                <Label>URL de imagen externa</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    placeholder="https://... enlace a imagen"
+                  />
+                </div>
+                {formData.imageUrl && (
+                  <div className="mt-2">
+                    <img 
+                      src={formData.imageUrl} 
+                      alt="Preview" 
+                      className="w-24 h-24 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>URL de video externa</Label>
+                <Input
+                  value={formData.videoUrl}
+                  onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                  placeholder="https://... enlace al video"
                 />
               </div>
-            )}
-          </div>
-
-          <div>
-            <Label>URL de video</Label>
-            <Input
-              value={formData.videoUrl}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="https://... enlace al video"
-            />
+            </div>
           </div>
 
           <div className="pt-4 border-t">
@@ -476,7 +505,7 @@ export function CreativeForm({
               </SelectContent>
             </Select>
             {formData.status === 'descartado' && (
-              <p className="text-xs text-amber-600 mt-2">
+              <p className="text-xs text-warning mt-2">
                 ⚠️ Al cerrar el experimento, el campo de aprendizaje será obligatorio.
               </p>
             )}

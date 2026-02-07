@@ -32,6 +32,7 @@ import {
   Video,
   FileText,
   Zap,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ProductCreativesTabProps {
@@ -245,6 +246,13 @@ export function ProductCreativesTab({ product, onCreateClick }: ProductCreatives
                         {creative.title || `Creativo ${idx + 1}`}
                       </span>
                       {getPerformanceBadge(creative.calculatedPerformance)}
+                      {/* No Media Warning Badge */}
+                      {!creative.hasMedia && !creative.imageUrl && !creative.videoUrl && (
+                        <Badge variant="outline" className="text-warning border-warning text-xs">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Sin visual
+                        </Badge>
+                      )}
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">

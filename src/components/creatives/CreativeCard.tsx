@@ -20,6 +20,7 @@ import {
   TrendingUp,
   MessageSquare,
   DollarSign,
+  AlertTriangle,
 } from 'lucide-react';
 
 const typeIcons = {
@@ -59,10 +60,13 @@ export function CreativeCard({
   onScale,
   isAdmin = false,
 }: CreativeCardProps) {
-  const TypeIcon = typeIcons[creative.type];
-  const ChannelIcon = channelIcons[creative.channel];
+  const TypeIcon = typeIcons[creative.type] || FileText;
+  const ChannelIcon = channelIcons[creative.channel] || Globe;
   const performance = PERFORMANCE_CONFIG[creative.calculatedPerformance];
   const comparison = creative.vsPrevious ? COMPARISON_CONFIG[creative.vsPrevious] : null;
+
+  // Check if creative has media
+  const hasMedia = creative.hasMedia || creative.imageUrl || creative.videoUrl;
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden border-border/50 hover:border-primary/30">
@@ -86,6 +90,16 @@ export function CreativeCard({
           </div>
         )}
         
+        {/* No Media Warning Overlay */}
+        {!hasMedia && (
+          <div className="absolute inset-0 bg-warning/20 flex items-center justify-center">
+            <div className="flex items-center gap-2 px-3 py-2 bg-warning/90 rounded-lg text-warning-foreground">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-sm font-medium">Sin material visual</span>
+            </div>
+          </div>
+        )}
+        
         {/* Performance Badge - Top Left */}
         <div className="absolute top-3 left-3">
           <Badge 
@@ -93,7 +107,7 @@ export function CreativeCard({
               ${creative.calculatedPerformance === 'caliente' 
                 ? 'bg-orange-500/90 text-white border-orange-600' 
                 : creative.calculatedPerformance === 'interesante'
-                ? 'bg-yellow-500/90 text-black border-yellow-600'
+                ? 'bg-amber-500/90 text-black border-amber-600'
                 : 'bg-blue-500/90 text-white border-blue-600'
               }
               text-sm font-bold shadow-lg
@@ -107,7 +121,7 @@ export function CreativeCard({
         <div className="absolute top-3 right-3">
           <div className="flex items-center gap-1.5 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-md">
             <ChannelIcon className="w-3.5 h-3.5" />
-            <span className="text-xs font-medium">{channelLabels[creative.channel]}</span>
+            <span className="text-xs font-medium">{channelLabels[creative.channel] || creative.channel}</span>
           </div>
         </div>
       </div>
