@@ -78,6 +78,69 @@ export type Database = {
           },
         ]
       }
+      creative_files: {
+        Row: {
+          channel_used: string | null
+          created_at: string | null
+          creative_id: string
+          file_name: string
+          file_role: Database["public"]["Enums"]["creative_file_role"]
+          file_type: Database["public"]["Enums"]["creative_file_type"]
+          file_url: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["creative_file_status"]
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          channel_used?: string | null
+          created_at?: string | null
+          creative_id: string
+          file_name: string
+          file_role?: Database["public"]["Enums"]["creative_file_role"]
+          file_type: Database["public"]["Enums"]["creative_file_type"]
+          file_url: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["creative_file_status"]
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          channel_used?: string | null
+          created_at?: string | null
+          creative_id?: string
+          file_name?: string
+          file_role?: Database["public"]["Enums"]["creative_file_role"]
+          file_type?: Database["public"]["Enums"]["creative_file_type"]
+          file_url?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["creative_file_status"]
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_files_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creative_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creatives: {
         Row: {
           ai_prompt: string | null
@@ -797,6 +860,9 @@ export type Database = {
     Enums: {
       app_role: "admin" | "colaborador"
       creative_channel: "whatsapp" | "instagram" | "tiktok" | "facebook" | "web"
+      creative_file_role: "principal" | "variacion" | "referencia"
+      creative_file_status: "borrador" | "publicado" | "descartado"
+      creative_file_type: "imagen" | "video"
       creative_objective: "vender" | "atraer" | "probar"
       creative_result: "sin_evaluar" | "funciono" | "no_funciono"
       creative_status:
@@ -959,6 +1025,9 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "colaborador"],
       creative_channel: ["whatsapp", "instagram", "tiktok", "facebook", "web"],
+      creative_file_role: ["principal", "variacion", "referencia"],
+      creative_file_status: ["borrador", "publicado", "descartado"],
+      creative_file_type: ["imagen", "video"],
       creative_objective: ["vender", "atraer", "probar"],
       creative_result: ["sin_evaluar", "funciono", "no_funciono"],
       creative_status: [

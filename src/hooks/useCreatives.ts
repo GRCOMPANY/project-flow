@@ -25,71 +25,95 @@ export function useCreatives() {
         variant: 'destructive',
       });
     } else {
+      // Fetch files for all creatives
+      const creativeIds = (data || []).map(c => c.id);
+      const { data: filesData } = await supabase
+        .from('creative_files')
+        .select('*')
+        .in('creative_id', creativeIds);
+      
+      // Group files by creative_id
+      const filesByCreative: Record<string, typeof filesData> = {};
+      (filesData || []).forEach(f => {
+        if (!filesByCreative[f.creative_id]) {
+          filesByCreative[f.creative_id] = [];
+        }
+        filesByCreative[f.creative_id].push(f);
+      });
+
       setCreatives(
-        (data || []).map((c) => ({
-          id: c.id,
-          productId: c.product_id || undefined,
-          product: c.product ? {
-            id: c.product.id,
-            name: c.product.name,
-            price: Number(c.product.price),
-            storeName: c.product.store_name || undefined,
-            imageUrl: c.product.image_url || undefined,
-            description: c.product.description || undefined,
-            createdAt: c.product.created_at,
-            updatedAt: c.product.updated_at,
-            costPrice: Number(c.product.supplier_price) || 0,
-            wholesalePrice: Number(c.product.wholesale_price) || 0,
-            retailPrice: Number(c.product.suggested_price) || 0,
-            supplierPrice: Number(c.product.supplier_price) || 0,
-            suggestedPrice: Number(c.product.suggested_price) || 0,
-            status: c.product.status as Product['status'],
-            isFeatured: c.product.is_featured || false,
-            autoPromote: c.product.auto_promote || false,
-            mainChannel: (c.product.main_channel as Product['mainChannel']) || 'whatsapp',
-            deliveryType: (c.product.delivery_type as Product['deliveryType']) || 'contra_entrega',
-            category: c.product.category || undefined,
-          } as Product : undefined,
-          type: c.type as Creative['type'],
-          channel: c.channel as Creative['channel'],
-          objective: c.objective as Creative['objective'],
-          status: c.status as Creative['status'],
-          result: c.result as Creative['result'],
-          title: c.title || undefined,
-          copy: c.copy || undefined,
-          imageUrl: c.image_url || undefined,
-          videoUrl: c.video_url || undefined,
-          script: c.script || undefined,
-          learning: c.learning || undefined,
-          aiPrompt: c.ai_prompt || undefined,
-          publishedAt: c.published_at || undefined,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at,
-          // New Creative Intelligence fields
-          targetAudience: (c as Record<string, unknown>).target_audience as Creative['targetAudience'] || undefined,
-          audienceNotes: (c as Record<string, unknown>).audience_notes as string || undefined,
-          hookType: (c as Record<string, unknown>).hook_type as Creative['hookType'] || undefined,
-          hookText: (c as Record<string, unknown>).hook_text as string || undefined,
-          variation: (c as Record<string, unknown>).variation as string || 'A',
-          messageApproach: (c as Record<string, unknown>).message_approach as Creative['messageApproach'] || undefined,
-          metricLikes: Number((c as Record<string, unknown>).metric_likes) || 0,
-          metricComments: Number((c as Record<string, unknown>).metric_comments) || 0,
-          metricMessages: Number((c as Record<string, unknown>).metric_messages) || 0,
-          metricKnownPeople: (c as Record<string, unknown>).metric_known_people as Creative['metricKnownPeople'] || undefined,
-          metricSales: Number((c as Record<string, unknown>).metric_sales) || 0,
-          metricImpressions: Number((c as Record<string, unknown>).metric_impressions) || 0,
-          metricClicks: Number((c as Record<string, unknown>).metric_clicks) || 0,
-          metricCost: Number((c as Record<string, unknown>).metric_cost) || 0,
-          engagementLevel: (c as Record<string, unknown>).engagement_level as Creative['engagementLevel'] || undefined,
-          vsPrevious: (c as Record<string, unknown>).vs_previous as Creative['vsPrevious'] || undefined,
-          vsPreviousId: (c as Record<string, unknown>).vs_previous_id as string || undefined,
-          whatChanged: (c as Record<string, unknown>).what_changed as string || undefined,
-          automationIntent: (c as Record<string, unknown>).automation_intent as Creative['automationIntent'] || undefined,
-          automationStatus: (c as Record<string, unknown>).automation_status as Creative['automationStatus'] || undefined,
-          // New fields
-          ctaText: (c as Record<string, unknown>).cta_text as string || undefined,
-          publicationReference: (c as Record<string, unknown>).publication_reference as string || undefined,
-        }))
+        (data || []).map((c) => {
+          const creativeFiles = filesByCreative[c.id] || [];
+          const hasFiles = creativeFiles.length > 0;
+          const hasUrls = !!(c.image_url || c.video_url);
+          
+          return {
+            id: c.id,
+            productId: c.product_id || undefined,
+            product: c.product ? {
+              id: c.product.id,
+              name: c.product.name,
+              price: Number(c.product.price),
+              storeName: c.product.store_name || undefined,
+              imageUrl: c.product.image_url || undefined,
+              description: c.product.description || undefined,
+              createdAt: c.product.created_at,
+              updatedAt: c.product.updated_at,
+              costPrice: Number(c.product.supplier_price) || 0,
+              wholesalePrice: Number(c.product.wholesale_price) || 0,
+              retailPrice: Number(c.product.suggested_price) || 0,
+              supplierPrice: Number(c.product.supplier_price) || 0,
+              suggestedPrice: Number(c.product.suggested_price) || 0,
+              status: c.product.status as Product['status'],
+              isFeatured: c.product.is_featured || false,
+              autoPromote: c.product.auto_promote || false,
+              mainChannel: (c.product.main_channel as Product['mainChannel']) || 'whatsapp',
+              deliveryType: (c.product.delivery_type as Product['deliveryType']) || 'contra_entrega',
+              category: c.product.category || undefined,
+            } as Product : undefined,
+            type: c.type as Creative['type'],
+            channel: c.channel as Creative['channel'],
+            objective: c.objective as Creative['objective'],
+            status: c.status as Creative['status'],
+            result: c.result as Creative['result'],
+            title: c.title || undefined,
+            copy: c.copy || undefined,
+            imageUrl: c.image_url || undefined,
+            videoUrl: c.video_url || undefined,
+            script: c.script || undefined,
+            learning: c.learning || undefined,
+            aiPrompt: c.ai_prompt || undefined,
+            publishedAt: c.published_at || undefined,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+            // New Creative Intelligence fields
+            targetAudience: (c as Record<string, unknown>).target_audience as Creative['targetAudience'] || undefined,
+            audienceNotes: (c as Record<string, unknown>).audience_notes as string || undefined,
+            hookType: (c as Record<string, unknown>).hook_type as Creative['hookType'] || undefined,
+            hookText: (c as Record<string, unknown>).hook_text as string || undefined,
+            variation: (c as Record<string, unknown>).variation as string || 'A',
+            messageApproach: (c as Record<string, unknown>).message_approach as Creative['messageApproach'] || undefined,
+            metricLikes: Number((c as Record<string, unknown>).metric_likes) || 0,
+            metricComments: Number((c as Record<string, unknown>).metric_comments) || 0,
+            metricMessages: Number((c as Record<string, unknown>).metric_messages) || 0,
+            metricKnownPeople: (c as Record<string, unknown>).metric_known_people as Creative['metricKnownPeople'] || undefined,
+            metricSales: Number((c as Record<string, unknown>).metric_sales) || 0,
+            metricImpressions: Number((c as Record<string, unknown>).metric_impressions) || 0,
+            metricClicks: Number((c as Record<string, unknown>).metric_clicks) || 0,
+            metricCost: Number((c as Record<string, unknown>).metric_cost) || 0,
+            engagementLevel: (c as Record<string, unknown>).engagement_level as Creative['engagementLevel'] || undefined,
+            vsPrevious: (c as Record<string, unknown>).vs_previous as Creative['vsPrevious'] || undefined,
+            vsPreviousId: (c as Record<string, unknown>).vs_previous_id as string || undefined,
+            whatChanged: (c as Record<string, unknown>).what_changed as string || undefined,
+            automationIntent: (c as Record<string, unknown>).automation_intent as Creative['automationIntent'] || undefined,
+            automationStatus: (c as Record<string, unknown>).automation_status as Creative['automationStatus'] || undefined,
+            // New fields
+            ctaText: (c as Record<string, unknown>).cta_text as string || undefined,
+            publicationReference: (c as Record<string, unknown>).publication_reference as string || undefined,
+            // hasMedia computed
+            hasMedia: hasFiles || hasUrls,
+          };
+        })
       );
     }
     setLoading(false);

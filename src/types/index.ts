@@ -35,6 +35,35 @@ export type CreativeResult = 'sin_evaluar' | 'funciono' | 'no_funciono';
 // Automation Status for n8n
 export type AutomationStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
+// ====================================
+// CREATIVE FILES SYSTEM
+// ====================================
+export type CreativeFileType = 'imagen' | 'video';
+export type CreativeFileRole = 'principal' | 'variacion' | 'referencia';
+export type CreativeFileStatus = 'borrador' | 'publicado' | 'descartado';
+
+export interface CreativeFile {
+  id: string;
+  creativeId: string;
+  
+  // File info
+  fileUrl: string;
+  fileName: string;
+  fileType: CreativeFileType;
+  fileRole: CreativeFileRole;
+  status: CreativeFileStatus;
+  
+  // Usage tracking
+  channelUsed?: string;
+  notes?: string;
+  
+  // Audit
+  uploadedBy?: string;
+  uploadedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -297,6 +326,7 @@ export interface Creative {
   
   // Bloque Media
   publicationReference?: string; // NUEVO: "Historia IG 06/02", "Post FB"
+  files?: CreativeFile[];        // NUEVO: archivos asociados
   
   // Bloque C: Performance Metrics - Organic
   metricLikes?: number;
@@ -321,6 +351,9 @@ export interface Creative {
   // Automation
   automationIntent?: AutomationIntent;
   automationStatus?: AutomationStatus;
+  
+  // Computed
+  hasMedia?: boolean;            // NUEVO: tiene material visual
 }
 
 // Automation Intent record for n8n
