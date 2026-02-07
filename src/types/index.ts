@@ -266,7 +266,7 @@ export type AutomationIntent =
 // Base Creative Interface
 export interface Creative {
   id: string;
-  productId?: string;
+  productId?: string;          // NOTA: Para nuevos creativos, es OBLIGATORIO en UI
   product?: Product;
   type: CreativeType;
   channel: CreativeChannel;
@@ -278,7 +278,7 @@ export interface Creative {
   imageUrl?: string;
   videoUrl?: string;
   script?: string;
-  learning?: string;
+  learning?: string;           // OBLIGATORIO al cerrar experimento
   aiPrompt?: string;
   publishedAt?: string;
   createdAt: string;
@@ -291,8 +291,12 @@ export interface Creative {
   // Bloque B: Hook / Message
   hookType?: HookType;
   hookText?: string;
+  ctaText?: string;            // NUEVO: Call to Action principal
   variation?: string;
   messageApproach?: MessageApproach;
+  
+  // Bloque Media
+  publicationReference?: string; // NUEVO: "Historia IG 06/02", "Post FB"
   
   // Bloque C: Performance Metrics - Organic
   metricLikes?: number;

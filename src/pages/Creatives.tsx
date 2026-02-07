@@ -31,8 +31,9 @@ import {
 import { CreativeCard } from '@/components/creatives/CreativeCard';
 import { CreativeFilters, CreativeFiltersState } from '@/components/creatives/CreativeFilters';
 import { CreativeInsightsPanel } from '@/components/creatives/CreativeInsights';
-import { CreativeForm } from '@/components/creatives/CreativeForm';
-import { Creative, CreativeIntelligence } from '@/types';
+import { CreativeForm, CreativeFormData } from '@/components/creatives/CreativeForm';
+import { CreativeClosureModal } from '@/components/creatives/CreativeClosureModal';
+import { Creative, CreativeIntelligence, CreativeStatus } from '@/types';
 import { 
   Plus, 
   Sparkles,
@@ -40,12 +41,14 @@ import {
   Package,
   Brain,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Creatives() {
   const { isAdmin } = useAuth();
   const { creatives, loading, addCreative, updateCreative, deleteCreative } = useCreatives();
   const { products } = useProducts();
   const { enrichedCreatives, insights, byProduct } = useCreativeIntelligence(creatives);
+  const { toast } = useToast();
   
   const [viewMode, setViewMode] = useState<'global' | 'product'>('product');
   const [formOpen, setFormOpen] = useState(false);
@@ -58,6 +61,10 @@ export default function Creatives() {
     hookType: null,
     audience: null,
   });
+  
+  // Estado para modal de cierre
+  const [closureModalOpen, setClosureModalOpen] = useState(false);
+  const [pendingClosureCreative, setPendingClosureCreative] = useState<Creative | null>(null);
 
   // Filter creatives
   const filteredCreatives = useMemo(() => {
@@ -70,38 +77,44 @@ export default function Creatives() {
     });
   }, [enrichedCreatives, filters]);
 
-  const handleFormSubmit = async (formData: {
-    productId: string;
-    type: Creative['type'];
-    channel: Creative['channel'];
-    objective: Creative['objective'];
-    targetAudience?: Creative['targetAudience'];
-    audienceNotes?: string;
-    hookType?: Creative['hookType'];
-    hookText?: string;
-    variation?: string;
-    messageApproach?: Creative['messageApproach'];
-    title?: string;
-    copy?: string;
-    learning?: string;
-    metricLikes?: number;
-    metricComments?: number;
-    metricMessages?: number;
-    metricSales?: number;
-    metricImpressions?: number;
-    metricClicks?: number;
-    metricCost?: number;
-    metricKnownPeople?: Creative['metricKnownPeople'];
-    engagementLevel?: Creative['engagementLevel'];
-  }) => {
+  const handleFormSubmit = async (formData: CreativeFormData) => {
+    // Validación de producto obligatorio
+    if (!formData.productId) {
+      toast({
+        title: 'Error',
+        description: 'Debes seleccionar un producto para este experimento',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Si el estado es "cerrado" (descartado) y no hay learning, abrir modal
+    if (formData.status === 'descartado' && (!formData.learning || formData.learning.trim().length < 20)) {
+      // Guardar datos temporalmente y abrir modal
+      const tempCreative: Creative = {
+        id: editingCreative?.id || 'temp',
+        ...formData,
+        createdAt: editingCreative?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        result: editingCreative?.result || 'sin_evaluar',
+      };
+      setPendingClosureCreative(tempCreative);
+      setClosureModalOpen(true);
+      return;
+    }
+    
     const creativeData = {
       ...formData,
       productId: formData.productId || undefined,
-      status: 'pendiente' as const,
-      result: 'sin_evaluar' as const,
+      status: formData.status || ('pendiente' as CreativeStatus),
+      result: editingCreative?.result || ('sin_evaluar' as const),
       targetAudience: formData.targetAudience || undefined,
       hookType: formData.hookType || undefined,
       messageApproach: formData.messageApproach || undefined,
+      imageUrl: formData.imageUrl || undefined,
+      videoUrl: formData.videoUrl || undefined,
+      ctaText: formData.ctaText || undefined,
+      publicationReference: formData.publicationReference || undefined,
     };
     
     if (editingCreative) {
@@ -111,6 +124,57 @@ export default function Creatives() {
     }
     setFormOpen(false);
     setEditingCreative(null);
+  };
+
+  const handleClosureConfirm = async (learning: string) => {
+    if (!pendingClosureCreative) return;
+    
+    const creativeData = {
+      productId: pendingClosureCreative.productId,
+      type: pendingClosureCreative.type,
+      channel: pendingClosureCreative.channel,
+      objective: pendingClosureCreative.objective,
+      status: 'descartado' as CreativeStatus,
+      result: pendingClosureCreative.result,
+      title: pendingClosureCreative.title,
+      copy: pendingClosureCreative.copy,
+      learning: learning,
+      targetAudience: pendingClosureCreative.targetAudience,
+      audienceNotes: pendingClosureCreative.audienceNotes,
+      hookType: pendingClosureCreative.hookType,
+      hookText: pendingClosureCreative.hookText,
+      ctaText: pendingClosureCreative.ctaText,
+      variation: pendingClosureCreative.variation,
+      messageApproach: pendingClosureCreative.messageApproach,
+      imageUrl: pendingClosureCreative.imageUrl,
+      videoUrl: pendingClosureCreative.videoUrl,
+      publicationReference: pendingClosureCreative.publicationReference,
+      metricLikes: pendingClosureCreative.metricLikes,
+      metricComments: pendingClosureCreative.metricComments,
+      metricMessages: pendingClosureCreative.metricMessages,
+      metricSales: pendingClosureCreative.metricSales,
+      metricImpressions: pendingClosureCreative.metricImpressions,
+      metricClicks: pendingClosureCreative.metricClicks,
+      metricCost: pendingClosureCreative.metricCost,
+      metricKnownPeople: pendingClosureCreative.metricKnownPeople,
+      engagementLevel: pendingClosureCreative.engagementLevel,
+    };
+    
+    if (editingCreative) {
+      await updateCreative(editingCreative.id, creativeData);
+    } else {
+      await addCreative(creativeData);
+    }
+    
+    setClosureModalOpen(false);
+    setPendingClosureCreative(null);
+    setFormOpen(false);
+    setEditingCreative(null);
+    
+    toast({
+      title: '✅ Experimento cerrado',
+      description: 'El aprendizaje ha sido documentado correctamente.',
+    });
   };
 
   const handleEdit = (creative: Creative) => {
@@ -262,6 +326,15 @@ export default function Creatives() {
         </DialogContent>
       </Dialog>
 
+      {/* Closure Modal */}
+      <CreativeClosureModal
+        open={closureModalOpen}
+        onOpenChange={setClosureModalOpen}
+        creativeName={pendingClosureCreative?.title || pendingClosureCreative?.product?.name || 'Sin título'}
+        existingLearning={pendingClosureCreative?.learning}
+        onConfirm={handleClosureConfirm}
+      />
+
       {/* Creative Detail Sheet */}
       <Sheet 
         open={!!selectedCreative} 
@@ -285,6 +358,38 @@ export default function Creatives() {
                 )}
               </div>
 
+              {/* Status badge */}
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  selectedCreative.status === 'publicado' 
+                    ? 'bg-emerald-100 text-emerald-700' 
+                    : selectedCreative.status === 'descartado'
+                    ? 'bg-slate-100 text-slate-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {selectedCreative.status === 'publicado' ? '🚀 Publicado' 
+                   : selectedCreative.status === 'descartado' ? '✅ Cerrado'
+                   : selectedCreative.status === 'generando' ? '⏸️ Pausado'
+                   : '📝 Borrador'}
+                </span>
+              </div>
+
+              {/* Publication Reference */}
+              {selectedCreative.publicationReference && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">📍 Publicación</h4>
+                  <p className="text-foreground">{selectedCreative.publicationReference}</p>
+                </div>
+              )}
+
+              {/* CTA */}
+              {selectedCreative.ctaText && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">🎯 CTA</h4>
+                  <p className="text-foreground font-medium">{selectedCreative.ctaText}</p>
+                </div>
+              )}
+
               {/* Copy */}
               {selectedCreative.copy && (
                 <div>
@@ -297,10 +402,9 @@ export default function Creatives() {
               {selectedCreative.learning && (
                 <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
                   <h4 className="text-sm font-medium mb-1">🧠 Aprendizaje</h4>
-                  <p className="text-sm">{selectedCreative.learning}</p>
+                  <p className="text-sm whitespace-pre-wrap">{selectedCreative.learning}</p>
                 </div>
               )}
-
 
               {/* Edit/Delete buttons */}
               {isAdmin && (
