@@ -86,6 +86,9 @@ export function useCreatives() {
           whatChanged: (c as Record<string, unknown>).what_changed as string || undefined,
           automationIntent: (c as Record<string, unknown>).automation_intent as Creative['automationIntent'] || undefined,
           automationStatus: (c as Record<string, unknown>).automation_status as Creative['automationStatus'] || undefined,
+          // New fields
+          ctaText: (c as Record<string, unknown>).cta_text as string || undefined,
+          publicationReference: (c as Record<string, unknown>).publication_reference as string || undefined,
         }))
       );
     }
@@ -133,6 +136,9 @@ export function useCreatives() {
       what_changed: creative.whatChanged || null,
       automation_intent: creative.automationIntent || null,
       automation_status: creative.automationStatus || null,
+      // New fields
+      cta_text: creative.ctaText || null,
+      publication_reference: creative.publicationReference || null,
     };
 
     const { data, error } = await supabase
@@ -193,6 +199,9 @@ export function useCreatives() {
     if (updates.whatChanged !== undefined) updateData.what_changed = updates.whatChanged;
     if (updates.automationIntent !== undefined) updateData.automation_intent = updates.automationIntent;
     if (updates.automationStatus !== undefined) updateData.automation_status = updates.automationStatus;
+    // New fields
+    if (updates.ctaText !== undefined) updateData.cta_text = updates.ctaText;
+    if (updates.publicationReference !== undefined) updateData.publication_reference = updates.publicationReference;
 
     const { error } = await supabase
       .from('creatives')

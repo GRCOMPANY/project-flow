@@ -87,6 +87,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["creative_channel"]
           copy: string | null
           created_at: string
+          cta_text: string | null
           engagement_level: string | null
           hook_text: string | null
           hook_type: string | null
@@ -104,6 +105,7 @@ export type Database = {
           metric_sales: number | null
           objective: Database["public"]["Enums"]["creative_objective"]
           product_id: string | null
+          publication_reference: string | null
           published_at: string | null
           result: Database["public"]["Enums"]["creative_result"]
           script: string | null
@@ -126,6 +128,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
+          cta_text?: string | null
           engagement_level?: string | null
           hook_text?: string | null
           hook_type?: string | null
@@ -143,6 +146,7 @@ export type Database = {
           metric_sales?: number | null
           objective?: Database["public"]["Enums"]["creative_objective"]
           product_id?: string | null
+          publication_reference?: string | null
           published_at?: string | null
           result?: Database["public"]["Enums"]["creative_result"]
           script?: string | null
@@ -165,6 +169,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["creative_channel"]
           copy?: string | null
           created_at?: string
+          cta_text?: string | null
           engagement_level?: string | null
           hook_text?: string | null
           hook_type?: string | null
@@ -182,6 +187,7 @@ export type Database = {
           metric_sales?: number | null
           objective?: Database["public"]["Enums"]["creative_objective"]
           product_id?: string | null
+          publication_reference?: string | null
           published_at?: string | null
           result?: Database["public"]["Enums"]["creative_result"]
           script?: string | null

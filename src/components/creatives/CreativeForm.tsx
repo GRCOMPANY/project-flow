@@ -16,6 +16,7 @@ import {
   CreativeType, 
   CreativeChannel, 
   CreativeObjective,
+  CreativeStatus,
   HookType,
   TargetAudience,
   MessageApproach,
@@ -27,21 +28,27 @@ import {
   TARGET_AUDIENCE_LABELS,
   MESSAGE_APPROACH_LABELS,
 } from '@/hooks/useCreativeIntelligence';
+import { Upload, Link } from 'lucide-react';
 
 interface CreativeFormData {
   productId: string;
   type: CreativeType;
   channel: CreativeChannel;
   objective: CreativeObjective;
+  status: CreativeStatus;
   targetAudience: TargetAudience | undefined;
   audienceNotes: string;
   hookType: HookType | undefined;
   hookText: string;
+  ctaText: string;                // NUEVO: CTA
   variation: string;
   messageApproach: MessageApproach | undefined;
   title: string;
   copy: string;
   learning: string;
+  imageUrl: string;               // Media
+  videoUrl: string;               // Media
+  publicationReference: string;   // NUEVO: Referencia de publicación
   metricLikes: number;
   metricComments: number;
   metricMessages: number;
@@ -68,15 +75,20 @@ const defaultFormData: CreativeFormData = {
   type: 'imagen',
   channel: 'instagram',
   objective: 'vender',
+  status: 'pendiente',
   targetAudience: undefined,
   audienceNotes: '',
   hookType: undefined,
   hookText: '',
+  ctaText: '',
   variation: 'A',
   messageApproach: undefined,
   title: '',
   copy: '',
   learning: '',
+  imageUrl: '',
+  videoUrl: '',
+  publicationReference: '',
   metricLikes: 0,
   metricComments: 0,
   metricMessages: 0,
@@ -87,6 +99,13 @@ const defaultFormData: CreativeFormData = {
   metricKnownPeople: undefined,
   engagementLevel: undefined,
 };
+
+const STATUS_OPTIONS: { value: CreativeStatus; label: string; emoji: string }[] = [
+  { value: 'pendiente', label: 'Borrador', emoji: '📝' },
+  { value: 'publicado', label: 'Publicado', emoji: '🚀' },
+  { value: 'generando', label: 'Pausado', emoji: '⏸️' },
+  { value: 'descartado', label: 'Cerrado', emoji: '✅' },
+];
 
 export function CreativeForm({ 
   products, 
@@ -103,15 +122,20 @@ export function CreativeForm({
         type: initialData.type || 'imagen',
         channel: initialData.channel || 'instagram',
         objective: initialData.objective || 'vender',
+        status: initialData.status || 'pendiente',
         targetAudience: initialData.targetAudience,
         audienceNotes: initialData.audienceNotes || '',
         hookType: initialData.hookType,
         hookText: initialData.hookText || '',
+        ctaText: initialData.ctaText || '',
         variation: initialData.variation || 'A',
         messageApproach: initialData.messageApproach,
         title: initialData.title || '',
         copy: initialData.copy || '',
         learning: initialData.learning || '',
+        imageUrl: initialData.imageUrl || '',
+        videoUrl: initialData.videoUrl || '',
+        publicationReference: initialData.publicationReference || '',
         metricLikes: initialData.metricLikes || 0,
         metricComments: initialData.metricComments || 0,
         metricMessages: initialData.metricMessages || 0,
@@ -128,9 +152,19 @@ export function CreativeForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('context');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+    
+    // Validación: Producto es OBLIGATORIO
+    if (!formData.productId) {
+      setValidationError('Debes seleccionar un producto para este experimento');
+      setActiveTab('context');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       await onSubmit(formData);
@@ -141,29 +175,45 @@ export function CreativeForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {validationError && (
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
+          ⚠️ {validationError}
+        </div>
+      )}
+      
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="context">A. Contexto</TabsTrigger>
-          <TabsTrigger value="message">B. Mensaje</TabsTrigger>
-          <TabsTrigger value="metrics">C. Métricas</TabsTrigger>
-          <TabsTrigger value="learning">D. Aprendizaje</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="context">Contexto</TabsTrigger>
+          <TabsTrigger value="message">Mensaje</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="metrics">Métricas</TabsTrigger>
+          <TabsTrigger value="learning">Aprendizaje</TabsTrigger>
         </TabsList>
 
         {/* BLOQUE A: Contexto */}
         <TabsContent value="context" className="space-y-4 pt-4">
           <div>
-            <Label>Producto</Label>
+            <Label className="text-base font-medium">
+              Producto <span className="text-destructive">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Todo creativo es un experimento asociado a un producto específico
+            </p>
             <Select
-              value={formData.productId || 'none'}
-              onValueChange={(v) => setFormData({ ...formData, productId: v === 'none' ? '' : v })}
+              value={formData.productId || ''}
+              onValueChange={(v) => {
+                setFormData({ ...formData, productId: v });
+                setValidationError(null);
+              }}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar producto" />
+              <SelectTrigger className={!formData.productId && validationError ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Seleccionar producto..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Sin producto</SelectItem>
                 {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>
+                    📦 {p.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -171,7 +221,7 @@ export function CreativeForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Tipo</Label>
+              <Label>Tipo de creativo</Label>
               <Select
                 value={formData.type}
                 onValueChange={(v) => setFormData({ ...formData, type: v as CreativeType })}
@@ -182,7 +232,10 @@ export function CreativeForm({
                 <SelectContent>
                   <SelectItem value="imagen">🖼️ Imagen</SelectItem>
                   <SelectItem value="video">🎬 Video</SelectItem>
+                  <SelectItem value="historia">📱 Historia/Story</SelectItem>
+                  <SelectItem value="carrusel">🔄 Carrusel</SelectItem>
                   <SelectItem value="copy">✍️ Copy</SelectItem>
+                  <SelectItem value="anuncio">📢 Anuncio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -318,11 +371,11 @@ export function CreativeForm({
           </div>
 
           <div>
-            <Label>Título del creativo</Label>
+            <Label>Título interno del creativo</Label>
             <Input
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Nombre interno del creativo"
+              placeholder="Nombre para identificar este experimento"
             />
           </div>
 
@@ -335,9 +388,102 @@ export function CreativeForm({
               rows={4}
             />
           </div>
+
+          <div>
+            <Label className="flex items-center gap-2">
+              CTA (Call to Action)
+              <span className="text-xs text-muted-foreground">(recomendado)</span>
+            </Label>
+            <Input
+              value={formData.ctaText}
+              onChange={(e) => setFormData({ ...formData, ctaText: e.target.value })}
+              placeholder="Ej: Escríbeme ahora • Compra aquí • Ver más..."
+            />
+          </div>
         </TabsContent>
 
-        {/* BLOQUE C: Métricas */}
+        {/* BLOQUE C: Media (NUEVO) */}
+        <TabsContent value="media" className="space-y-4 pt-4">
+          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+            <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              Archivos del creativo
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Adjunta la imagen o video final de este experimento.
+            </p>
+          </div>
+
+          <div>
+            <Label>URL de imagen</Label>
+            <div className="flex gap-2">
+              <Input
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                placeholder="https://... o sube una imagen"
+              />
+            </div>
+            {formData.imageUrl && (
+              <div className="mt-2">
+                <img 
+                  src={formData.imageUrl} 
+                  alt="Preview" 
+                  className="w-32 h-32 object-cover rounded-lg border"
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <Label>URL de video</Label>
+            <Input
+              value={formData.videoUrl}
+              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+              placeholder="https://... enlace al video"
+            />
+          </div>
+
+          <div className="pt-4 border-t">
+            <Label className="flex items-center gap-2">
+              <Link className="w-4 h-4" />
+              Referencia de publicación
+            </Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Identifica dónde y cuándo se publicó este creativo
+            </p>
+            <Input
+              value={formData.publicationReference}
+              onChange={(e) => setFormData({ ...formData, publicationReference: e.target.value })}
+              placeholder="Ej: Historia IG 06/02, Post FB jueves, Reel #15..."
+            />
+          </div>
+
+          <div className="pt-4 border-t">
+            <Label>Estado del creativo</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(v) => setFormData({ ...formData, status: v as CreativeStatus })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.emoji} {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {formData.status === 'descartado' && (
+              <p className="text-xs text-amber-600 mt-2">
+                ⚠️ Al cerrar el experimento, el campo de aprendizaje será obligatorio.
+              </p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* BLOQUE D: Métricas */}
         <TabsContent value="metrics" className="pt-4">
           <CreativeMetricsForm
             channel={formData.channel}
@@ -356,20 +502,23 @@ export function CreativeForm({
           />
         </TabsContent>
 
-        {/* BLOQUE D: Aprendizaje */}
+        {/* BLOQUE E: Aprendizaje */}
         <TabsContent value="learning" className="space-y-4 pt-4">
           <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
             <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
               🧠 Memoria del Negocio
             </h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Este campo es obligatorio. Documenta qué aprendiste de este creativo para mejorar los siguientes.
+              Este campo es <strong>obligatorio al cerrar</strong> el experimento. Documenta qué aprendiste para mejorar los siguientes.
             </p>
           </div>
 
           <div>
             <Label className="text-base font-medium">
               ¿Qué aprendiste de este creativo?
+              {formData.status === 'descartado' && (
+                <span className="text-destructive ml-1">*</span>
+              )}
             </Label>
             <Textarea
               value={formData.learning}
@@ -404,7 +553,7 @@ export function CreativeForm({
             ? 'Guardando...' 
             : isEditing 
             ? 'Guardar cambios' 
-            : 'Crear creativo'
+            : 'Crear experimento'
           }
         </Button>
       </div>
