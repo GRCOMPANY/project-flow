@@ -1,291 +1,255 @@
 
-# Plan: Tipo de Venta Obligatorio - Separación Directa vs Revendedor
+# Plan: GRC AI OS - Sistema Completo de Creativos, Ventas y Revendedores
 
 ## Resumen Ejecutivo
 
-Este plan implementa la separación explícita entre **Venta Directa** (al cliente final) y **Venta a Revendedor** (mayorista), eliminando cualquier ambiguedad conceptual. El campo "Tipo de Venta" será obligatorio y gobernará toda la lógica del formulario, cálculos y métricas.
+Este plan corrige y mejora los tres módulos principales del sistema para reflejar correctamente la lógica del negocio de e-commerce con modelo de reventa. Se enfoca en:
+
+1. **Creativos como experimentos comerciales** con campos obligatorios y flujo de evaluación
+2. **Ventas diferenciadas** entre directas y a revendedores (ya implementado, requiere ajustes)
+3. **Revendedores como clientes B2B** sin comisiones (ya implementado correctamente)
+4. **Dashboard integrado** que suma ambos tipos de venta
 
 ---
 
-## Estado Actual vs Estado Objetivo
+## Estado Actual del Sistema
 
-| Aspecto | Actual | Objetivo |
-|---------|--------|----------|
-| Tipo de venta | Implícito (si hay reseller o no) | **Explícito y obligatorio** |
-| Campo revendedor | Siempre visible (opcional) | Solo si tipo = "revendedor" |
-| Precio final | Opcional en todos los casos | **Obligatorio** en venta directa |
-| Precio revendedor | Siempre visible | Solo en venta a revendedor |
-| Dashboard | Métricas globales | Métricas **separadas por tipo** |
-| UX | Confusa | Clara con mensajes contextuales |
+### Ya Implementado Correctamente
+| Módulo | Estado |
+|--------|--------|
+| sale_type obligatorio | Implementado |
+| Separación directa vs revendedor | Implementado |
+| Revendedores sin comisión | Implementado |
+| Dashboard con métricas separadas | Implementado |
+| Cálculos de márgenes automáticos | Implementado |
+| Financial Freeze (costos congelados) | Implementado |
+
+### Requiere Mejoras
+| Módulo | Problema | Prioridad |
+|--------|----------|-----------|
+| Creativos | Producto no es obligatorio | ALTA |
+| Creativos | Falta campo de referencia de publicación | MEDIA |
+| Creativos | Estados no reflejan el ciclo real | ALTA |
+| Creativos | Aprendizaje no es obligatorio al cerrar | ALTA |
+| Creativos | Falta campo CTA | MEDIA |
+| Tipo de creativo | Faltan story/reel en UI | BAJA |
 
 ---
 
-## Fase 1: Cambios en Base de Datos
+## Fase 1: Mejoras al Módulo de Creativos
 
-### 1.1 Agregar campo `sale_type` a tabla `sales`
+### 1.1 Hacer Producto Obligatorio
 
-```sql
--- Tipo de venta obligatorio
-CREATE TYPE sale_type AS ENUM ('directa', 'revendedor');
+**Problema:** Actualmente el producto es opcional ("Sin producto" es una opción válida)
 
-ALTER TABLE sales ADD COLUMN sale_type sale_type NOT NULL DEFAULT 'revendedor';
-
--- Migrar datos existentes
-UPDATE sales 
-SET sale_type = CASE 
-  WHEN seller_id IS NOT NULL THEN 'revendedor'::sale_type
-  ELSE 'directa'::sale_type
-END;
-
-COMMENT ON COLUMN sales.sale_type IS 
-  'Tipo de venta: directa (cliente final) o revendedor (mayorista). Gobierna toda la lógica de precios y métricas.';
+**Solución:**
+```typescript
+// src/components/creatives/CreativeForm.tsx
+// Eliminar opción "Sin producto" del selector
+// Agregar validación obligatoria
 ```
 
----
+**Cambios en UI:**
+- Quitar `<SelectItem value="none">Sin producto</SelectItem>`
+- Agregar asterisco rojo (*) al label
+- Bloquear submit si no hay producto seleccionado
 
-## Fase 2: Actualización de Tipos TypeScript
+### 1.2 Actualizar Estados del Creativo
 
-### 2.1 Nuevo tipo `SaleType`
+**Problema:** Los estados actuales son confusos:
+- `pendiente`, `generando`, `generado`, `publicado`, `descartado`
 
+**Solución:** Cambiar a estados que reflejan el ciclo real:
 ```typescript
-// src/types/index.ts
+export type CreativeStatus = 
+  | 'borrador'      // En preparación
+  | 'publicado'     // En circulación activa
+  | 'pausado'       // Detenido temporalmente
+  | 'cerrado';      // Experimento terminado (requiere learning)
+```
 
-export type SaleType = 'directa' | 'revendedor';
+**Migración de datos:**
+```sql
+-- Mapear estados existentes
+UPDATE creatives SET status = 
+  CASE status
+    WHEN 'pendiente' THEN 'borrador'
+    WHEN 'generando' THEN 'borrador'
+    WHEN 'generado' THEN 'borrador'
+    WHEN 'publicado' THEN 'publicado'
+    WHEN 'descartado' THEN 'cerrado'
+  END;
+```
 
-export interface Sale {
-  id: string;
-  
-  // NUEVO: Tipo de venta (obligatorio)
-  saleType: SaleType;
-  
-  // Producto (siempre obligatorio)
-  productId: string;
-  product?: Product;
-  
-  // Revendedor (solo si saleType = 'revendedor')
-  sellerId?: string;
-  seller?: Seller;
-  
-  // Cliente final (nombre/telefono)
-  // Obligatorio si saleType = 'directa'
-  // Opcional si saleType = 'revendedor'
-  clientName?: string;
-  clientPhone?: string;
-  
-  // Precios
-  quantity: number;
-  unitPrice: number;           // Precio de venta (obligatorio)
-  totalAmount: number;
-  
-  // Precio revendedor: solo si saleType = 'revendedor'
-  resellerPrice?: number;
-  
-  // Precio final: 
-  // - OBLIGATORIO si saleType = 'directa'
-  // - Opcional (informativo) si saleType = 'revendedor'
-  finalPrice?: number;
-  
-  // Ganancia del revendedor (informativo)
-  resellerProfit?: number;
-  
-  // ... resto de campos existentes
+### 1.3 Agregar Campos Faltantes
+
+**Base de datos - Nueva migración:**
+```sql
+-- Campo para referencia de publicación
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS 
+  publication_reference text;
+
+-- Campo para CTA
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS 
+  cta_text text;
+```
+
+**TypeScript:**
+```typescript
+interface Creative {
+  // ... campos existentes ...
+  publicationReference?: string;  // "Historia IG 06/02"
+  ctaText?: string;               // "Escríbeme ahora"
 }
 ```
 
----
+### 1.4 Forzar Aprendizaje al Cerrar
 
-## Fase 3: Lógica del Hook `useSales`
+**Lógica:**
+- Al cambiar estado a `cerrado`, el campo `learning` se vuelve obligatorio
+- Mostrar modal de confirmación con textarea obligatoria
+- No permitir cerrar sin documentar aprendizaje
 
-### 3.1 Actualizar `addSale` con validaciones por tipo
-
-```text
-VENTA DIRECTA (saleType = 'directa'):
-├── Validaciones:
-│   ├── finalPrice → OBLIGATORIO (es tu precio de venta)
-│   ├── sellerId → IGNORAR (null)
-│   └── resellerPrice → IGNORAR (null)
-├── Cálculos:
-│   ├── unitPrice = finalPrice
-│   ├── totalAmount = finalPrice × quantity
-│   ├── costAtSale = product.costPrice
-│   ├── marginAtSale = finalPrice - costAtSale
-│   └── marginPercentAtSale = ((finalPrice - cost) / cost) × 100
-
-VENTA A REVENDEDOR (saleType = 'revendedor'):
-├── Validaciones:
-│   ├── sellerId → OBLIGATORIO
-│   ├── resellerPrice → OBLIGATORIO
-│   └── finalPrice → OPCIONAL (informativo)
-├── Cálculos:
-│   ├── unitPrice = resellerPrice
-│   ├── totalAmount = resellerPrice × quantity
-│   ├── costAtSale = product.costPrice
-│   ├── marginAtSale = resellerPrice - costAtSale
-│   ├── marginPercentAtSale = ((resellerPrice - cost) / cost) × 100
-│   └── resellerProfit = finalPrice - resellerPrice (si hay finalPrice)
-```
-
----
-
-## Fase 4: Rediseño del Formulario "Nueva Venta"
-
-### 4.1 Estructura del Formulario Condicional
-
+**UI - Nuevo modal:**
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  NUEVA VENTA                                                     │
+│  🧠 CIERRE DE EXPERIMENTO                                       │
 │  ═══════════════════════════════════════════════════════════    │
 │                                                                  │
-│  🎯 TIPO DE VENTA (Obligatorio)                                  │
-│  ─────────────────────────────────────────────────────────────  │
-│  ┌─────────────────────────┐ ┌─────────────────────────┐        │
-│  │ 🔵 VENTA DIRECTA        │ │ 🟢 VENTA A REVENDEDOR   │        │
-│  │    Cliente final        │ │    Mayorista            │        │
-│  │    Ingreso directo      │ │    Venta por volumen    │        │
-│  └─────────────────────────┘ └─────────────────────────┘        │
+│  Antes de cerrar este creativo, documenta lo aprendido:         │
 │                                                                  │
-│  [Mensaje contextual según selección]                            │
+│  ¿Qué funcionó? *                                               │
+│  [________________________________________________]             │
 │                                                                  │
-│══════════════════════════════════════════════════════════════   │
+│  ¿Qué no funcionó? *                                            │
+│  [________________________________________________]             │
 │                                                                  │
-│  📦 PRODUCTO (siempre visible)                                   │
-│  ─────────────────────────────────────────────────────────────  │
-│  [Select: Producto *]         Cantidad: [1]                      │
+│  ¿Qué repetirías? *                                             │
+│  [________________________________________________]             │
 │                                                                  │
-│══════════════════════════════════════════════════════════════   │
-│                                                                  │
-│  [SECCIÓN CONDICIONAL SEGÚN TIPO]                                │
-│                                                                  │
+│  [Cancelar]                        [Cerrar experimento]          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Sección Condicional: VENTA DIRECTA
+### 1.5 Reorganizar Formulario de Creativo
+
+**Estructura propuesta:**
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  💵 VENTA DIRECTA - Cliente Final                                │
-│  ─────────────────────────────────────────────────────────────  │
-│  "Esta venta genera ingreso directo para GRC"                    │
-│                                                                  │
-│  📞 CLIENTE                                                      │
-│  ┌─────────────────────┐ ┌─────────────────────┐                │
-│  │ Nombre *            │ │ Teléfono (WhatsApp) │                │
-│  └─────────────────────┘ └─────────────────────┘                │
-│                                                                  │
-│  💰 PRECIO                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Precio de venta (final) *:  [$600]                          ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ CÁLCULO AUTOMÁTICO (Admin)                                  ││
-│  │ ───────────────────────────────────────────────────         ││
-│  │ Tu costo:           $300                                    ││
-│  │ Precio de venta:    $600                                    ││
-│  │ ─────────────────────────────────────                       ││
-│  │ TU GANANCIA:        +$300 (100%)  ✅                        ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                  │
-│  👤 Revendedor:  ❌ NO APLICA (oculto)                           │
-└─────────────────────────────────────────────────────────────────┘
-```
+PESTAÑA A: CONTEXTO (ya existe)
+├── Producto * (obligatorio)
+├── Tipo (imagen/video/story/reel/carrusel/copy)
+├── Canal (Instagram/Facebook/TikTok/WhatsApp/Web)
+├── Objetivo (vender/atraer/probar)
+├── Público objetivo
+└── Notas sobre público
 
-### 4.3 Sección Condicional: VENTA A REVENDEDOR
+PESTAÑA B: MENSAJE (ya existe, agregar CTA)
+├── Tipo de hook
+├── Texto del hook
+├── Enfoque del mensaje
+├── Título interno
+├── Copy completo
+└── CTA (NUEVO) *
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  🤝 VENTA A REVENDEDOR - Mayorista                               │
-│  ─────────────────────────────────────────────────────────────  │
-│  "GRC vende el producto al revendedor, no al cliente final"      │
-│                                                                  │
-│  👤 REVENDEDOR                                                   │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Seleccionar revendedor *:  [Dropdown]                       ││
-│  │ + Crear nuevo revendedor                                    ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                  │
-│  💰 PRECIOS                                                      │
-│  ┌─────────────────────┐ ┌─────────────────────┐                │
-│  │ Precio revendedor * │ │ Precio final (opc.) │                │
-│  │ [$450]              │ │ [$600]              │                │
-│  │ (tu ingreso)        │ │ (informativo)       │                │
-│  └─────────────────────┘ └─────────────────────┘                │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ CÁLCULO AUTOMÁTICO (Admin)                                  ││
-│  │ ───────────────────────────────────────────────────         ││
-│  │ Tu costo:                $300                               ││
-│  │ Precio revendedor:       $450                               ││
-│  │ ─────────────────────────────────────                       ││
-│  │ TU GANANCIA:             +$150 (50%)  ✅                    ││
-│  │                                                             ││
-│  │ Ganancia revendedor:     $150 (informativo)                 ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                  │
-│  📞 CLIENTE FINAL (Opcional)                                     │
-│  ┌─────────────────────┐ ┌─────────────────────┐                │
-│  │ Nombre              │ │ Teléfono            │                │
-│  │ (solo referencia)   │ │ (solo referencia)   │                │
-│  └─────────────────────┘ └─────────────────────┘                │
-└─────────────────────────────────────────────────────────────────┘
+PESTAÑA C: MEDIA (NUEVA PESTAÑA)
+├── Subir imagen (Supabase Storage)
+├── Subir/enlazar video
+├── Referencia de publicación (NUEVO)
+│   └── "Historia IG 06/02" / "Post FB 07/02"
+└── Estado del creativo
+
+PESTAÑA D: MÉTRICAS (ya existe)
+├── Likes
+├── Comentarios
+├── Mensajes recibidos
+├── Ventas generadas
+├── Personas conocidas
+└── Engagement percibido
+
+PESTAÑA E: APRENDIZAJE (ya existe)
+└── Campo de texto obligatorio al cerrar
 ```
 
 ---
 
-## Fase 5: Rediseño del Dashboard
+## Fase 2: Ajustes Menores al Módulo de Ventas
 
-### 5.1 Métricas Separadas por Tipo
+### 2.1 Estado Actual - Ya Correcto
+El módulo de ventas ya tiene implementado:
+- Campo `sale_type` obligatorio (directa/revendedor)
+- Formulario condicional según tipo
+- Cálculos automáticos de márgenes
+- Dashboard con métricas separadas
 
+### 2.2 Mejoras Menores Sugeridas
+
+**Validaciones adicionales:**
+```typescript
+// Venta directa: precio final REQUERIDO
+if (saleType === 'directa' && !finalPrice) {
+  toast({ 
+    title: 'Error', 
+    description: 'El precio final es obligatorio en ventas directas',
+    variant: 'destructive' 
+  });
+  return;
+}
+
+// Venta a revendedor: revendedor REQUERIDO
+if (saleType === 'revendedor' && !resellerId) {
+  toast({ 
+    title: 'Error', 
+    description: 'Debes seleccionar un revendedor',
+    variant: 'destructive' 
+  });
+  return;
+}
+```
+
+**UI - Marcar campos obligatorios visualmente:**
+- Precio final: obligatorio en venta directa
+- Revendedor: obligatorio en venta a revendedor
+- Precio revendedor: obligatorio en venta a revendedor
+
+---
+
+## Fase 3: El Módulo de Revendedores Ya Está Correcto
+
+### Estado Actual - Sin Cambios Necesarios
+- Sin comisiones (campo legacy ignorado)
+- Tipo: revendedor/mayorista/interno
+- Stats agregados: total comprado, pendiente, última venta
+- Vista de detalle con historial de compras
+
+---
+
+## Fase 4: Dashboard Integrado
+
+### 4.1 Métricas Existentes (Ya Implementadas)
+El dashboard de ventas ya muestra:
+- Total vendido (global)
+- Ventas directas (separadas)
+- Ventas a revendedores (separadas)
+- Pendiente por cobrar
+- Cobrado
+- Ganancia neta
+- Margen promedio
+
+### 4.2 Mejora Propuesta - Sección de Creativos en Dashboard
+
+Agregar al Command Center:
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  DASHBOARD DE VENTAS                                             │
-│  ═══════════════════════════════════════════════════════════    │
-│                                                                  │
-│  📊 RESUMEN GLOBAL                                               │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐   │
-│  │ $75,000    │ │ $15,000    │ │ $60,000    │ │ $28,000    │   │
-│  │ Total      │ │ Pendiente  │ │ Cobrado    │ │ Ganancia   │   │
-│  │ vendido    │ │ por cobrar │ │            │ │ neta       │   │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘   │
-│                                                                  │
-│  ═══════════════════════════════════════════════════════════    │
-│                                                                  │
-│  🔵 VENTAS DIRECTAS                🟢 VENTAS A REVENDEDORES     │
-│  ─────────────────────────────     ─────────────────────────    │
-│  │ $30,000 (12 ventas)     │       │ $45,000 (28 ventas)   │    │
-│  │ Pendiente: $5,000       │       │ Pendiente: $10,000    │    │
-│  │ Cobrado: $25,000        │       │ Cobrado: $35,000      │    │
-│  │ Margen: 85%             │       │ Margen: 45%           │    │
-│  └─────────────────────────┘       └─────────────────────────┘  │
-│                                                                  │
-│  📋 SEGUIMIENTO                                                  │
+│  🎨 CREATIVOS                                                    │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐                   │
-│  │ 5          │ │ 2          │ │ 8          │                   │
-│  │ Sin        │ │ En riesgo  │ │ Pendiente  │                   │
-│  │ confirmar  │ │            │ │ acción     │                   │
+│  │ 12         │ │ 4          │ │ 33%        │                   │
+│  │ Total      │ │ Calientes  │ │ Efectividad│                   │
+│  │ creativos  │ │ 🔥         │ │            │                   │
 │  └────────────┘ └────────────┘ └────────────┘                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Fase 6: Tarjeta de Venta (SaleCard) con Tipo Visible
-
-### 6.1 Indicador Visual de Tipo
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  [🔵 DIRECTA] o [🟢 REVENDEDOR]                                  │
 │                                                                  │
-│  📦 iPhone Case ×2                                    $900      │
-│                                                                  │
-│  👤 María González  📱 +52 55 1234 5678                          │
-│  📅 06 Feb 2026  💬 WhatsApp  💳 Contra entrega                  │
-│                                                                  │
-│  [Si es REVENDEDOR, mostrar:]                                    │
-│  🤝 Revendedor: Carlos Mendoza                                   │
-│                                                                  │
-│  [Badges de estado...]                                           │
+│  Hook más efectivo: 💰 Precio                                    │
+│  Canal top: 📸 Instagram                                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -296,27 +260,25 @@ VENTA A REVENDEDOR (saleType = 'revendedor'):
 ### Base de Datos
 | Archivo | Cambios |
 |---------|---------|
-| Nueva migración | Crear tipo `sale_type`, agregar columna a `sales` |
+| Nueva migración | Agregar `publication_reference`, `cta_text`, actualizar enum `creative_status` |
 
 ### Tipos
 | Archivo | Cambios |
 |---------|---------|
-| `src/types/index.ts` | Agregar `SaleType`, actualizar `Sale` interface |
+| `src/types/index.ts` | Actualizar `CreativeStatus`, agregar `publicationReference`, `ctaText` |
 
-### Hooks
+### Componentes de Creativos
 | Archivo | Cambios |
 |---------|---------|
-| `src/hooks/useSales.ts` | Validaciones por tipo, lógica de cálculos condicional |
+| `src/components/creatives/CreativeForm.tsx` | Hacer producto obligatorio, agregar pestaña Media, agregar campo CTA |
+| `src/components/creatives/CreativeCard.tsx` | Mostrar estado con colores apropiados |
+| `src/hooks/useCreatives.ts` | Mapear nuevos campos |
+| `src/pages/Creatives.tsx` | Agregar modal de cierre con aprendizaje obligatorio |
 
-### Páginas
+### Componentes de Ventas
 | Archivo | Cambios |
 |---------|---------|
-| `src/pages/Sales.tsx` | Formulario condicional, dashboard separado, SaleCard con tipo |
-
-### Integración Supabase
-| Archivo | Cambios |
-|---------|---------|
-| `src/integrations/supabase/types.ts` | Actualizar con nuevo campo `sale_type` |
+| `src/pages/Sales.tsx` | Agregar validaciones visuales más claras |
 
 ---
 
@@ -324,133 +286,111 @@ VENTA A REVENDEDOR (saleType = 'revendedor'):
 
 ```text
 Paso 1: Migración de base de datos
-        ├── Crear enum sale_type
-        ├── Agregar columna sale_type a sales
-        └── Migrar datos existentes
+        ├── Agregar campos publication_reference, cta_text
+        └── Considerar actualización de status enum (opcional)
 
 Paso 2: Actualizar tipos TypeScript
-        ├── Agregar SaleType
-        └── Actualizar Sale interface
+        ├── Agregar nuevos campos a Creative
+        └── Mantener compatibilidad con estados existentes
 
-Paso 3: Actualizar hook useSales
-        ├── Agregar validaciones por tipo
-        ├── Lógica de cálculos condicional
-        └── Mapear nuevo campo desde/hacia DB
+Paso 3: Actualizar formulario de creativos
+        ├── Hacer producto obligatorio
+        ├── Agregar pestaña/sección Media
+        ├── Agregar campo CTA
+        └── Agregar campo referencia de publicación
 
-Paso 4: Rediseñar formulario Sales.tsx
-        ├── Selector de tipo de venta (obligatorio)
-        ├── Secciones condicionales
-        └── Mensajes contextuales
+Paso 4: Agregar modal de cierre de experimento
+        ├── Detectar cambio a estado "cerrado"
+        └── Forzar documentación de aprendizaje
 
-Paso 5: Actualizar dashboard
-        ├── Métricas separadas por tipo
-        └── Totales globales
+Paso 5: Mejorar validaciones en ventas
+        ├── Marcar campos obligatorios visualmente
+        └── Agregar mensajes de error específicos
 
-Paso 6: Actualizar SaleCard
-        ├── Badge de tipo visible
-        └── Info condicional según tipo
+Paso 6: (Opcional) Agregar sección creativos al Command Center
 ```
 
 ---
 
-## Validaciones Críticas
+## Resumen de Cambios por Prioridad
 
-| Validación | Venta Directa | Venta Revendedor |
-|------------|---------------|------------------|
-| Tipo de venta | OBLIGATORIO | OBLIGATORIO |
-| Producto | OBLIGATORIO | OBLIGATORIO |
-| Revendedor | NO APLICA | OBLIGATORIO |
-| Precio revendedor | NO APLICA | OBLIGATORIO |
-| Precio final | OBLIGATORIO | Opcional |
-| Cliente nombre | Recomendado | Opcional |
-| Cliente teléfono | Recomendado | Opcional |
+### PRIORIDAD ALTA
+1. Hacer producto obligatorio en creativos
+2. Agregar campo CTA al formulario de creativos
+3. Forzar aprendizaje al cerrar experimento
+4. Agregar referencia de publicación
 
----
+### PRIORIDAD MEDIA
+5. Agregar pestaña/sección Media para subir archivos
+6. Mejorar validaciones visuales en ventas
+7. Agregar sección creativos al Command Center
 
-## Mensajes de UI
-
-### Venta Directa
-- Header: "💵 Venta directa al cliente final"
-- Subtítulo: "Esta venta genera ingreso directo para GRC"
-
-### Venta a Revendedor
-- Header: "🤝 Venta a revendedor (mayorista)"
-- Subtítulo: "GRC vende el producto al revendedor, no al cliente final"
-
----
-
-## Resultado Esperado
-
-1. **Claridad total**: El tipo de venta es explícito y obligatorio
-2. **Sin ambigüedades**: Campos y cálculos dependen del tipo seleccionado
-3. **Dashboard informativo**: Métricas separadas por tipo de venta
-4. **Validaciones robustas**: No se pueden crear ventas inconsistentes
-5. **UI intuitiva**: Mensajes claros que explican cada tipo
-6. **Escalable**: Preparado para filtros, reportes y automatización futura
+### YA IMPLEMENTADO (No requiere cambios)
+- sale_type obligatorio
+- Separación directa vs revendedor
+- Revendedores sin comisión
+- Dashboard con métricas separadas
+- Cálculos de márgenes automáticos
 
 ---
 
 ## Sección Técnica
 
-### Enum en PostgreSQL
+### Migración SQL
 
 ```sql
-CREATE TYPE sale_type AS ENUM ('directa', 'revendedor');
+-- Agregar campos faltantes a creatives
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS publication_reference text;
+ALTER TABLE creatives ADD COLUMN IF NOT EXISTS cta_text text;
+
+-- Comentarios descriptivos
+COMMENT ON COLUMN creatives.publication_reference IS 
+  'Referencia de publicación: ej. "Historia IG 06/02", "Post FB"';
+COMMENT ON COLUMN creatives.cta_text IS 
+  'Call to Action principal del creativo';
 ```
 
-### Validación en Hook
+### Nuevo Storage Bucket (si se implementa subida de media)
+
+```sql
+-- Crear bucket para creativos
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('creatives', 'creatives', true);
+
+-- Política de acceso
+CREATE POLICY "Allow authenticated uploads to creatives" 
+ON storage.objects FOR INSERT 
+TO authenticated 
+WITH CHECK (bucket_id = 'creatives');
+```
+
+### Validación de Cierre de Experimento
 
 ```typescript
-const addSale = async (sale: SaleInput) => {
-  // Validación obligatoria
-  if (!sale.saleType) {
-    toast({ title: 'Error', description: 'Debes seleccionar el tipo de venta', variant: 'destructive' });
-    return null;
+const handleStatusChange = async (newStatus: CreativeStatus) => {
+  if (newStatus === 'cerrado') {
+    // Verificar que el campo learning tenga contenido
+    if (!creative.learning || creative.learning.trim().length < 20) {
+      setShowClosureModal(true);
+      return;
+    }
   }
-  
-  if (sale.saleType === 'revendedor' && !sale.sellerId) {
-    toast({ title: 'Error', description: 'Debes seleccionar un revendedor', variant: 'destructive' });
-    return null;
-  }
-  
-  if (sale.saleType === 'directa' && !sale.finalPrice) {
-    toast({ title: 'Error', description: 'El precio final es obligatorio en ventas directas', variant: 'destructive' });
-    return null;
-  }
-  
-  // Cálculos según tipo...
+  await updateCreative(creative.id, { status: newStatus });
 };
 ```
 
-### Estado del Formulario
+---
 
-```typescript
-// Nuevo estado
-const [saleType, setSaleType] = useState<SaleType | null>(null);
+## Resultado Esperado
 
-// Computed: mostrar/ocultar secciones
-const showResellerSection = saleType === 'revendedor';
-const showDirectPricingSection = saleType === 'directa';
-const isResellerRequired = saleType === 'revendedor';
-const isFinalPriceRequired = saleType === 'directa';
-```
+1. **Creativos como experimentos**: Cada creativo documenta un experimento comercial completo con producto, mensaje, métricas y aprendizaje
+2. **Ventas claras**: Separación total entre venta directa y venta a revendedor con validaciones apropiadas
+3. **Revendedores operativos**: Tracking de compras, deudas y relación comercial sin modelo de comisión
+4. **Dashboard útil**: Visibilidad completa del estado financiero separado por canal de venta
+5. **Memoria del negocio**: Cada creativo cerrado deja aprendizaje documentado para futuras decisiones
 
-### Cálculo de Stats Separados
-
-```typescript
-const stats = useMemo(() => {
-  const directSales = sales.filter(s => s.saleType === 'directa');
-  const resellerSales = sales.filter(s => s.saleType === 'revendedor');
-  
-  return {
-    // Globales
-    totalSold: sales.reduce((sum, s) => sum + s.totalAmount, 0),
-    // Por tipo
-    directTotal: directSales.reduce((sum, s) => sum + s.totalAmount, 0),
-    directCount: directSales.length,
-    resellerTotal: resellerSales.reduce((sum, s) => sum + s.totalAmount, 0),
-    resellerCount: resellerSales.length,
-    // ... más métricas
-  };
-}, [sales]);
-```
+El sistema quedará:
+- Manual pero estructurado
+- Preparado para automatización futura (n8n)
+- Listo para análisis de rentabilidad por canal
+- Con data limpia para futura IA
