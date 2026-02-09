@@ -42,8 +42,8 @@ export function useSuppliers() {
   };
 
   useEffect(() => {
-    fetchSuppliers();
-  }, []);
+    if (currentCompany) fetchSuppliers();
+  }, [currentCompany?.id]);
 
   const addSupplier = async (supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => {
     const { data, error } = await supabase
