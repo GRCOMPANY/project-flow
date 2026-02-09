@@ -17,6 +17,7 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const { currentCompany, isCompanyAdmin } = useCompany();
 
   const fetchProducts = async () => {
     setLoading(true);
