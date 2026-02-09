@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Product, MarginLevel } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
 
 // Helper para calcular nivel de margen
 function getMarginLevel(marginPercent: number): MarginLevel {
