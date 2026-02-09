@@ -124,8 +124,8 @@ export function useCreatives() {
   };
 
   useEffect(() => {
-    fetchCreatives();
-  }, []);
+    if (currentCompany) fetchCreatives();
+  }, [currentCompany?.id]);
 
   const addCreative = async (creative: Omit<Creative, 'id' | 'createdAt' | 'updatedAt' | 'product'>) => {
     const insertData: Record<string, unknown> = {
