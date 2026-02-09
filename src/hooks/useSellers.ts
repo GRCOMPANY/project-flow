@@ -54,10 +54,12 @@ export function useSellers() {
   }, []);
 
   const fetchSellers = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('sellers')
       .select('*')
+      .eq('company_id', currentCompany.id)
       .order('name', { ascending: true });
 
     if (error) {
