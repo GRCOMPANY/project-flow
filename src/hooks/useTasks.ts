@@ -153,7 +153,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, currentCompany]);
 
   // Sincronizar tareas automáticas
   const syncAutomaticTasks = useCallback(async () => {
