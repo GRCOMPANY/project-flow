@@ -76,6 +76,7 @@ export function useTasks() {
 
   // Cargar tareas de la base de datos
   const fetchTasks = useCallback(async () => {
+    if (!currentCompany) { setLoading(false); return; }
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -87,6 +88,7 @@ export function useTasks() {
           assigned_user:profiles(id, full_name, avatar_url),
           outcome:task_outcomes(*)
         `)
+        .eq('company_id', currentCompany.id)
         .order('priority', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -151,7 +153,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, currentCompany]);
 
   // Sincronizar tareas automáticas
   const syncAutomaticTasks = useCallback(async () => {

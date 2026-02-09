@@ -11,7 +11,7 @@ export function useCreatives() {
   const { currentCompany } = useCompany();
 
   const fetchCreatives = async () => {
-    if (!currentCompany) return;
+    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('creatives')

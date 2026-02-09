@@ -54,6 +54,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .eq('status', 'active');
 
     if (cuError || !cuData) {
+      console.error('Error fetching companies:', cuError);
       setLoading(false);
       return;
     }
