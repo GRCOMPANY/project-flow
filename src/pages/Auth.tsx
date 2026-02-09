@@ -80,7 +80,7 @@ export default function Auth() {
     if (!validateInputs(true)) return;
     
     setIsSubmitting(true);
-    const { error } = await signUp(email, password, fullName, role);
+    const { error } = await signUp(email, password, fullName, role, companyName || undefined);
     setIsSubmitting(false);
 
     if (error) {
