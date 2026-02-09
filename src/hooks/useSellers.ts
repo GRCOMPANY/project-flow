@@ -93,8 +93,8 @@ export function useSellers() {
   };
 
   useEffect(() => {
-    fetchSellers();
-  }, []);
+    if (currentCompany) fetchSellers();
+  }, [currentCompany?.id]);
 
   const addSeller = async (seller: Omit<Seller, 'id' | 'createdAt' | 'updatedAt' | 'totalPurchased' | 'totalPaid' | 'pendingBalance' | 'lastSaleDate' | 'salesCount'>) => {
     const { data, error } = await supabase
