@@ -11,7 +11,7 @@ export function useSuppliers() {
   const { currentCompany } = useCompany();
 
   const fetchSuppliers = async () => {
-    if (!currentCompany) return;
+    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('suppliers')

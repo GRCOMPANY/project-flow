@@ -20,7 +20,7 @@ export function useProducts() {
   const { currentCompany, isCompanyAdmin } = useCompany();
 
   const fetchProducts = async () => {
-    if (!currentCompany) return;
+    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     let query = supabase
       .from('products')

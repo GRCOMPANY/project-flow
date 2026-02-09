@@ -54,7 +54,7 @@ export function useSellers() {
   }, []);
 
   const fetchSellers = async () => {
-    if (!currentCompany) return;
+    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('sellers')
