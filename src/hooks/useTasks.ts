@@ -78,7 +78,6 @@ export function useTasks() {
   const fetchTasks = useCallback(async () => {
     if (!currentCompany) { setLoading(false); return; }
     try {
-    try {
       const { data, error } = await supabase
         .from('tasks')
         .select(`
