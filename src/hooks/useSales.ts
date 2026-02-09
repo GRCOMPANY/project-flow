@@ -31,6 +31,7 @@ export function useSales() {
   const { currentCompany } = useCompany();
 
   const fetchSales = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('sales')
@@ -39,6 +40,7 @@ export function useSales() {
         product:products(*),
         seller:sellers(*)
       `)
+      .eq('company_id', currentCompany.id)
       .order('sale_date', { ascending: false });
 
     if (error) {
