@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Seller, ResellerType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 
 // Labels for reseller types
 export const RESELLER_TYPE_LABELS: Record<ResellerType, string> = {
