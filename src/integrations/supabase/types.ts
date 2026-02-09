@@ -14,135 +14,8 @@ export type Database = {
   }
   public: {
     Tables: {
-      companies: {
-        Row: {
-          created_at: string
-          id: string
-          is_grc: boolean
-          linked_to_grc: boolean
-          name: string
-          owner_user_id: string
-          plan: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_grc?: boolean
-          linked_to_grc?: boolean
-          name: string
-          owner_user_id: string
-          plan?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_grc?: boolean
-          linked_to_grc?: boolean
-          name?: string
-          owner_user_id?: string
-          plan?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      company_products: {
-        Row: {
-          company_id: string
-          cost_price: number | null
-          created_at: string
-          id: string
-          retail_price: number | null
-          source_product_id: string
-          status: Database["public"]["Enums"]["product_status"]
-          updated_at: string
-          wholesale_price: number | null
-        }
-        Insert: {
-          company_id: string
-          cost_price?: number | null
-          created_at?: string
-          id?: string
-          retail_price?: number | null
-          source_product_id: string
-          status?: Database["public"]["Enums"]["product_status"]
-          updated_at?: string
-          wholesale_price?: number | null
-        }
-        Update: {
-          company_id?: string
-          cost_price?: number | null
-          created_at?: string
-          id?: string
-          retail_price?: number | null
-          source_product_id?: string
-          status?: Database["public"]["Enums"]["product_status"]
-          updated_at?: string
-          wholesale_price?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "company_products_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "company_products_source_product_id_fkey"
-            columns: ["source_product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "company_products_source_product_id_fkey"
-            columns: ["source_product_id"]
-            isOneToOne: false
-            referencedRelation: "products_seller_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      company_users: {
-        Row: {
-          company_id: string
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["company_role"]
-          status: string
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["company_role"]
-          status?: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["company_role"]
-          status?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "company_users_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       creative_automation_intents: {
         Row: {
-          company_id: string | null
           completed_at: string | null
           created_at: string | null
           creative_id: string | null
@@ -156,7 +29,6 @@ export type Database = {
           triggered_by: string | null
         }
         Insert: {
-          company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           creative_id?: string | null
@@ -170,7 +42,6 @@ export type Database = {
           triggered_by?: string | null
         }
         Update: {
-          company_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           creative_id?: string | null
@@ -184,13 +55,6 @@ export type Database = {
           triggered_by?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "creative_automation_intents_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "creative_automation_intents_creative_id_fkey"
             columns: ["creative_id"]
@@ -284,7 +148,6 @@ export type Database = {
           automation_intent: string | null
           automation_status: string | null
           channel: Database["public"]["Enums"]["creative_channel"]
-          company_id: string | null
           copy: string | null
           created_at: string
           cta_text: string | null
@@ -326,7 +189,6 @@ export type Database = {
           automation_intent?: string | null
           automation_status?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
-          company_id?: string | null
           copy?: string | null
           created_at?: string
           cta_text?: string | null
@@ -368,7 +230,6 @@ export type Database = {
           automation_intent?: string | null
           automation_status?: string | null
           channel?: Database["public"]["Enums"]["creative_channel"]
-          company_id?: string | null
           copy?: string | null
           created_at?: string
           cta_text?: string | null
@@ -406,13 +267,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "creatives_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "creatives_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -439,7 +293,6 @@ export type Database = {
         Row: {
           auto_promote: boolean | null
           category: string | null
-          company_id: string | null
           created_at: string
           delivery_type: string | null
           description: string | null
@@ -462,7 +315,6 @@ export type Database = {
         Insert: {
           auto_promote?: boolean | null
           category?: string | null
-          company_id?: string | null
           created_at?: string
           delivery_type?: string | null
           description?: string | null
@@ -485,7 +337,6 @@ export type Database = {
         Update: {
           auto_promote?: boolean | null
           category?: string | null
-          company_id?: string | null
           created_at?: string
           delivery_type?: string | null
           description?: string | null
@@ -506,13 +357,6 @@ export type Database = {
           wholesale_price?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "products_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "products_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -548,7 +392,6 @@ export type Database = {
       }
       projects: {
         Row: {
-          company_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
@@ -556,7 +399,6 @@ export type Database = {
           name: string
         }
         Insert: {
-          company_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -564,28 +406,18 @@ export type Database = {
           name: string
         }
         Update: {
-          company_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
           name?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "projects_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sales: {
         Row: {
           client_name: string | null
           client_phone: string | null
-          company_id: string | null
           cost_at_sale: number | null
           created_at: string
           final_price: number | null
@@ -616,7 +448,6 @@ export type Database = {
         Insert: {
           client_name?: string | null
           client_phone?: string | null
-          company_id?: string | null
           cost_at_sale?: number | null
           created_at?: string
           final_price?: number | null
@@ -647,7 +478,6 @@ export type Database = {
         Update: {
           client_name?: string | null
           client_phone?: string | null
-          company_id?: string | null
           cost_at_sale?: number | null
           created_at?: string
           final_price?: number | null
@@ -676,13 +506,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "sales_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "sales_product_id_fkey"
             columns: ["product_id"]
@@ -716,7 +539,6 @@ export type Database = {
       sellers: {
         Row: {
           commission: number | null
-          company_id: string | null
           contact: string | null
           created_at: string
           id: string
@@ -728,7 +550,6 @@ export type Database = {
         }
         Insert: {
           commission?: number | null
-          company_id?: string | null
           contact?: string | null
           created_at?: string
           id?: string
@@ -740,7 +561,6 @@ export type Database = {
         }
         Update: {
           commission?: number | null
-          company_id?: string | null
           contact?: string | null
           created_at?: string
           id?: string
@@ -750,19 +570,10 @@ export type Database = {
           type?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sellers_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       suppliers: {
         Row: {
-          company_id: string | null
           conditions: string | null
           contact: string | null
           created_at: string
@@ -772,7 +583,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          company_id?: string | null
           conditions?: string | null
           contact?: string | null
           created_at?: string
@@ -782,7 +592,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          company_id?: string | null
           conditions?: string | null
           contact?: string | null
           created_at?: string
@@ -791,15 +600,7 @@ export type Database = {
           notes?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "suppliers_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       task_outcomes: {
         Row: {
@@ -850,7 +651,6 @@ export type Database = {
           action_label: string | null
           action_path: string | null
           assigned_to: string | null
-          company_id: string | null
           consequence: string | null
           context: Json | null
           created_at: string
@@ -878,7 +678,6 @@ export type Database = {
           action_label?: string | null
           action_path?: string | null
           assigned_to?: string | null
-          company_id?: string | null
           consequence?: string | null
           context?: Json | null
           created_at?: string
@@ -906,7 +705,6 @@ export type Database = {
           action_label?: string | null
           action_path?: string | null
           assigned_to?: string | null
-          company_id?: string | null
           consequence?: string | null
           context?: Json | null
           created_at?: string
@@ -936,13 +734,6 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -1058,14 +849,6 @@ export type Database = {
       }
     }
     Functions: {
-      get_user_company_id: { Args: never; Returns: string }
-      has_company_role: {
-        Args: {
-          _company_id: string
-          _role: Database["public"]["Enums"]["company_role"]
-        }
-        Returns: boolean
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1073,15 +856,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_company_admin: { Args: { _company_id: string }; Returns: boolean }
-      user_belongs_to_company: {
-        Args: { _company_id: string }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "admin" | "colaborador"
-      company_role: "owner" | "admin" | "collaborator" | "seller"
       creative_channel: "whatsapp" | "instagram" | "tiktok" | "facebook" | "web"
       creative_file_role: "principal" | "variacion" | "referencia"
       creative_file_status: "borrador" | "publicado" | "descartado"
@@ -1247,7 +1024,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador"],
-      company_role: ["owner", "admin", "collaborator", "seller"],
       creative_channel: ["whatsapp", "instagram", "tiktok", "facebook", "web"],
       creative_file_role: ["principal", "variacion", "referencia"],
       creative_file_status: ["borrador", "publicado", "descartado"],

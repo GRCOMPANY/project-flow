@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { CompanyProvider } from "@/contexts/CompanyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
 import CommandCenter from "./pages/CommandCenter";
@@ -28,22 +27,20 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <CompanyProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
-              <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-              <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
-              <Route path="/creatives" element={<ProtectedRoute><Creatives /></ProtectedRoute>} />
-              <Route path="/sellers" element={<ProtectedRoute><Sellers /></ProtectedRoute>} />
-              <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-              <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-              {/* Admin-only routes */}
-              <Route path="/suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
-              <Route path="/ai" element={<AdminRoute><AI /></AdminRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </CompanyProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+            <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
+            <Route path="/creatives" element={<ProtectedRoute><Creatives /></ProtectedRoute>} />
+            <Route path="/sellers" element={<ProtectedRoute><Sellers /></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+            <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+            {/* Admin-only routes */}
+            <Route path="/suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
+            <Route path="/ai" element={<AdminRoute><AI /></AdminRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Product, MarginLevel } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCompany } from '@/contexts/CompanyContext';
 
 // Helper para calcular nivel de margen
 function getMarginLevel(marginPercent: number): MarginLevel {
@@ -17,23 +16,16 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
-  const { currentCompany, isCompanyAdmin } = useCompany();
 
   const fetchProducts = async () => {
-    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from('products')
       .select(`
         *,
         supplier:suppliers(*)
       `)
       .order('created_at', { ascending: false });
-
-    // Filter by company_id (RLS also enforces this, but explicit is better)
-    query = query.eq('company_id', currentCompany.id);
-
-    const { data, error } = await query;
 
     if (error) {
       toast({
@@ -114,14 +106,13 @@ export function useProducts() {
   };
 
   useEffect(() => {
-    if (currentCompany) fetchProducts();
-  }, [isAdmin, currentCompany?.id]);
+    fetchProducts();
+  }, [isAdmin]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'supplier' | 'marginAmount' | 'marginPercent' | 'marginLevel'>) => {
     const { data, error } = await supabase
       .from('products')
       .insert({
-        company_id: currentCompany?.id,
         name: product.name,
         sku: product.sku || null,
         category: product.category || null,

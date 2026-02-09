@@ -34,7 +34,6 @@ import { useSales } from './useSales';
 import { useProducts } from './useProducts';
 import { useCreatives } from './useCreatives';
 import { useToast } from './use-toast';
-import { useCompany } from '@/contexts/CompanyContext';
 
 const priorityOrder: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
 
@@ -67,7 +66,6 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
-  const { currentCompany } = useCompany();
 
   // Datos para generación automática
   const { sales } = useSales();
@@ -76,7 +74,6 @@ export function useTasks() {
 
   // Cargar tareas de la base de datos
   const fetchTasks = useCallback(async () => {
-    if (!currentCompany) { setLoading(false); return; }
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -88,7 +85,6 @@ export function useTasks() {
           assigned_user:profiles(id, full_name, avatar_url),
           outcome:task_outcomes(*)
         `)
-        .eq('company_id', currentCompany.id)
         .order('priority', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -153,7 +149,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [toast, currentCompany]);
+  }, [toast]);
 
   // Sincronizar tareas automáticas
   const syncAutomaticTasks = useCallback(async () => {
@@ -175,7 +171,6 @@ export function useTasks() {
         const { error: insertError } = await supabase
           .from('tasks')
           .insert({
-            company_id: currentCompany?.id,
             name: task.name,
             description: task.description,
             priority: task.priority,
@@ -230,7 +225,6 @@ export function useTasks() {
   const createTask = async (input: CreateTaskInput): Promise<boolean> => {
     try {
       const { error } = await supabase.from('tasks').insert({
-        company_id: currentCompany?.id,
         name: input.name,
         description: input.description,
         type: input.type,

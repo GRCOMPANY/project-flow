@@ -27,7 +27,6 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<Role>('colaborador');
-  const [companyName, setCompanyName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -80,7 +79,7 @@ export default function Auth() {
     if (!validateInputs(true)) return;
     
     setIsSubmitting(true);
-    const { error } = await signUp(email, password, fullName, role, companyName || undefined);
+    const { error } = await signUp(email, password, fullName, role);
     setIsSubmitting(false);
 
     if (error) {
@@ -186,20 +185,6 @@ export default function Auth() {
                     className="sketch-border"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-company">Nombre de tu empresa</Label>
-                  <Input
-                    id="register-company"
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Mi Empresa S.A."
-                    className="sketch-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Se creará un espacio de trabajo con este nombre.
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Rol</Label>

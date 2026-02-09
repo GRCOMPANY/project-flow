@@ -2,21 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Supplier } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useCompany } from '@/contexts/CompanyContext';
 
 export function useSuppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { currentCompany } = useCompany();
 
   const fetchSuppliers = async () => {
-    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('suppliers')
       .select('*')
-      .eq('company_id', currentCompany.id)
       .order('name', { ascending: true });
 
     if (error) {
@@ -42,14 +38,13 @@ export function useSuppliers() {
   };
 
   useEffect(() => {
-    if (currentCompany) fetchSuppliers();
-  }, [currentCompany?.id]);
+    fetchSuppliers();
+  }, []);
 
   const addSupplier = async (supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => {
     const { data, error } = await supabase
       .from('suppliers')
       .insert({
-        company_id: currentCompany?.id,
         name: supplier.name,
         contact: supplier.contact || null,
         conditions: supplier.conditions || null,

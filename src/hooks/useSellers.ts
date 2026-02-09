@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Seller, ResellerType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useCompany } from '@/contexts/CompanyContext';
 
 // Labels for reseller types
 export const RESELLER_TYPE_LABELS: Record<ResellerType, string> = {
@@ -15,7 +14,6 @@ export function useSellers() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { currentCompany } = useCompany();
 
   // Fetch reseller stats from sales
   const getResellerStats = useCallback(async (resellerId: string) => {
@@ -54,12 +52,10 @@ export function useSellers() {
   }, []);
 
   const fetchSellers = async () => {
-    if (!currentCompany) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('sellers')
       .select('*')
-      .eq('company_id', currentCompany.id)
       .order('name', { ascending: true });
 
     if (error) {
@@ -93,14 +89,13 @@ export function useSellers() {
   };
 
   useEffect(() => {
-    if (currentCompany) fetchSellers();
-  }, [currentCompany?.id]);
+    fetchSellers();
+  }, []);
 
   const addSeller = async (seller: Omit<Seller, 'id' | 'createdAt' | 'updatedAt' | 'totalPurchased' | 'totalPaid' | 'pendingBalance' | 'lastSaleDate' | 'salesCount'>) => {
     const { data, error } = await supabase
       .from('sellers')
       .insert({
-        company_id: currentCompany?.id,
         name: seller.name,
         contact: seller.contact || null,
         type: seller.type || 'revendedor',
