@@ -34,6 +34,7 @@ import { useSales } from './useSales';
 import { useProducts } from './useProducts';
 import { useCreatives } from './useCreatives';
 import { useToast } from './use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 
 const priorityOrder: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
 
