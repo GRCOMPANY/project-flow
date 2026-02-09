@@ -228,6 +228,7 @@ export function useTasks() {
   const createTask = async (input: CreateTaskInput): Promise<boolean> => {
     try {
       const { error } = await supabase.from('tasks').insert({
+        company_id: currentCompany?.id,
         name: input.name,
         description: input.description,
         type: input.type,
