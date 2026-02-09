@@ -12,9 +12,11 @@ export function useProjects() {
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
+    if (!currentCompany) return;
     const { data, error } = await supabase
       .from('projects')
       .select('*')
+      .eq('company_id', currentCompany.id)
       .order('created_at', { ascending: false });
 
     if (error) {
