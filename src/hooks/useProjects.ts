@@ -34,7 +34,7 @@ export function useProjects() {
     }));
 
     setProjects(mappedProjects);
-  }, []);
+  }, [currentCompany?.id]);
 
   // Fetch tasks from Supabase with assigned user profile
   const fetchTasks = useCallback(async () => {
