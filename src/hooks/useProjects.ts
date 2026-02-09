@@ -2,17 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Task, Status, Priority, Profile } from '@/types';
 import { toast } from 'sonner';
+import { useCompany } from '@/contexts/CompanyContext';
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentCompany } = useCompany();
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
+    if (!currentCompany) return;
     const { data, error } = await supabase
       .from('projects')
       .select('*')
+      .eq('company_id', currentCompany.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -30,7 +34,7 @@ export function useProjects() {
     }));
 
     setProjects(mappedProjects);
-  }, []);
+  }, [currentCompany?.id]);
 
   // Fetch tasks from Supabase with assigned user profile
   const fetchTasks = useCallback(async () => {
@@ -90,6 +94,7 @@ export function useProjects() {
     const { data, error } = await supabase
       .from('projects')
       .insert({
+        company_id: currentCompany?.id,
         name: project.name,
         description: project.description,
         due_date: project.dueDate || null,

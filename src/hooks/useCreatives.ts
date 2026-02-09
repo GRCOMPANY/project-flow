@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Creative, Product } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 
 export function useCreatives() {
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
 
   const fetchCreatives = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('creatives')
@@ -16,6 +19,7 @@ export function useCreatives() {
         *,
         product:products(*)
       `)
+      .eq('company_id', currentCompany.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -120,11 +124,12 @@ export function useCreatives() {
   };
 
   useEffect(() => {
-    fetchCreatives();
-  }, []);
+    if (currentCompany) fetchCreatives();
+  }, [currentCompany?.id]);
 
   const addCreative = async (creative: Omit<Creative, 'id' | 'createdAt' | 'updatedAt' | 'product'>) => {
     const insertData: Record<string, unknown> = {
+      company_id: currentCompany?.id,
       product_id: creative.productId || null,
       type: creative.type,
       channel: creative.channel,

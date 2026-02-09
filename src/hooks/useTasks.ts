@@ -34,6 +34,7 @@ import { useSales } from './useSales';
 import { useProducts } from './useProducts';
 import { useCreatives } from './useCreatives';
 import { useToast } from './use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 
 const priorityOrder: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
 
@@ -66,6 +67,7 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
 
   // Datos para generación automática
   const { sales } = useSales();
@@ -171,6 +173,7 @@ export function useTasks() {
         const { error: insertError } = await supabase
           .from('tasks')
           .insert({
+            company_id: currentCompany?.id,
             name: task.name,
             description: task.description,
             priority: task.priority,
@@ -225,6 +228,7 @@ export function useTasks() {
   const createTask = async (input: CreateTaskInput): Promise<boolean> => {
     try {
       const { error } = await supabase.from('tasks').insert({
+        company_id: currentCompany?.id,
         name: input.name,
         description: input.description,
         type: input.type,

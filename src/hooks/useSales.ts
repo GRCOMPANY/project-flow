@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType, SaleType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/contexts/CompanyContext';
 
 // Labels para estados operativos
 export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
@@ -27,8 +28,10 @@ export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
 
   const fetchSales = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('sales')
@@ -37,6 +40,7 @@ export function useSales() {
         product:products(*),
         seller:sellers(*)
       `)
+      .eq('company_id', currentCompany.id)
       .order('sale_date', { ascending: false });
 
     if (error) {
@@ -145,8 +149,8 @@ export function useSales() {
   };
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    if (currentCompany) fetchSales();
+  }, [currentCompany?.id]);
 
   const addSale = async (sale: SaleInput) => {
     // Validación obligatoria: tipo de venta
@@ -215,6 +219,7 @@ export function useSales() {
     const { data, error } = await supabase
       .from('sales')
       .insert({
+        company_id: currentCompany?.id,
         sale_type: sale.saleType,
         product_id: sale.productId,
         seller_id: sale.saleType === 'revendedor' ? (sale.sellerId || null) : null,
