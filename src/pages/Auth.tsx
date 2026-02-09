@@ -188,6 +188,20 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="register-company">Nombre de tu empresa</Label>
+                  <Input
+                    id="register-company"
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Mi Empresa S.A."
+                    className="sketch-border"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se creará un espacio de trabajo con este nombre.
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <Label>Rol</Label>
                   <Select value={role} onValueChange={(v: Role) => setRole(v)}>
                     <SelectTrigger className="sketch-border">

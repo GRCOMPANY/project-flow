@@ -129,6 +129,7 @@ export function useCreatives() {
 
   const addCreative = async (creative: Omit<Creative, 'id' | 'createdAt' | 'updatedAt' | 'product'>) => {
     const insertData: Record<string, unknown> = {
+      company_id: currentCompany?.id,
       product_id: creative.productId || null,
       type: creative.type,
       channel: creative.channel,

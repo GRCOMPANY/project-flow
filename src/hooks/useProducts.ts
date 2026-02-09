@@ -121,6 +121,7 @@ export function useProducts() {
     const { data, error } = await supabase
       .from('products')
       .insert({
+        company_id: currentCompany?.id,
         name: product.name,
         sku: product.sku || null,
         category: product.category || null,

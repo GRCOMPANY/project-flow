@@ -219,6 +219,7 @@ export function useSales() {
     const { data, error } = await supabase
       .from('sales')
       .insert({
+        company_id: currentCompany?.id,
         sale_type: sale.saleType,
         product_id: sale.productId,
         seller_id: sale.saleType === 'revendedor' ? (sale.sellerId || null) : null,

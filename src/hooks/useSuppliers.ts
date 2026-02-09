@@ -49,6 +49,7 @@ export function useSuppliers() {
     const { data, error } = await supabase
       .from('suppliers')
       .insert({
+        company_id: currentCompany?.id,
         name: supplier.name,
         contact: supplier.contact || null,
         conditions: supplier.conditions || null,

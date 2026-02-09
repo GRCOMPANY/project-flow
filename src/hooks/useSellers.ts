@@ -100,6 +100,7 @@ export function useSellers() {
     const { data, error } = await supabase
       .from('sellers')
       .insert({
+        company_id: currentCompany?.id,
         name: seller.name,
         contact: seller.contact || null,
         type: seller.type || 'revendedor',

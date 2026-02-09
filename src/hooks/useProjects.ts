@@ -94,6 +94,7 @@ export function useProjects() {
     const { data, error } = await supabase
       .from('projects')
       .insert({
+        company_id: currentCompany?.id,
         name: project.name,
         description: project.description,
         due_date: project.dueDate || null,
