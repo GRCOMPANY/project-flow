@@ -20,14 +20,20 @@ export function useProducts() {
   const { currentCompany, isCompanyAdmin } = useCompany();
 
   const fetchProducts = async () => {
+    if (!currentCompany) return;
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('products')
       .select(`
         *,
         supplier:suppliers(*)
       `)
       .order('created_at', { ascending: false });
+
+    // Filter by company_id (RLS also enforces this, but explicit is better)
+    query = query.eq('company_id', currentCompany.id);
+
+    const { data, error } = await query;
 
     if (error) {
       toast({
