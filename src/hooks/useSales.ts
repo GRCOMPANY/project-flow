@@ -149,8 +149,8 @@ export function useSales() {
   };
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    if (currentCompany) fetchSales();
+  }, [currentCompany?.id]);
 
   const addSale = async (sale: SaleInput) => {
     // Validación obligatoria: tipo de venta
