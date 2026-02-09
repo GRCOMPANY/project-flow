@@ -114,8 +114,8 @@ export function useProducts() {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [isAdmin]);
+    if (currentCompany) fetchProducts();
+  }, [isAdmin, currentCompany?.id]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'supplier' | 'marginAmount' | 'marginPercent' | 'marginLevel'>) => {
     const { data, error } = await supabase
