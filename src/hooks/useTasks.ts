@@ -173,6 +173,7 @@ export function useTasks() {
         const { error: insertError } = await supabase
           .from('tasks')
           .insert({
+            company_id: currentCompany?.id,
             name: task.name,
             description: task.description,
             priority: task.priority,
