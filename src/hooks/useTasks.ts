@@ -67,6 +67,7 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
 
   // Datos para generación automática
   const { sales } = useSales();
