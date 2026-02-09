@@ -11,6 +11,7 @@ export function useCreatives() {
   const { currentCompany } = useCompany();
 
   const fetchCreatives = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('creatives')
@@ -18,6 +19,7 @@ export function useCreatives() {
         *,
         product:products(*)
       `)
+      .eq('company_id', currentCompany.id)
       .order('created_at', { ascending: false });
 
     if (error) {
