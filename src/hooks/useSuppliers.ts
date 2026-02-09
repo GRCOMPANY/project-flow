@@ -11,10 +11,12 @@ export function useSuppliers() {
   const { currentCompany } = useCompany();
 
   const fetchSuppliers = async () => {
+    if (!currentCompany) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('suppliers')
       .select('*')
+      .eq('company_id', currentCompany.id)
       .order('name', { ascending: true });
 
     if (error) {
