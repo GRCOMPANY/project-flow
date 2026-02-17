@@ -29,12 +29,15 @@ export function useProducts() {
       )
       .order("created_at", { ascending: false });
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los productos",
-        variant: "destructive",
-      });
+if (error) {
+  console.log("SUPABASE PRODUCTS ERROR:", error);
+
+  toast({
+    title: "Error real",
+    description: error.message,
+    variant: "destructive",
+  });
+}
     } else {
       const mappedProducts = (data || []).map((p) => {
         // Mapear campos de BD a modelo
