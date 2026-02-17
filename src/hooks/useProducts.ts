@@ -152,11 +152,14 @@ export function useProducts() {
       .single();
 
     if (error) {
+      console.log("INSERT PRODUCTS ERROR:", error);
+
       toast({
-        title: "Error",
-        description: error.code === "23505" ? "El SKU ya existe, usa otro diferente" : "No se pudo crear el producto",
+        title: "Error real",
+        description: error.message,
         variant: "destructive",
       });
+
       return null;
     }
 
