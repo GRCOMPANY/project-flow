@@ -386,13 +386,15 @@ export function useTasks() {
 
       await fetchTasks();
       return true;
-    } catch (error) {
-      console.error("Error completing task with outcome:", error);
+    } catch (error: any) {
+      console.error("COMPLETE TASK FULL ERROR:", error);
+
       toast({
-        title: "Error",
-        description: "No se pudo completar la tarea",
+        title: `Error ${error?.code || ""}`,
+        description: error?.message || JSON.stringify(error),
         variant: "destructive",
       });
+
       return false;
     }
   };
