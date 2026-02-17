@@ -592,11 +592,15 @@ export type Database = {
           id: string
           margin_at_sale: number | null
           margin_percent_at_sale: number | null
+          my_percentage: number
+          my_profit_amount: number
           notes: string | null
           operational_status:
             | Database["public"]["Enums"]["operational_status"]
             | null
           order_status: Database["public"]["Enums"]["order_status"] | null
+          partner_percentage: number
+          partner_profit_amount: number
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           product_id: string | null
@@ -605,6 +609,7 @@ export type Database = {
           reseller_price: number | null
           reseller_profit: number | null
           sale_date: string
+          sale_source: Database["public"]["Enums"]["sale_source"]
           sale_type: Database["public"]["Enums"]["sale_type"]
           sales_channel: string | null
           seller_id: string | null
@@ -623,11 +628,15 @@ export type Database = {
           id?: string
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
+          my_percentage?: number
+          my_profit_amount?: number
           notes?: string | null
           operational_status?:
             | Database["public"]["Enums"]["operational_status"]
             | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
+          partner_percentage?: number
+          partner_profit_amount?: number
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
@@ -636,6 +645,7 @@ export type Database = {
           reseller_price?: number | null
           reseller_profit?: number | null
           sale_date?: string
+          sale_source?: Database["public"]["Enums"]["sale_source"]
           sale_type?: Database["public"]["Enums"]["sale_type"]
           sales_channel?: string | null
           seller_id?: string | null
@@ -654,11 +664,15 @@ export type Database = {
           id?: string
           margin_at_sale?: number | null
           margin_percent_at_sale?: number | null
+          my_percentage?: number
+          my_profit_amount?: number
           notes?: string | null
           operational_status?:
             | Database["public"]["Enums"]["operational_status"]
             | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
+          partner_percentage?: number
+          partner_profit_amount?: number
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           product_id?: string | null
@@ -667,6 +681,7 @@ export type Database = {
           reseller_price?: number | null
           reseller_profit?: number | null
           sale_date?: string
+          sale_source?: Database["public"]["Enums"]["sale_source"]
           sale_type?: Database["public"]["Enums"]["sale_type"]
           sales_channel?: string | null
           seller_id?: string | null
@@ -1106,6 +1121,7 @@ export type Database = {
       order_status: "pendiente" | "en_progreso" | "entregado"
       payment_status: "pendiente" | "pagado"
       product_status: "activo" | "pausado" | "agotado"
+      sale_source: "digital" | "presencial"
       sale_type: "directa" | "revendedor"
       seller_status: "activo" | "inactivo"
       task_impact: "dinero" | "crecimiento" | "operacion"
@@ -1274,6 +1290,7 @@ export const Constants = {
       order_status: ["pendiente", "en_progreso", "entregado"],
       payment_status: ["pendiente", "pagado"],
       product_status: ["activo", "pausado", "agotado"],
+      sale_source: ["digital", "presencial"],
       sale_type: ["directa", "revendedor"],
       seller_status: ["activo", "inactivo"],
       task_impact: ["dinero", "crecimiento", "operacion"],

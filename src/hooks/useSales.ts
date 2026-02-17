@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType, SaleType } from '@/types';
+import { Sale, Product, Seller, OrderStatus, SalesChannel, OperationalStatus, ResellerType, SaleType, SaleSource } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Labels para estados operativos
@@ -15,12 +15,18 @@ export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
 };
 
 // Tipo para input de venta - ahora con saleType obligatorio
-interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt'> {
+interface SaleInput extends Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'product' | 'seller' | 'operationalStatus' | 'statusUpdatedAt' | 'myProfitAmount' | 'partnerProfitAmount'> {
   relatedCreativeId?: string;
   operationalStatus?: OperationalStatus;
   // Pricing fields
   resellerPrice?: number;
   finalPrice?: number;
+  // Sale source fields
+  saleSource: SaleSource;
+  myPercentage: number;
+  partnerPercentage: number;
+  myProfitAmount?: number;
+  partnerProfitAmount?: number;
 }
 
 export function useSales() {
@@ -111,6 +117,12 @@ export function useSales() {
           // Operational tracking fields
           operationalStatus: (s.operational_status as OperationalStatus) || 'nuevo',
           statusUpdatedAt: s.status_updated_at || undefined,
+          // Sale source & profit split
+          saleSource: ((s as any).sale_source as SaleSource) || 'digital',
+          myPercentage: Number((s as any).my_percentage) || 100,
+          partnerPercentage: Number((s as any).partner_percentage) || 0,
+          myProfitAmount: Number((s as any).my_profit_amount) || 0,
+          partnerProfitAmount: Number((s as any).partner_profit_amount) || 0,
         }))
       );
     }
@@ -212,6 +224,13 @@ export function useSales() {
       }
     }
 
+    // Calculate profit split
+    const totalProfit = marginAtSale * sale.quantity;
+    const effectiveMyPct = sale.saleSource === 'digital' ? 100 : (sale.myPercentage || 100);
+    const effectivePartnerPct = sale.saleSource === 'digital' ? 0 : (sale.partnerPercentage || 0);
+    const myProfitAmount = totalProfit * effectiveMyPct / 100;
+    const partnerProfitAmount = totalProfit * effectivePartnerPct / 100;
+
     const { data, error } = await supabase
       .from('sales')
       .insert({
@@ -238,6 +257,12 @@ export function useSales() {
         final_price: sale.finalPrice || null,
         reseller_profit: resellerProfit,
         related_creative_id: sale.relatedCreativeId || null,
+        // Sale source & profit split
+        sale_source: sale.saleSource || 'digital',
+        my_percentage: effectiveMyPct,
+        partner_percentage: effectivePartnerPct,
+        my_profit_amount: myProfitAmount,
+        partner_profit_amount: partnerProfitAmount,
       })
       .select()
       .single();

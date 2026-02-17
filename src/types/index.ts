@@ -20,6 +20,9 @@ export type SalesChannel = 'marketplace' | 'whatsapp' | 'instagram' | 'tiktok' |
 // Tipo de venta (obligatorio) - gobierna lógica de precios y métricas
 export type SaleType = 'directa' | 'revendedor';
 
+// Origen de venta (socio interno)
+export type SaleSource = 'digital' | 'presencial';
+
 // Product types
 export type ProductChannel = 'whatsapp' | 'marketplace' | 'instagram' | 'tiktok' | 'otro';
 export type DeliveryType = 'contra_entrega' | 'anticipado';
@@ -244,6 +247,13 @@ export interface Sale {
   // Operational tracking
   operationalStatus: OperationalStatus;
   statusUpdatedAt?: string;
+  
+  // Sale source & profit split (socio interno)
+  saleSource: SaleSource;
+  myPercentage: number;
+  partnerPercentage: number;
+  myProfitAmount: number;
+  partnerProfitAmount: number;
 }
 
 // ====================================

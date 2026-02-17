@@ -4,7 +4,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType } from '@/types';
+import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType, SaleSource } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,8 @@ import {
   ShieldAlert,
   Users,
   Store,
+  Globe,
+  Handshake,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
@@ -128,7 +130,9 @@ export default function Sales() {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [relatedCreativeId, setRelatedCreativeId] = useState<string>('');
-
+  const [saleSource, setSaleSource] = useState<SaleSource>('digital');
+  const [myPercentage, setMyPercentage] = useState(100);
+  const [partnerPercentage, setPartnerPercentage] = useState(0);
   // Selected product for calculations
   const selectedProduct = products.find(p => p.id === productId);
   const productCost = selectedProduct?.costPrice || 0;
@@ -177,6 +181,16 @@ export default function Sales() {
       ? resellerSales.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / resellerSales.length 
       : 0;
 
+    // Stats por origen (sale source)
+    const digitalSales = sales.filter(s => s.saleSource === 'presencial' ? false : true);
+    const presencialSales = sales.filter(s => s.saleSource === 'presencial');
+    const digitalTotal = digitalSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const presencialTotal = presencialSales.reduce((sum, s) => sum + s.totalAmount, 0);
+
+    // Distribución de ganancia
+    const myTotalProfit = sales.reduce((sum, s) => sum + (s.myProfitAmount || 0), 0);
+    const partnerTotalProfit = sales.reduce((sum, s) => sum + (s.partnerProfitAmount || 0), 0);
+
     return {
       totalSold,
       totalSales: sales.length,
@@ -198,6 +212,13 @@ export default function Sales() {
       resellerCount: resellerSales.length,
       resellerPending,
       resellerMarginAvg,
+      // Sale source stats
+      digitalTotal,
+      digitalCount: digitalSales.length,
+      presencialTotal,
+      presencialCount: presencialSales.length,
+      myTotalProfit,
+      partnerTotalProfit,
     };
   }, [sales]);
 
@@ -217,6 +238,9 @@ export default function Sales() {
     setSaleDate(new Date().toISOString().split('T')[0]);
     setNotes('');
     setRelatedCreativeId('');
+    setSaleSource('digital');
+    setMyPercentage(100);
+    setPartnerPercentage(0);
     setEditingSale(null);
   };
 
@@ -242,6 +266,9 @@ export default function Sales() {
     setSaleDate(sale.saleDate.split('T')[0]);
     setNotes(sale.notes || '');
     setRelatedCreativeId(sale.relatedCreativeId || '');
+    setSaleSource(sale.saleSource || 'digital');
+    setMyPercentage(sale.myPercentage ?? 100);
+    setPartnerPercentage(sale.partnerPercentage ?? 0);
     setShowForm(true);
   };
 
@@ -295,6 +322,9 @@ export default function Sales() {
       saleDate: new Date(saleDate).toISOString(),
       notes: notes || undefined,
       relatedCreativeId: relatedCreativeId || undefined,
+      saleSource,
+      myPercentage: saleSource === 'digital' ? 100 : myPercentage,
+      partnerPercentage: saleSource === 'digital' ? 0 : partnerPercentage,
     };
 
     if (editingSale) {
@@ -473,7 +503,66 @@ export default function Sales() {
           </div>
         )}
 
-        {/* Seguimiento alerts */}
+        {/* Stats por origen de venta */}
+        {isAdmin && sales.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <Card className="border-l-4 border-l-sky-500">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Globe className="w-4 h-4 text-sky-600" />
+                  <span className="font-medium">Ventas Digital</span>
+                  <Badge variant="secondary">{stats.digitalCount}</Badge>
+                </div>
+                <p className="text-2xl font-bold">${stats.digitalTotal.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-violet-500">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Handshake className="w-4 h-4 text-violet-600" />
+                  <span className="font-medium">Ventas Presencial</span>
+                  <Badge variant="secondary">{stats.presencialCount}</Badge>
+                </div>
+                <p className="text-2xl font-bold">${stats.presencialTotal.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Distribución de ganancia */}
+        {isAdmin && sales.length > 0 && (stats.myTotalProfit > 0 || stats.partnerTotalProfit > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-sky-500/10 rounded-lg">
+                    <Globe className="w-5 h-5 text-sky-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Mi ganancia</p>
+                    <p className="text-2xl font-bold text-sky-600">${stats.myTotalProfit.toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-violet-500/10 rounded-lg">
+                    <Handshake className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ganancia socio</p>
+                    <p className="text-2xl font-bold text-violet-600">${stats.partnerTotalProfit.toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {isAdmin && (stats.sinConfirmar > 0 || stats.enRiesgo > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {stats.sinConfirmar > 0 && (
@@ -608,6 +697,100 @@ export default function Sales() {
                 </div>
               )}
             </div>
+
+            {/* ORIGEN DE VENTA */}
+            {saleType && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  📍 Origen de venta
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaleSource('digital');
+                      setMyPercentage(100);
+                      setPartnerPercentage(0);
+                    }}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      saleSource === 'digital'
+                        ? 'border-sky-500 bg-sky-500/10'
+                        : 'border-border hover:border-sky-500/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-sky-600" />
+                      <span className="font-semibold text-sm">Digital (yo)</span>
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaleSource('presencial');
+                      setMyPercentage(50);
+                      setPartnerPercentage(50);
+                    }}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      saleSource === 'presencial'
+                        ? 'border-violet-500 bg-violet-500/10'
+                        : 'border-border hover:border-violet-500/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Handshake className="w-4 h-4 text-violet-600" />
+                      <span className="font-semibold text-sm">Presencial (socio)</span>
+                    </div>
+                  </button>
+                </div>
+
+                {saleSource === 'presencial' && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Mi % <span className="text-sky-600">({myPercentage}%)</span></label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={myPercentage}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                            setMyPercentage(val);
+                            setPartnerPercentage(100 - val);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Socio % <span className="text-violet-600">({partnerPercentage}%)</span></label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={partnerPercentage}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                            setPartnerPercentage(val);
+                            setMyPercentage(100 - val);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {productId && isAdmin && (
+                      <div className="bg-violet-500/5 border border-violet-500/20 rounded-lg p-3 space-y-1 text-sm">
+                        <p className="text-muted-foreground">Ganancia bruta: <span className="font-bold text-foreground">${(myProfit * quantity).toLocaleString()}</span></p>
+                        <div className="flex justify-between">
+                          <span className="text-sky-600">Mi parte ({myPercentage}%): <span className="font-bold">${((myProfit * quantity * myPercentage) / 100).toLocaleString()}</span></span>
+                          <span className="text-violet-600">Socio ({partnerPercentage}%): <span className="font-bold">${((myProfit * quantity * partnerPercentage) / 100).toLocaleString()}</span></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Product Section */}
             {saleType && (
@@ -1044,6 +1227,29 @@ function SaleCard({ sale, isAdmin, onEdit, onDelete, onPaymentToggle, onOrderSta
                   </>
                 )}
               </Badge>
+
+              {/* Sale Source Badge */}
+              <Badge 
+                variant="outline"
+                className={`gap-1 ${sale.saleSource === 'presencial' ? 'border-violet-500 text-violet-600' : 'border-sky-500 text-sky-600'}`}
+              >
+                {sale.saleSource === 'presencial' ? (
+                  <>
+                    <Handshake className="w-3 h-3" />
+                    Presencial
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-3 h-3" />
+                    Digital
+                  </>
+                )}
+              </Badge>
+              {sale.saleSource === 'presencial' && (
+                <Badge variant="outline" className="text-xs border-violet-500/50 text-violet-600">
+                  {sale.myPercentage}/{sale.partnerPercentage}
+                </Badge>
+              )}
               
               <Package className="w-4 h-4 text-muted-foreground" />
               <span className="font-medium truncate">
