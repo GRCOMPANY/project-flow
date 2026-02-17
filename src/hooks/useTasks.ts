@@ -286,15 +286,15 @@ export function useTasks() {
       ));
 
       return true;
-    } catch (error) {
-      console.error('Error updating task status:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar la tarea',
-        variant: 'destructive',
-      });
-      return false;
-    }
+  catch (error) {
+  console.error('Error updating task status:', error);
+  toast({
+    title: 'Error',
+    description: 'No se pudo actualizar la tarea',
+    variant: 'destructive',
+  });
+  return false;
+}
   };
 
   // Resolver tarea con notas
