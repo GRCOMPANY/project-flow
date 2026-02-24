@@ -1191,6 +1191,10 @@ export default function Sales() {
               setRecalculating(true);
               const result = await recalculateAllSales();
               setRecalculating(false);
+              toast({
+                title: `Recálculo completado`,
+                description: `${result.updated} ventas actualizadas${result.errors > 0 ? `, ${result.errors} errores` : ''}`,
+              });
             }}>
               Recalcular todo
             </AlertDialogAction>
