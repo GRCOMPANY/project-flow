@@ -4,6 +4,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType, SaleSource } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ import {
   Store,
   Globe,
   Handshake,
+  RefreshCw,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
@@ -103,16 +105,19 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 ];
 
 export default function Sales() {
-  const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
+  const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus, recalculateAllSales } = useSales();
   const { products } = useProducts();
   const { sellers } = useSellers();
   const { creatives } = useCreatives();
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+  const [showRecalcConfirm, setShowRecalcConfirm] = useState(false);
 
   // Form fields - Sale Type First (OBLIGATORIO)
   const [saleType, setSaleType] = useState<SaleType | null>(null);
@@ -376,10 +381,16 @@ export default function Sales() {
             <p className="text-muted-foreground">Control de ventas y cobros</p>
           </div>
           {isAdmin && (
-            <Button onClick={openNewForm}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva venta
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowRecalcConfirm(true)} disabled={recalculating}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${recalculating ? 'animate-spin' : ''}`} />
+                {recalculating ? 'Recalculando...' : 'Recalcular'}
+              </Button>
+              <Button onClick={openNewForm}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva venta
+              </Button>
+            </div>
           )}
         </div>
 
@@ -1159,6 +1170,33 @@ export default function Sales() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recalculate Confirmation */}
+      <AlertDialog open={showRecalcConfirm} onOpenChange={setShowRecalcConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Recalcular todas las métricas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se recalcularán ganancias, márgenes y distribución de utilidades de TODAS las ventas históricas usando los porcentajes y costos almacenados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              setShowRecalcConfirm(false);
+              setRecalculating(true);
+              const result = await recalculateAllSales();
+              setRecalculating(false);
+              toast({
+                title: `Recálculo completado`,
+                description: `${result.updated} ventas actualizadas${result.errors > 0 ? `, ${result.errors} errores` : ''}`,
+              });
+            }}>
+              Recalcular todo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

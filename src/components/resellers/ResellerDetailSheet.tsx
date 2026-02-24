@@ -74,7 +74,7 @@ export function ResellerDetailSheet({
         total_amount: Number(s.total_amount),
         payment_status: s.payment_status,
         reseller_price: Number(s.reseller_price) || 0,
-        product_name: (s.product as { name: string } | null)?.name || 'Producto eliminado',
+        product_name: (Array.isArray(s.product) ? (s.product[0] as any)?.name : (s.product as any)?.name) || 'Producto eliminado',
       })));
     }
     setLoading(false);

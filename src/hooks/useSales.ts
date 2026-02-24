@@ -248,8 +248,8 @@ export function useSales() {
 
     // Calculate profit split
     const totalProfit = marginAtSale * sale.quantity;
-    const effectiveMyPct = sale.saleSource === "digital" ? 100 : sale.myPercentage || 100;
-    const effectivePartnerPct = sale.saleSource === "digital" ? 0 : sale.partnerPercentage || 0;
+    const effectiveMyPct = sale.saleSource === "digital" ? 100 : (sale.myPercentage ?? 100);
+    const effectivePartnerPct = sale.saleSource === "digital" ? 0 : (sale.partnerPercentage ?? 0);
     const myProfitAmount = (totalProfit * effectiveMyPct) / 100;
     const partnerProfitAmount = (totalProfit * effectivePartnerPct) / 100;
 
@@ -327,14 +327,79 @@ export function useSales() {
     if (updates.clientName !== undefined) updateData.client_name = updates.clientName;
     if (updates.clientPhone !== undefined) updateData.client_phone = updates.clientPhone;
     if (updates.salesChannel !== undefined) updateData.sales_channel = updates.salesChannel;
-    if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
-    if (updates.unitPrice !== undefined) updateData.unit_price = updates.unitPrice;
-    if (updates.totalAmount !== undefined) updateData.total_amount = updates.totalAmount;
     if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
     if (updates.paymentStatus !== undefined) updateData.payment_status = updates.paymentStatus;
     if (updates.orderStatus !== undefined) updateData.order_status = updates.orderStatus;
     if (updates.saleDate !== undefined) updateData.sale_date = updates.saleDate;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.saleSource !== undefined) updateData.sale_source = updates.saleSource;
+
+    // Recalculate financial fields if relevant fields changed
+    const needsRecalc = updates.productId !== undefined || updates.quantity !== undefined ||
+      updates.unitPrice !== undefined || updates.resellerPrice !== undefined ||
+      updates.finalPrice !== undefined || updates.saleType !== undefined ||
+      updates.myPercentage !== undefined || updates.partnerPercentage !== undefined ||
+      updates.saleSource !== undefined;
+
+    if (needsRecalc) {
+      // Get current sale to merge with updates
+      const currentSale = sales.find(s => s.id === id);
+      if (currentSale) {
+        const saleType = updates.saleType ?? currentSale.saleType;
+        const productId = updates.productId ?? currentSale.productId;
+        const quantity = updates.quantity ?? currentSale.quantity;
+        const saleSource = updates.saleSource ?? currentSale.saleSource;
+        const myPct = updates.myPercentage ?? currentSale.myPercentage;
+        const partnerPct = updates.partnerPercentage ?? currentSale.partnerPercentage;
+
+        let costAtSale = currentSale.costAtSale || 0;
+        if (updates.productId !== undefined && productId) {
+          const product = await getProductForFreeze(productId);
+          if (product) costAtSale = product.costPrice || 0;
+        }
+
+        let unitPrice: number;
+        if (saleType === "directa") {
+          unitPrice = updates.finalPrice ?? currentSale.finalPrice ?? currentSale.unitPrice;
+        } else {
+          unitPrice = updates.resellerPrice ?? currentSale.resellerPrice ?? currentSale.unitPrice;
+        }
+
+        const totalAmount = unitPrice * quantity;
+        const marginAtSale = unitPrice - costAtSale;
+        const marginPercentAtSale = costAtSale > 0
+          ? Math.round(((unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+          : 0;
+
+        const totalProfit = marginAtSale * quantity;
+        const effectiveMyPct = saleSource === "digital" ? 100 : (myPct ?? 100);
+        const effectivePartnerPct = saleSource === "digital" ? 0 : (partnerPct ?? 0);
+        const myProfitAmount = (totalProfit * effectiveMyPct) / 100;
+        const partnerProfitAmount = (totalProfit * effectivePartnerPct) / 100;
+
+        let resellerProfit = 0;
+        const fp = updates.finalPrice ?? currentSale.finalPrice ?? 0;
+        if (saleType === "revendedor" && fp > 0) {
+          resellerProfit = fp - unitPrice;
+        }
+
+        updateData.sale_type = saleType;
+        updateData.quantity = quantity;
+        updateData.unit_price = unitPrice;
+        updateData.total_amount = totalAmount;
+        updateData.cost_at_sale = costAtSale;
+        updateData.margin_at_sale = marginAtSale;
+        updateData.margin_percent_at_sale = marginPercentAtSale;
+        updateData.my_percentage = effectiveMyPct;
+        updateData.partner_percentage = effectivePartnerPct;
+        updateData.my_profit_amount = myProfitAmount;
+        updateData.partner_profit_amount = partnerProfitAmount;
+        updateData.reseller_price = saleType === "revendedor" ? (updates.resellerPrice ?? currentSale.resellerPrice ?? unitPrice) : null;
+        updateData.final_price = fp || null;
+        updateData.reseller_profit = resellerProfit;
+        updateData.seller_id = saleType === "revendedor" ? (updates.sellerId ?? currentSale.sellerId ?? null) : null;
+      }
+    }
 
     const { error } = await supabase.from("sales").update(updateData).eq("id", id);
 
@@ -350,6 +415,67 @@ export function useSales() {
     toast({ title: "Venta actualizada" });
     fetchSales();
     return true;
+  };
+
+  const recalculateAllSales = async (): Promise<{ updated: number; errors: number }> => {
+    const { data: allSales, error: fetchError } = await supabase
+      .from("sales")
+      .select("id, sale_type, quantity, unit_price, cost_at_sale, reseller_price, final_price, sale_source, my_percentage, partner_percentage, product_id")
+      .order("sale_date", { ascending: false });
+
+    if (fetchError || !allSales) {
+      toast({ title: "Error", description: "No se pudieron obtener las ventas", variant: "destructive" });
+      return { updated: 0, errors: 1 };
+    }
+
+    let updated = 0;
+    let errors = 0;
+
+    for (const sale of allSales) {
+      const costAtSale = Number(sale.cost_at_sale) || 0;
+      const unitPrice = Number(sale.unit_price) || 0;
+      const quantity = Number(sale.quantity) || 1;
+      const saleSource = sale.sale_source || "digital";
+      const myPct = saleSource === "digital" ? 100 : (Number(sale.my_percentage) ?? 100);
+      const partnerPct = saleSource === "digital" ? 0 : (Number(sale.partner_percentage) ?? 0);
+
+      const marginAtSale = unitPrice - costAtSale;
+      const marginPercentAtSale = costAtSale > 0
+        ? Math.round(((unitPrice - costAtSale) / costAtSale) * 100 * 100) / 100
+        : 0;
+      const totalAmount = unitPrice * quantity;
+      const totalProfit = marginAtSale * quantity;
+      const myProfitAmount = (totalProfit * myPct) / 100;
+      const partnerProfitAmount = (totalProfit * partnerPct) / 100;
+
+      let resellerProfit = 0;
+      const fp = Number(sale.final_price) || 0;
+      if (sale.sale_type === "revendedor" && fp > 0) {
+        resellerProfit = fp - unitPrice;
+      }
+
+      const { error } = await supabase
+        .from("sales")
+        .update({
+          total_amount: totalAmount,
+          margin_at_sale: marginAtSale,
+          margin_percent_at_sale: marginPercentAtSale,
+          my_percentage: myPct,
+          partner_percentage: partnerPct,
+          my_profit_amount: myProfitAmount,
+          partner_profit_amount: partnerProfitAmount,
+          reseller_profit: resellerProfit,
+        })
+        .eq("id", sale.id);
+
+      if (error) {
+        errors++;
+      } else {
+        updated++;
+      }
+    }
+
+    return { updated, errors };
   };
 
   const deleteSale = async (id: string) => {
@@ -399,6 +525,7 @@ export function useSales() {
     updateSale,
     deleteSale,
     updateOperationalStatus,
+    recalculateAllSales,
     refetch: fetchSales,
   };
 }
