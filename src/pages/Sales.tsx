@@ -4,6 +4,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType, SaleSource } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Button } from '@/components/ui/button';
