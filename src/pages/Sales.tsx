@@ -114,6 +114,8 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<Sale | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+  const [showRecalcConfirm, setShowRecalcConfirm] = useState(false);
 
   // Form fields - Sale Type First (OBLIGATORIO)
   const [saleType, setSaleType] = useState<SaleType | null>(null);
