@@ -109,6 +109,7 @@ export default function Sales() {
   const { products } = useProducts();
   const { sellers } = useSellers();
   const { creatives } = useCreatives();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
 
   // Form state
