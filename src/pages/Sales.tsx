@@ -1172,6 +1172,29 @@ export default function Sales() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recalculate Confirmation */}
+      <AlertDialog open={showRecalcConfirm} onOpenChange={setShowRecalcConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Recalcular todas las métricas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se recalcularán ganancias, márgenes y distribución de utilidades de TODAS las ventas históricas usando los porcentajes y costos almacenados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              setShowRecalcConfirm(false);
+              setRecalculating(true);
+              const result = await recalculateAllSales();
+              setRecalculating(false);
+            }}>
+              Recalcular todo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
