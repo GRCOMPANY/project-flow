@@ -248,8 +248,8 @@ export function useSales() {
 
     // Calculate profit split
     const totalProfit = marginAtSale * sale.quantity;
-    const effectiveMyPct = sale.saleSource === "digital" ? 100 : sale.myPercentage || 100;
-    const effectivePartnerPct = sale.saleSource === "digital" ? 0 : sale.partnerPercentage || 0;
+    const effectiveMyPct = sale.saleSource === "digital" ? 100 : (sale.myPercentage ?? 100);
+    const effectivePartnerPct = sale.saleSource === "digital" ? 0 : (sale.partnerPercentage ?? 0);
     const myProfitAmount = (totalProfit * effectiveMyPct) / 100;
     const partnerProfitAmount = (totalProfit * effectivePartnerPct) / 100;
 
