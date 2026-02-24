@@ -379,10 +379,16 @@ export default function Sales() {
             <p className="text-muted-foreground">Control de ventas y cobros</p>
           </div>
           {isAdmin && (
-            <Button onClick={openNewForm}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva venta
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowRecalcConfirm(true)} disabled={recalculating}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${recalculating ? 'animate-spin' : ''}`} />
+                {recalculating ? 'Recalculando...' : 'Recalcular'}
+              </Button>
+              <Button onClick={openNewForm}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva venta
+              </Button>
+            </div>
           )}
         </div>
 
