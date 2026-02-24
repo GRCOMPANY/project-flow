@@ -104,7 +104,7 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 ];
 
 export default function Sales() {
-  const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus } = useSales();
+  const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus, recalculateAllSales } = useSales();
   const { products } = useProducts();
   const { sellers } = useSellers();
   const { creatives } = useCreatives();
