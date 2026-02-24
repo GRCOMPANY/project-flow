@@ -525,6 +525,7 @@ export function useSales() {
     updateSale,
     deleteSale,
     updateOperationalStatus,
+    recalculateAllSales,
     refetch: fetchSales,
   };
 }
