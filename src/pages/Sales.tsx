@@ -70,6 +70,7 @@ import {
   Store,
   Globe,
   Handshake,
+  RefreshCw,
 } from 'lucide-react';
 
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
