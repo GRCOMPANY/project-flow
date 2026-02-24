@@ -1,158 +1,94 @@
 
 
-# Plan: Ventas por Socio Interno (Digital / Presencial)
+# Plan: Correccion de Calculo de Ganancias y Recalculo Global
 
-## Resumen
+## Problemas Identificados
 
-Agregar campos de origen de venta y reparto de ganancia al modulo de ventas, sin modificar la estructura multi-tenant existente.
+### 1. Build Error
+El archivo `ResellerDetailSheet.tsx` linea 77 tiene un cast incorrecto. Supabase devuelve `product` como un array `{ name: any }[]` pero se castea como objeto `{ name: string }`. Necesita castear como array y tomar el primer elemento.
 
----
+### 2. Calculo de "Mi Ganancia" incorrecto
+En `useSales.ts` linea 251, cuando `myPercentage` es 0 y `saleSource` es 'presencial', el codigo usa `sale.myPercentage || 100`. El operador `||` trata `0` como falsy y lo reemplaza por `100`. Resultado: una venta presencial con 0% para mi, suma 100% a "Mi ganancia".
 
-## Fase 1: Base de Datos
-
-### Migracion SQL
-
-```sql
--- Enum para origen de venta
-CREATE TYPE sale_source AS ENUM ('digital', 'presencial');
-
--- Nuevos campos en tabla sales
-ALTER TABLE sales ADD COLUMN sale_source sale_source NOT NULL DEFAULT 'digital';
-ALTER TABLE sales ADD COLUMN my_percentage numeric NOT NULL DEFAULT 100;
-ALTER TABLE sales ADD COLUMN partner_percentage numeric NOT NULL DEFAULT 0;
-ALTER TABLE sales ADD COLUMN my_profit_amount numeric NOT NULL DEFAULT 0;
-ALTER TABLE sales ADD COLUMN partner_profit_amount numeric NOT NULL DEFAULT 0;
+**Linea problematica:**
+```typescript
+const effectiveMyPct = sale.saleSource === "digital" ? 100 : sale.myPercentage || 100;
 ```
 
-No se crean tablas nuevas ni se modifican politicas RLS.
-
----
-
-## Fase 2: Tipos TypeScript
-
-### Cambios en `src/types/index.ts`
-
-- Agregar tipo: `export type SaleSource = 'digital' | 'presencial';`
-- Agregar campos a interfaz `Sale`:
-  - `saleSource: SaleSource`
-  - `myPercentage: number`
-  - `partnerPercentage: number`
-  - `myProfitAmount: number`
-  - `partnerProfitAmount: number`
-
----
-
-## Fase 3: Hook `useSales.ts`
-
-### Mapeo de datos
-- Mapear los 5 campos nuevos desde snake_case de la DB al camelCase del frontend
-- En `addSale`: calcular automaticamente `my_profit_amount` y `partner_profit_amount` antes de insertar:
-
-```text
-profit = totalAmount - (costAtSale * quantity)
-my_profit_amount = profit * (my_percentage / 100)
-partner_profit_amount = profit * (partner_percentage / 100)
+**Correccion:** Usar `??` en lugar de `||`:
+```typescript
+const effectiveMyPct = sale.saleSource === "digital" ? 100 : (sale.myPercentage ?? 100);
 ```
 
-- En `SaleInput`: agregar `saleSource`, `myPercentage`, `partnerPercentage`
+### 3. updateSale NO recalcula profit split
+La funcion `updateSale` (linea 319-353) solo mapea campos basicos. No recalcula `my_profit_amount`, `partner_profit_amount`, `cost_at_sale`, `margin_at_sale`, etc. Esto causa que al editar una venta, los montos de ganancia queden desactualizados.
+
+### 4. No existe mecanismo de recalculo global
+No hay forma de corregir ventas historicas que se guardaron con calculos erroneos.
 
 ---
 
-## Fase 4: Formulario de Venta (`Sales.tsx`)
+## Solucion
 
-### Nuevo campo: Origen de venta
+### Paso 1: Fix build error en ResellerDetailSheet.tsx
 
-Despues de seleccionar el tipo de venta (directa/revendedor), agregar una seccion:
-
-```text
-ORIGEN DE VENTA
-[Digital (yo)]  [Presencial (socio)]
+Cambiar linea 77 para manejar correctamente el tipo de retorno de Supabase:
+```typescript
+product_name: (Array.isArray(s.product) ? s.product[0]?.name : (s.product as any)?.name) || 'Producto eliminado',
 ```
 
-### Logica condicional:
-- Si "Digital": `myPercentage = 100`, `partnerPercentage = 0` (no editable)
-- Si "Presencial": mostrar campos editables para ambos porcentajes (default 50/50 o configurable)
-- Validar que `myPercentage + partnerPercentage = 100`
+### Paso 2: Fix operador || por ?? en addSale
 
-### Preview de distribucion:
-Mostrar calculo en tiempo real debajo de los porcentajes:
+En `useSales.ts`, cambiar las lineas 251-252:
+```typescript
+// ANTES (bug: 0 || 100 = 100)
+const effectiveMyPct = sale.saleSource === "digital" ? 100 : sale.myPercentage || 100;
+const effectivePartnerPct = sale.saleSource === "digital" ? 0 : sale.partnerPercentage || 0;
 
-```text
-Ganancia bruta: $X
-  Mi parte (70%): $Y
-  Socio (30%): $Z
+// DESPUES (correcto: 0 ?? 100 = 0)
+const effectiveMyPct = sale.saleSource === "digital" ? 100 : (sale.myPercentage ?? 100);
+const effectivePartnerPct = sale.saleSource === "digital" ? 0 : (sale.partnerPercentage ?? 0);
 ```
 
----
+### Paso 3: Reescribir updateSale con recalculo completo
 
-## Fase 5: Dashboard de Ventas (`Sales.tsx`)
+La funcion `updateSale` debe:
+1. Recibir todos los campos editables (incluyendo saleSource, myPercentage, partnerPercentage)
+2. Re-obtener el producto para recalcular costos
+3. Recalcular: costAtSale, marginAtSale, marginPercentAtSale, unitPrice, totalAmount, myProfitAmount, partnerProfitAmount
+4. Guardar todos los campos recalculados en la DB
 
-### Seccion 1 - Total negocio (ya existe, sin cambios)
-- Total vendido, Pendiente, Cobrado, Ganancia neta
+### Paso 4: Funcion de recalculo global
 
-### Seccion 2 - Ventas por origen (NUEVA)
-Dos cards:
-- Total Digital: monto + cantidad de ventas digitales
-- Total Presencial: monto + cantidad de ventas presenciales
+Agregar funcion `recalculateAllSales` en `useSales.ts` que:
+1. Lee TODAS las ventas de la DB
+2. Para cada venta, obtiene el costo del producto (usando cost_at_sale ya guardado)
+3. Recalcula myProfitAmount y partnerProfitAmount usando los porcentajes guardados y el operador `??`
+4. Actualiza cada venta en batch
 
-### Seccion 3 - Distribucion de ganancia (NUEVA)
-Dos cards:
-- Mi ganancia acumulada: suma de `my_profit_amount` de todas las ventas
-- Ganancia socio acumulada: suma de `partner_profit_amount` de todas las ventas
+### Paso 5: Boton "Recalcular metricas" en Sales.tsx
 
----
-
-## Fase 6: Tarjeta de Venta (SaleCard)
-
-Agregar badge visual:
-- "Digital" (azul) o "Presencial" (violeta) junto al tipo de venta
-- Si es presencial, mostrar reparto: "70/30" como badge adicional
+Agregar boton en la parte superior derecha del dashboard, junto a "Nueva venta":
+- Icono de recarga
+- Texto: "Recalcular"
+- Confirmacion antes de ejecutar
+- Indicador de progreso durante ejecucion
+- Toast de exito/error al terminar
 
 ---
 
 ## Archivos a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| Nueva migracion SQL | Crear enum + 5 columnas nuevas |
-| `src/types/index.ts` | Agregar SaleSource y 5 campos a Sale |
-| `src/hooks/useSales.ts` | Mapear campos, calcular profit split en addSale |
-| `src/pages/Sales.tsx` | Selector origen, campos porcentaje, dashboard sections |
-| `src/integrations/supabase/types.ts` | Actualizar tipos generados |
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/resellers/ResellerDetailSheet.tsx` | Fix cast de product (linea 77) |
+| `src/hooks/useSales.ts` | Fix `\|\|` por `??`, reescribir updateSale, agregar recalculateAllSales |
+| `src/pages/Sales.tsx` | Agregar boton "Recalcular metricas" |
 
----
+## Notas Tecnicas
 
-## Seccion Tecnica
-
-### Calculo de profit split
-
-```typescript
-// En addSale, despues de calcular marginAtSale:
-const totalProfit = marginAtSale * quantity;
-const myProfitAmount = totalProfit * (saleSource === 'digital' ? 100 : myPercentage) / 100;
-const partnerProfitAmount = totalProfit * (saleSource === 'digital' ? 0 : partnerPercentage) / 100;
-```
-
-### Stats adicionales en useMemo
-
-```typescript
-// Ventas por origen
-const digitalSales = sales.filter(s => s.saleSource === 'digital');
-const presencialSales = sales.filter(s => s.saleSource === 'presencial');
-const digitalTotal = digitalSales.reduce((sum, s) => sum + s.totalAmount, 0);
-const presencialTotal = presencialSales.reduce((sum, s) => sum + s.totalAmount, 0);
-
-// Distribucion de ganancia
-const myTotalProfit = sales.reduce((sum, s) => sum + (s.myProfitAmount || 0), 0);
-const partnerTotalProfit = sales.reduce((sum, s) => sum + (s.partnerProfitAmount || 0), 0);
-```
-
-### Orden de implementacion
-
-```text
-1. Migracion SQL (enum + columnas)
-2. Actualizar tipos TypeScript
-3. Actualizar hook useSales
-4. Actualizar formulario y dashboard en Sales.tsx
-```
+- Las metricas del dashboard ya se calculan dinamicamente con `useMemo` desde los datos de ventas - esto es correcto
+- Los campos `my_profit_amount` y `partner_profit_amount` en la DB son valores por-venta, no acumulados - esto tambien es correcto
+- El problema principal es el operador `||` que trata `0` como falsy, y que `updateSale` no recalcula nada
+- El recalculo global se hace desde frontend con queries individuales. Para un volumen mayor se podria usar una edge function, pero para el volumen actual es suficiente
 
