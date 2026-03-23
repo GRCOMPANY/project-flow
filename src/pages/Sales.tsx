@@ -125,6 +125,10 @@ export default function Sales() {
   const [recalculating, setRecalculating] = useState(false);
   const [showRecalcConfirm, setShowRecalcConfirm] = useState(false);
 
+  // Period filter state
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
   // Form fields - Sale Type First (OBLIGATORIO)
   const [saleType, setSaleType] = useState<SaleType | null>(null);
   const [productId, setProductId] = useState('');
