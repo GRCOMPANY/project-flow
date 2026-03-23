@@ -242,6 +242,7 @@ export function useTasks() {
         assigned_to: input.assignedTo,
         source: "manual",
         status: "pendiente",
+        company_id: companyId,
       });
 
       if (error) throw error;
