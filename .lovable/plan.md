@@ -1,68 +1,37 @@
 
 
-# Plan: Mejora Visual Premium del Centro de Comando
+# Plan: Catalogo Mayorista Publico
 
-Rediseno visual inspirado en Stripe/Linear/Vercel manteniendo toda la funcionalidad intacta. Solo cambios de tipografia, espaciado, colores y layout.
+## Concepto
+Pagina publica sin autenticacion en `/catalogo` que muestra productos activos con precios de mayoreo, precio sugerido y ganancia estimada. Usa la vista `products_seller_view` que ya existe sin RLS.
 
-## Archivos a modificar
+## Archivos a crear/modificar
 
-1. **`src/components/command-center/HeroFinancialCard.tsx`** -- Numero hero mas grande, mejor tipografia, mas espacio
-2. **`src/components/command-center/MetricsDashboard.tsx`** -- Cards mas grandes, numeros en #C1272D, iconos limpios, mejor separacion
-3. **`src/components/command-center/AIRadarPanel.tsx`** -- Alertas con mas espacio, iconos mas claros, mejor diseno
-4. **`src/components/command-center/ProductSpotlight.tsx`** -- Card mas visual, margen con badge, mejor layout
-5. **`src/components/command-center/AIInsightBanner.tsx`** -- Mas limpio, mejor jerarquia
-6. **`src/components/command-center/QuickActionsBar.tsx`** -- Botones mas refinados
-7. **`src/pages/CommandCenter.tsx`** -- Mas espaciado entre secciones (space-y-10 -> space-y-14)
-8. **`src/index.css`** -- Actualizar clases premium existentes
+### 1. Crear `src/pages/CatalogoPublico.tsx`
+- Pagina standalone sin nav del sistema interno
+- Header con logo/nombre "GRC Importaciones" y estilo de marca (#C1272D)
+- Consulta directa a `products_seller_view` filtrando `status = 'activo'`
+- Grid responsive de cards de producto mostrando:
+  - Imagen (o placeholder Package icon)
+  - Nombre
+  - "Tu precio": `wholesale_price`
+  - "Precio publico": `retail_price`
+  - "Ganancia estimada": `retail_price - wholesale_price`
+  - Boton "Quiero este producto" que abre `https://wa.me/NUMERO?text=Hola GRC, quiero pedir: [nombre]`
+- Barra de busqueda simple por nombre
+- NO muestra: costo real, margenes %, ventas, nada interno
 
-## Cambios por componente
+### 2. Modificar `src/App.tsx`
+- Agregar ruta publica (sin ProtectedRoute): `<Route path="/catalogo" element={<CatalogoPublico />} />`
 
-### 1. HeroFinancialCard
-- Numero principal: `text-5xl md:text-6xl lg:text-7xl` (actualmente 4xl/5xl/6xl)
-- Agregar `font-feature-settings: 'tnum'` para numeros tabulares
-- Padding interno: `p-8 md:p-10` (actualmente p-6 md:p-8)
-- Label "Balance Critico del Dia" con tipografia Playfair Display
-- Mas separacion interna entre bloques (space-y-8)
+## Datos
+- Usa `products_seller_view` (vista sin RLS, accesible con anon key)
+- Solo filtra `status = 'activo'`
+- No requiere autenticacion
 
-### 2. MetricsDashboard
-- Numeros de metricas en color `text-[#C1272D]` (rojo marca)
-- Cards mas altas: padding `p-6` (actualmente p-5)
-- Grid gap `gap-6` (actualmente gap-4)
-- Iconos con fondo mas prominente: `w-12 h-12 rounded-2xl`
-- Sparkline mas ancha y alta
+## Numero de WhatsApp
+- Hardcodear numero de GRC o usar un prop/constante configurable en el componente
 
-### 3. AIRadarPanel
-- Alertas con `gap-4 p-5` (actualmente gap-3 p-4)
-- Espacio entre alertas: `space-y-3` (actualmente space-y-2.5)
-- Iconos de alerta mas grandes: `w-11 h-11`
-- Dot de severidad mas grande: `w-3 h-3`
-- Texto de accion siempre visible en desktop
-
-### 4. ProductSpotlight
-- Margen destacado con badge/pill rojo `bg-[#C1272D]`
-- Imagen mas grande: `max-w-[280px]`
-- Metricas con numeros mas prominentes `text-3xl md:text-4xl`
-- Padding `p-8 md:p-10`
-
-### 5. AIInsightBanner
-- Icono mas grande: `w-18 h-18`
-- Mensaje con `text-2xl` (actualmente text-xl)
-- Padding `p-8 md:p-10`
-
-### 6. CommandCenter.tsx
-- `space-y-14` en container principal (actualmente space-y-10)
-- Grid gap entre columnas `gap-10` (actualmente gap-8)
-- Greeting con Playfair Display `font-['Playfair_Display']`
-
-### 7. index.css
-- `.metric-card-premium` con mayor shadow y radius
-- `.radar-alert` con padding y gap incrementados
-- `.hero-financial-number` con font-feature-settings tnum
-- `.hero-financial-card` con shadow mas pronunciada
-
-## Lo que NO cambia
-- Toda la logica de datos, filtros, calculos
-- Props, interfaces, funciones helper (generateRadarAlerts, identifyKeyProducts, etc.)
-- Estructura de componentes y rutas
-- Selector de periodo del MetricsDashboard
+## Sin cambios en
+- Sistema interno, dashboard, rutas protegidas, logica de productos existente
 
