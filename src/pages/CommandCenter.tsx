@@ -8,7 +8,7 @@ import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { HeroFinancialCard } from '@/components/command-center/HeroFinancialCard';
 import { AIRadarPanel, generateRadarAlerts } from '@/components/command-center/AIRadarPanel';
-import { MetricsDashboard, calculateTrendData } from '@/components/command-center/MetricsDashboard';
+import { MetricsDashboard } from '@/components/command-center/MetricsDashboard';
 import { ProductSpotlight, identifyKeyProducts } from '@/components/command-center/ProductSpotlight';
 import { AIInsightBanner, generateDailyInsight } from '@/components/command-center/AIInsightBanner';
 import { QuickActionsBar, generateSmartActions } from '@/components/command-center/QuickActionsBar';
@@ -137,10 +137,7 @@ export default function CommandCenter() {
     );
   }, [salesStats, productMetrics, creativeMetrics]);
 
-  // Trend metrics data (now includes margin)
-  const trendData = useMemo(() => {
-    return calculateTrendData(sales);
-  }, [sales]);
+  // Trend metrics handled internally by MetricsDashboard
 
   // Key products (get the most important one for spotlight)
   const keyProducts = useMemo(() => {
@@ -287,11 +284,7 @@ export default function CommandCenter() {
             className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`} 
             style={{ animationDelay: '0.15s' }}
           >
-            <MetricsDashboard
-              salesData={trendData.salesData}
-              profitData={trendData.profitData}
-              marginData={trendData.marginData}
-            />
+            <MetricsDashboard sales={sales} />
           </section>
         </div>
 
