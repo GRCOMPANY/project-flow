@@ -162,10 +162,10 @@ export default function CommandCenter() {
 
     return generateDailyInsight(
       {
-        pendingAmount: tensionData.pendingAmount,
-        pendingCount: tensionData.pendingCount,
-        unconfirmedOld: tensionData.unconfirmedOld,
-        atRisk: tensionData.atRisk,
+        pendingAmount: salesStats.pendingAmount,
+        pendingCount: salesStats.pendingCount,
+        unconfirmedOld: salesStats.unconfirmedOld,
+        atRisk: salesStats.atRisk,
         paidToday,
         revenueToday,
       },
@@ -174,18 +174,18 @@ export default function CommandCenter() {
         coldWithPotential: productMetrics.coldProducts,
       }
     );
-  }, [tensionData, productMetrics, sales]);
+  }, [salesStats, productMetrics, sales]);
 
   // Smart actions
   const smartActions = useMemo(() => {
     return generateSmartActions(
       {
-        pendingCount: tensionData.pendingCount,
-        pendingAmount: tensionData.pendingAmount,
+        pendingCount: salesStats.pendingCount,
+        pendingAmount: salesStats.pendingAmount,
       },
       productMetrics
     );
-  }, [tensionData, productMetrics]);
+  }, [salesStats, productMetrics]);
 
   // Greeting
   const getGreeting = () => {
