@@ -692,7 +692,7 @@ export default function Sales() {
         )}
 
         {/* Sales List */}
-        {sales.length === 0 ? (
+        {filteredSales.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
