@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Creative, Product } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
 
 export function useCreatives() {
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchCreatives = async () => {
     setLoading(true);
@@ -163,6 +165,7 @@ export function useCreatives() {
       // New fields
       cta_text: creative.ctaText || null,
       publication_reference: creative.publicationReference || null,
+      company_id: companyId,
     };
 
     const { data, error } = await supabase

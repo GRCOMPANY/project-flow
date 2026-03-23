@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Seller, ResellerType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
 
 // Labels for reseller types
 export const RESELLER_TYPE_LABELS: Record<ResellerType, string> = {
@@ -14,6 +15,7 @@ export function useSellers() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   // Fetch reseller stats from sales
   const getResellerStats = useCallback(async (resellerId: string) => {
@@ -101,7 +103,7 @@ export function useSellers() {
         type: seller.type || 'revendedor',
         status: seller.status || 'activo',
         notes: seller.notes || null,
-        // Don't send commission - deprecated
+        company_id: companyId,
       })
       .select()
       .single();

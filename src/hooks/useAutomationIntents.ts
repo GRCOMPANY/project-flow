@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AutomationIntent, AutomationStatus, AutomationIntentRecord, Creative } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
 import type { Json } from '@/integrations/supabase/types';
 
 interface RegisterIntentInput {
@@ -26,6 +27,7 @@ export function useAutomationIntents() {
   const [intents, setIntents] = useState<AutomationIntentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchIntents = useCallback(async () => {
     try {
@@ -96,6 +98,7 @@ export function useAutomationIntents() {
           intent_type: input.intentType,
           status: 'pending',
           metadata: metadata as Json,
+          company_id: companyId,
         })
         .select()
         .single();

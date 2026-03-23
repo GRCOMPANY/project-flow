@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Task, Status, Priority, Profile } from '@/types';
 import { toast } from 'sonner';
+import { useCompany } from './useCompany';
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { companyId } = useCompany();
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
@@ -93,6 +95,7 @@ export function useProjects() {
         name: project.name,
         description: project.description,
         due_date: project.dueDate || null,
+        company_id: companyId,
       })
       .select()
       .single();
@@ -171,6 +174,7 @@ export function useProjects() {
         priority: task.priority,
         due_date: task.dueDate || null,
         assigned_to: task.assignedTo || null,
+        company_id: companyId,
       })
       .select(`
         *,

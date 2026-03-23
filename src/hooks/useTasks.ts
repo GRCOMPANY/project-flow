@@ -30,6 +30,7 @@ import { useSales } from "./useSales";
 import { useProducts } from "./useProducts";
 import { useCreatives } from "./useCreatives";
 import { useToast } from "./use-toast";
+import { useCompany } from "./useCompany";
 
 const priorityOrder: Record<Priority, number> = { alta: 0, media: 1, baja: 2 };
 
@@ -62,6 +63,7 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   // Datos para generación automática
   const { sales } = useSales();
@@ -183,6 +185,7 @@ export function useTasks() {
           dedup_key: task.dedupKey,
           context: (task.context || {}) as Json,
           status: "pendiente" as const,
+          company_id: companyId,
         });
 
         if (insertError && !insertError.message.includes("duplicate key")) {
@@ -239,6 +242,7 @@ export function useTasks() {
         assigned_to: input.assignedTo,
         source: "manual",
         status: "pendiente",
+        company_id: companyId,
       });
 
       if (error) throw error;

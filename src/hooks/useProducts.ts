@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product, MarginLevel } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Helper para calcular nivel de margen
@@ -16,6 +17,7 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const { companyId } = useCompany();
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -147,6 +149,7 @@ export function useProducts() {
 
         // Relaciones
         supplier_id: product.supplierId || null,
+        company_id: companyId,
       })
       .select()
       .single();

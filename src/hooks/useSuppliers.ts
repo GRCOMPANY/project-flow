@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Supplier } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
 
 export function useSuppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -49,6 +51,7 @@ export function useSuppliers() {
         contact: supplier.contact || null,
         conditions: supplier.conditions || null,
         notes: supplier.notes || null,
+        company_id: companyId,
       })
       .select()
       .single();

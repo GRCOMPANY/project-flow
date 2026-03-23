@@ -12,6 +12,7 @@ import {
   SaleSource,
 } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
 
 // Labels para estados operativos
 export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
@@ -54,6 +55,7 @@ export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchSales = async () => {
     setLoading(true);
@@ -285,6 +287,7 @@ export function useSales() {
         partner_percentage: effectivePartnerPct,
         my_profit_amount: myProfitAmount,
         partner_profit_amount: partnerProfitAmount,
+        company_id: companyId,
       })
       .select()
       .single();
