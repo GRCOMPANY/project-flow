@@ -1,31 +1,32 @@
 
 
-# Plan: Filtro de Periodo en Ventas
+# Plan: Grafica de Ventas por Dia
 
-## Resumen
-Agregar un selector de mes/ano arriba de las metricas del dashboard de Ventas. Todas las estadisticas y la lista de ventas se filtran segun el periodo seleccionado.
+## Archivo unico a modificar: `src/pages/Sales.tsx`
 
 ## Cambio
 
-**Archivo unico: `src/pages/Sales.tsx`**
+Insertar un componente de grafica de barras entre el selector de periodo (linea 476) y las cards de stats (linea 478).
 
-### 1. Nuevos estados
+### 1. Imports adicionales
 ```typescript
-const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 ```
 
-### 2. Filtrar ventas por periodo
-Crear un `filteredSales` con `useMemo` que filtre `sales` por mes/ano usando `saleDate`. Reemplazar `sales` por `filteredSales` en el calculo de `stats` y en la lista de ventas.
+### 2. Datos para la grafica
+Nuevo `useMemo` llamado `dailyChartData` que:
+- Genera un array con todos los dias del mes seleccionado (1 al 28/30/31)
+- Para cada dia, suma `totalAmount` y ganancia (`marginAtSale * quantity`) de las ventas de ese dia
+- Dias sin ventas quedan con total: 0, ganancia: 0
 
-### 3. Selector de periodo (entre el header y las metricas, linea ~397)
-- Select de mes (Enero-Diciembre) + Select de ano (dinamico desde datos)
-- Boton "Mes anterior" con icono de flecha para retroceder un mes rapido
-- Boton "Mes actual" para volver al presente
-- Badge mostrando el periodo activo: "Marzo 2026"
+### 3. Componente visual
+- `Card` con `ResponsiveContainer` + `BarChart`
+- Barras color `#C1272D` (rojo marca)
+- Eje X: dia del mes (1, 2, 3...)
+- Eje Y: monto en pesos
+- Tooltip personalizado mostrando: fecha completa, total vendido, ganancia del dia
+- Altura fija ~250px
 
-### 4. Sin cambios en
-- Diseno existente de cards, formularios, ni logica de addSale/updateSale
-- Hook `useSales.ts` no se toca
-- Solo se agrega la capa de filtro visual en Sales.tsx
+### 4. Ubicacion exacta
+Despues de la linea 476 (`</div>` del selector de periodo), antes de linea 478 (`{/* Dashboard Stats */}`).
 
