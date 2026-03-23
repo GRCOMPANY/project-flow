@@ -1,32 +1,34 @@
 
 
-# Plan: Grafica de Ventas por Dia
+# Plan: Métricas del Mes en Centro de Comando
 
-## Archivo unico a modificar: `src/pages/Sales.tsx`
+## Archivos a modificar
 
-## Cambio
+1. **`src/components/command-center/MetricsDashboard.tsx`** — Agregar selector de mes/año, cambiar título, cambiar lógica de cálculo de 7 días a mensual, cambiar texto "vs semana anterior" a "vs mes anterior"
+2. **`src/pages/CommandCenter.tsx`** — Pasar `sales` directamente al `MetricsDashboard` en lugar de pre-calcular `trendData`, y dejar que el componente maneje internamente el filtrado por mes
 
-Insertar un componente de grafica de barras entre el selector de periodo (linea 476) y las cards de stats (linea 478).
+## Cambios específicos
 
-### 1. Imports adicionales
-```typescript
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-```
+### MetricsDashboard.tsx
 
-### 2. Datos para la grafica
-Nuevo `useMemo` llamado `dailyChartData` que:
-- Genera un array con todos los dias del mes seleccionado (1 al 28/30/31)
-- Para cada dia, suma `totalAmount` y ganancia (`marginAtSale * quantity`) de las ventas de ese dia
-- Dias sin ventas quedan con total: 0, ganancia: 0
+1. **Props**: Recibir `sales` (array crudo) en lugar de `salesData`/`profitData`/`marginData` pre-calculados
+2. **Estado interno**: `selectedMonth` y `selectedYear` (default: mes actual)
+3. **Selector de período**: Mismo estilo que Ventas — selects de mes/año + botón "Mes anterior" + botón "Mes actual"
+4. **Título**: "MÉTRICAS 7 DÍAS" → "MÉTRICAS DEL MES"
+5. **Subtítulo**: "Comparativa vs período anterior" → "Comparativa vs mes anterior"
+6. **Cálculo**: Reemplazar `calculateTrendData` (basado en 7 días) por `calculateMonthlyTrendData` que:
+   - Filtra ventas del mes seleccionado para ventas, ganancia y margen
+   - Compara contra el mes anterior completo
+   - Genera sparkline con datos diarios del mes (en lugar de 7 puntos)
+7. **Texto**: "vs semana anterior" → "vs mes anterior"
 
-### 3. Componente visual
-- `Card` con `ResponsiveContainer` + `BarChart`
-- Barras color `#C1272D` (rojo marca)
-- Eje X: dia del mes (1, 2, 3...)
-- Eje Y: monto en pesos
-- Tooltip personalizado mostrando: fecha completa, total vendido, ganancia del dia
-- Altura fija ~250px
+### CommandCenter.tsx
 
-### 4. Ubicacion exacta
-Despues de la linea 476 (`</div>` del selector de periodo), antes de linea 478 (`{/* Dashboard Stats */}`).
+- Eliminar el `useMemo` de `trendData` y pasar `sales` directo al componente
+- Cambiar props de `<MetricsDashboard sales={sales} />`
+
+## Sin cambios en
+- Diseño de las cards de métricas (mismo layout, colores, sparklines)
+- Resto del Centro de Comando
+- Sección de Ventas
 
