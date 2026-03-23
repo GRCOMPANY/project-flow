@@ -15,6 +15,7 @@ export function useSellers() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   // Fetch reseller stats from sales
   const getResellerStats = useCallback(async (resellerId: string) => {
