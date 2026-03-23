@@ -107,12 +107,27 @@ const Products = () => {
               <p className="text-muted-foreground">{stats.total} productos en tu inventario</p>
             </div>
             
-            {isAdmin && (
-              <Button onClick={() => setFormOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" />
-                Nuevo producto
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const url = `${window.location.origin}/catalogo`;
+                  navigator.clipboard.writeText(url);
+                  toast({ title: 'Link copiado', description: url });
+                }}
+              >
+                <Link className="w-4 h-4" />
+                Ver catálogo mayorista
               </Button>
-            )}
+              {isAdmin && (
+                <Button onClick={() => setFormOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
+                  <Plus className="w-4 h-4" />
+                  Nuevo producto
+                </Button>
+              )}
+            </div>
           </div>
         </header>
 
