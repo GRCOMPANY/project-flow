@@ -175,6 +175,22 @@ export default function Sales() {
     });
   }, [sales, selectedMonth, selectedYear]);
 
+  // Daily chart data for the selected month
+  const dailyChartData = useMemo(() => {
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const daySales = filteredSales.filter(s => {
+        const d = new Date(s.saleDate);
+        return d.getDate() === day;
+      });
+      const total = daySales.reduce((sum, s) => sum + s.totalAmount, 0);
+      const ganancia = daySales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
+      return { dia: day, total, ganancia };
+    });
+    return days;
+  }, [filteredSales, selectedMonth, selectedYear]);
+
   const goToPreviousMonth = () => {
     if (selectedMonth === 0) {
       setSelectedMonth(11);
