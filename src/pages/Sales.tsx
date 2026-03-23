@@ -159,27 +159,58 @@ export default function Sales() {
   const myMarginPercent = productCost > 0 ? ((myProfit / productCost) * 100) : 0;
   const resellerProfitCalc = saleType === 'revendedor' && finalPrice > 0 ? finalPrice - resellerPrice : 0;
 
+  // Available years from sales data
+  const availableYears = useMemo(() => {
+    const years = new Set(sales.map(s => new Date(s.saleDate).getFullYear()));
+    years.add(new Date().getFullYear());
+    return Array.from(years).sort((a, b) => b - a);
+  }, [sales]);
+
+  // Filter sales by selected period
+  const filteredSales = useMemo(() => {
+    return sales.filter(s => {
+      const d = new Date(s.saleDate);
+      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+    });
+  }, [sales, selectedMonth, selectedYear]);
+
+  const goToPreviousMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => prev - 1);
+    }
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedMonth(new Date().getMonth());
+    setSelectedYear(new Date().getFullYear());
+  };
+
+  const isCurrentMonth = selectedMonth === new Date().getMonth() && selectedYear === new Date().getFullYear();
+
   // Dashboard stats - separadas por tipo
   const stats = useMemo(() => {
-    const directSales = sales.filter(s => s.saleType === 'directa');
-    const resellerSales = sales.filter(s => s.saleType === 'revendedor');
+    const directSales = filteredSales.filter(s => s.saleType === 'directa');
+    const resellerSales = filteredSales.filter(s => s.saleType === 'revendedor');
     
-    const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-    const pending = sales.filter(s => s.paymentStatus === 'pendiente');
-    const paid = sales.filter(s => s.paymentStatus === 'pagado');
+    const totalSold = filteredSales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const pending = filteredSales.filter(s => s.paymentStatus === 'pendiente');
+    const paid = filteredSales.filter(s => s.paymentStatus === 'pagado');
     const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
     const paidAmount = paid.reduce((sum, s) => sum + s.totalAmount, 0);
 
-    const totalCost = sales.reduce((sum, s) => sum + ((s.costAtSale || 0) * s.quantity), 0);
-    const netProfit = sales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
-    const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined && s.marginPercentAtSale !== null);
+    const totalCost = filteredSales.reduce((sum, s) => sum + ((s.costAtSale || 0) * s.quantity), 0);
+    const netProfit = filteredSales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
+    const salesWithMargin = filteredSales.filter(s => s.marginPercentAtSale !== undefined && s.marginPercentAtSale !== null);
     const avgMargin = salesWithMargin.length > 0
       ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
       : 0;
-    const salesWithLoss = sales.filter(s => (s.marginAtSale || 0) < 0).length;
+    const salesWithLoss = filteredSales.filter(s => (s.marginAtSale || 0) < 0).length;
 
-    const sinConfirmar = sales.filter(s => s.operationalStatus === 'nuevo').length;
-    const enRiesgo = sales.filter(s => 
+    const sinConfirmar = filteredSales.filter(s => s.operationalStatus === 'nuevo').length;
+    const enRiesgo = filteredSales.filter(s => 
       s.operationalStatus === 'riesgo_devolucion' || s.operationalStatus === 'sin_respuesta'
     ).length;
 
@@ -197,18 +228,18 @@ export default function Sales() {
       : 0;
 
     // Stats por origen (sale source)
-    const digitalSales = sales.filter(s => s.saleSource === 'presencial' ? false : true);
-    const presencialSales = sales.filter(s => s.saleSource === 'presencial');
+    const digitalSales = filteredSales.filter(s => s.saleSource === 'presencial' ? false : true);
+    const presencialSales = filteredSales.filter(s => s.saleSource === 'presencial');
     const digitalTotal = digitalSales.reduce((sum, s) => sum + s.totalAmount, 0);
     const presencialTotal = presencialSales.reduce((sum, s) => sum + s.totalAmount, 0);
 
     // Distribución de ganancia
-    const myTotalProfit = sales.reduce((sum, s) => sum + (s.myProfitAmount || 0), 0);
-    const partnerTotalProfit = sales.reduce((sum, s) => sum + (s.partnerProfitAmount || 0), 0);
+    const myTotalProfit = filteredSales.reduce((sum, s) => sum + (s.myProfitAmount || 0), 0);
+    const partnerTotalProfit = filteredSales.reduce((sum, s) => sum + (s.partnerProfitAmount || 0), 0);
 
     return {
       totalSold,
-      totalSales: sales.length,
+      totalSales: filteredSales.length,
       pendingAmount,
       pendingCount: pending.length,
       paidAmount,
@@ -235,7 +266,7 @@ export default function Sales() {
       myTotalProfit,
       partnerTotalProfit,
     };
-  }, [sales]);
+  }, [filteredSales]);
 
   const resetForm = () => {
     setSaleType(null);
