@@ -114,7 +114,7 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
   const CommercialIcon = commercialConfig?.icon;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       {/* Section Header */}
       <div className="flex items-center gap-2">
         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -142,10 +142,10 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
           config.gradient
         )} />
 
-        <div className="relative grid md:grid-cols-[240px,1fr] gap-6 p-6 md:p-8">
-          {/* Product Image - Larger */}
+        <div className="relative grid md:grid-cols-[280px,1fr] gap-8 p-8 md:p-10">
+          {/* Product Image */}
           <div className="relative">
-            <div className="aspect-square w-full max-w-[240px] mx-auto md:mx-0 rounded-2xl bg-muted/40 overflow-hidden ring-2 ring-border/30">
+            <div className="aspect-square w-full max-w-[280px] mx-auto md:mx-0 rounded-2xl bg-muted/40 overflow-hidden ring-2 ring-border/30">
               {keyProduct.product.imageUrl ? (
                 <img
                   src={keyProduct.product.imageUrl}
@@ -159,7 +159,7 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
               )}
             </div>
             
-            {/* Commercial State Badge - Overlay */}
+            {/* Commercial State Badge */}
             {commercialConfig && CommercialIcon && (
               <div className={cn(
                 "absolute -bottom-2 left-1/2 -translate-x-1/2 commercial-badge",
@@ -172,7 +172,7 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
           </div>
 
           {/* Product Info */}
-          <div className="flex flex-col justify-between gap-5">
+          <div className="flex flex-col justify-between gap-6">
             {/* Top: Badge + Name */}
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -185,17 +185,17 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
                 </div>
               </div>
 
-              <h3 className="text-2xl font-bold text-foreground line-clamp-2">
+              <h3 className="text-2xl md:text-3xl font-bold text-foreground line-clamp-2">
                 {keyProduct.product.name}
               </h3>
             </div>
 
-            {/* Middle: Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-8">
               {/* Primary Metric */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-baseline gap-2">
-                  <p className={cn("text-2xl md:text-3xl font-bold", config.accentColor)}>
+                  <p className={cn("text-3xl md:text-4xl font-bold", config.accentColor)} style={{ fontFeatureSettings: "'tnum'" }}>
                     {keyProduct.metric}
                   </p>
                   {keyProduct.changeVsPrevious !== undefined && keyProduct.changeVsPrevious !== 0 && (
@@ -215,8 +215,8 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
               
               {/* Secondary Metric */}
               {keyProduct.secondaryMetric && (
-                <div className="space-y-1">
-                  <p className="text-2xl md:text-3xl font-bold text-foreground">
+                <div className="space-y-1.5">
+                  <p className="text-3xl md:text-4xl font-bold text-foreground" style={{ fontFeatureSettings: "'tnum'" }}>
                     {keyProduct.secondaryMetric}
                   </p>
                   <p className="text-xs text-muted-foreground font-medium">
@@ -227,8 +227,8 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
 
               {/* Tertiary Metric */}
               {keyProduct.tertiaryMetric && (
-                <div className="space-y-1">
-                  <p className="text-2xl md:text-3xl font-bold text-foreground">
+                <div className="space-y-1.5">
+                  <p className="text-3xl md:text-4xl font-bold text-foreground" style={{ fontFeatureSettings: "'tnum'" }}>
                     {keyProduct.tertiaryMetric}
                   </p>
                   <p className="text-xs text-muted-foreground font-medium">
@@ -238,7 +238,7 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
               )}
             </div>
 
-            {/* Bottom: Actions */}
+            {/* Actions */}
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() => navigate(keyProduct.action.path)}
@@ -277,7 +277,6 @@ export function ProductSpotlight({ keyProduct, className }: ProductSpotlightProp
   );
 }
 
-// Helper to identify key products from smart catalog
 export function identifyKeyProducts(
   smartProducts: ProductWithMetrics[],
   sales: Array<{ productId: string; paymentStatus: string; totalAmount: number; saleDate: string }>
@@ -285,7 +284,6 @@ export function identifyKeyProducts(
   const result: KeyProduct[] = [];
   const usedProductIds = new Set<string>();
 
-  // Calculate previous week sales for comparison
   const today = new Date();
   const oneWeekAgo = new Date(today);
   oneWeekAgo.setDate(today.getDate() - 7);
@@ -299,7 +297,6 @@ export function identifyKeyProducts(
     }).length;
   };
 
-  // 1. Top Seller (most sales in 7 days)
   const topSeller = smartProducts
     .filter(p => p.salesLast7Days > 0)
     .sort((a, b) => b.salesLast7Days - a.salesLast7Days)[0];
@@ -309,7 +306,6 @@ export function identifyKeyProducts(
     const prevWeekSales = getSalesInPeriod(topSeller.id, twoWeeksAgo, oneWeekAgo);
     const changeVsPrev = topSeller.salesLast7Days - prevWeekSales;
     
-    // Determine commercial state
     let commercialState: CommercialState = 'warm';
     if (topSeller.salesLast7Days >= 5) commercialState = 'hot';
     else if (topSeller.salesLast7Days <= 1) commercialState = 'cold';
@@ -329,7 +325,6 @@ export function identifyKeyProducts(
     });
   }
 
-  // 2. Most Profitable (highest margin with sales)
   const mostProfitable = smartProducts
     .filter(p => p.salesLast30Days > 0 && (p.marginPercent || 0) > 30 && !usedProductIds.has(p.id))
     .sort((a, b) => (b.marginPercent || 0) - (a.marginPercent || 0))[0];
@@ -350,7 +345,6 @@ export function identifyKeyProducts(
     });
   }
 
-  // 3. Coldest (active, no sales 30d, but good margin)
   const coldest = smartProducts
     .filter(p => 
       p.status === 'activo' && 
@@ -374,7 +368,6 @@ export function identifyKeyProducts(
     });
   }
 
-  // 4. At Risk (pending collection)
   const atRisk = smartProducts
     .filter(p => p.pendingToCollect > 0 && !usedProductIds.has(p.id))
     .sort((a, b) => b.pendingToCollect - a.pendingToCollect)[0];
