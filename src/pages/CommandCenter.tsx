@@ -33,42 +33,20 @@ export default function CommandCenter() {
   const smartProducts = useSmartCatalog({ products, sales, creatives });
 
   // =========================================
-  // DATA CALCULATIONS
+  // DATA CALCULATIONS — mirrors Sales.tsx stats exactly
   // =========================================
 
-  // Calculate weekly totals for context
-  const weeklyStats = useMemo(() => {
-    const today = new Date();
-    const oneWeekAgo = new Date(today);
-    oneWeekAgo.setDate(today.getDate() - 7);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-
-    const thisWeekSales = sales.filter(s => new Date(s.saleDate) >= oneWeekAgo);
-    const totalWeeklySales = thisWeekSales.reduce((sum, s) => sum + s.totalAmount, 0);
-
-    // Yesterday's at-risk calculation
-    const yesterdaySales = sales.filter(s => {
-      const saleDate = new Date(s.saleDate);
-      return saleDate.toDateString() === yesterday.toDateString();
-    });
-    const yesterdayRisk = yesterdaySales
-      .filter(s => s.paymentStatus === 'pendiente')
-      .reduce((sum, s) => sum + s.totalAmount, 0);
-
-    return {
-      totalWeeklySales,
-      yesterdayRisk,
-    };
-  }, [sales]);
-
-  // Hero Financial Card data with enhanced context
-  const tensionData = useMemo(() => {
-    const pendingAmount = sales
-      .filter(s => s.paymentStatus === 'pendiente')
-      .reduce((sum, s) => sum + s.totalAmount, 0);
-    
-    const pendingCount = sales.filter(s => s.paymentStatus === 'pendiente').length;
+  const salesStats = useMemo(() => {
+    const totalSold = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const pending = sales.filter(s => s.paymentStatus === 'pendiente');
+    const pendingAmount = pending.reduce((sum, s) => sum + s.totalAmount, 0);
+    const pendingCount = pending.length;
+    const paidAmount = sales.filter(s => s.paymentStatus === 'pagado').reduce((sum, s) => sum + s.totalAmount, 0);
+    const netProfit = sales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
+    const salesWithMargin = sales.filter(s => s.marginPercentAtSale !== undefined && s.marginPercentAtSale !== null);
+    const avgMargin = salesWithMargin.length > 0
+      ? salesWithMargin.reduce((sum, s) => sum + (s.marginPercentAtSale || 0), 0) / salesWithMargin.length
+      : 0;
 
     const unconfirmedOld = sales.filter(s => {
       if (s.operationalStatus !== 'nuevo') return false;
@@ -81,37 +59,31 @@ export default function CommandCenter() {
       s.operationalStatus === 'sin_respuesta'
     ).length;
 
-    // Money at risk = pending + (at risk sales * average sale)
-    const avgSaleAmount = sales.length > 0
-      ? sales.reduce((sum, s) => sum + s.totalAmount, 0) / sales.length
-      : 0;
-    const montoEnRiesgo = pendingAmount + (atRisk * avgSaleAmount);
+    // Weekly context
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const totalWeeklySales = sales
+      .filter(s => new Date(s.saleDate) >= oneWeekAgo)
+      .reduce((sum, s) => sum + s.totalAmount, 0);
 
-    // Calculate % of weekly sales
-    const percentOfWeeklySales = weeklyStats.totalWeeklySales > 0
-      ? Math.round((montoEnRiesgo / weeklyStats.totalWeeklySales) * 100)
+    const percentOfWeeklySales = totalWeeklySales > 0
+      ? Math.round((pendingAmount / totalWeeklySales) * 100)
       : 0;
-
-    // Calculate change vs yesterday
-    const changeVsYesterday = weeklyStats.yesterdayRisk > 0
-      ? Math.round(((montoEnRiesgo - weeklyStats.yesterdayRisk) / weeklyStats.yesterdayRisk) * 100)
-      : 0;
-
-    // Actions to stability
-    const actionsToStability = unconfirmedOld + atRisk;
 
     return {
-      montoEnRiesgo: Math.round(montoEnRiesgo),
+      totalSold,
       pendingAmount,
       pendingCount,
+      paidAmount,
+      netProfit,
+      avgMargin,
       unconfirmedOld,
       atRisk,
-      avgSaleAmount,
+      totalWeeklySales,
       percentOfWeeklySales,
-      changeVsYesterday,
-      actionsToStability,
+      actionsToStability: unconfirmedOld + atRisk,
     };
-  }, [sales, weeklyStats]);
+  }, [sales]);
 
   // Product metrics for radar and actions
   const productMetrics = useMemo(() => {
@@ -155,16 +127,15 @@ export default function CommandCenter() {
   const radarAlerts = useMemo(() => {
     return generateRadarAlerts(
       {
-        unconfirmedOld: tensionData.unconfirmedOld,
-        atRisk: tensionData.atRisk,
-        pendingAmount: tensionData.pendingAmount,
-        pendingCount: tensionData.pendingCount,
-        avgSaleAmount: tensionData.avgSaleAmount,
+        unconfirmedOld: salesStats.unconfirmedOld,
+        atRisk: salesStats.atRisk,
+        pendingAmount: salesStats.pendingAmount,
+        pendingCount: salesStats.pendingCount,
       },
       productMetrics,
       creativeMetrics
     );
-  }, [tensionData, productMetrics, creativeMetrics]);
+  }, [salesStats, productMetrics, creativeMetrics]);
 
   // Trend metrics data (now includes margin)
   const trendData = useMemo(() => {
@@ -191,10 +162,10 @@ export default function CommandCenter() {
 
     return generateDailyInsight(
       {
-        pendingAmount: tensionData.pendingAmount,
-        pendingCount: tensionData.pendingCount,
-        unconfirmedOld: tensionData.unconfirmedOld,
-        atRisk: tensionData.atRisk,
+        pendingAmount: salesStats.pendingAmount,
+        pendingCount: salesStats.pendingCount,
+        unconfirmedOld: salesStats.unconfirmedOld,
+        atRisk: salesStats.atRisk,
         paidToday,
         revenueToday,
       },
@@ -203,18 +174,18 @@ export default function CommandCenter() {
         coldWithPotential: productMetrics.coldProducts,
       }
     );
-  }, [tensionData, productMetrics, sales]);
+  }, [salesStats, productMetrics, sales]);
 
   // Smart actions
   const smartActions = useMemo(() => {
     return generateSmartActions(
       {
-        pendingCount: tensionData.pendingCount,
-        pendingAmount: tensionData.pendingAmount,
+        pendingCount: salesStats.pendingCount,
+        pendingAmount: salesStats.pendingAmount,
       },
       productMetrics
     );
-  }, [tensionData, productMetrics]);
+  }, [salesStats, productMetrics]);
 
   // Greeting
   const getGreeting = () => {
@@ -291,14 +262,14 @@ export default function CommandCenter() {
         {/* BLOQUE 1: Hero Financial Card - Premium */}
         <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
           <HeroFinancialCard
-            montoEnRiesgo={tensionData.montoEnRiesgo}
-            ventasSinConfirmar={tensionData.unconfirmedOld}
-            ventasEnRiesgo={tensionData.atRisk}
-            pendienteCobro={tensionData.pendingAmount}
-            percentOfWeeklySales={tensionData.percentOfWeeklySales}
-            changeVsYesterday={tensionData.changeVsYesterday}
-            actionsToStability={tensionData.actionsToStability}
-            totalWeeklySales={weeklyStats.totalWeeklySales}
+            montoEnRiesgo={salesStats.pendingAmount}
+            ventasSinConfirmar={salesStats.unconfirmedOld}
+            ventasEnRiesgo={salesStats.atRisk}
+            pendienteCobro={salesStats.pendingAmount}
+            percentOfWeeklySales={salesStats.percentOfWeeklySales}
+            changeVsYesterday={0}
+            actionsToStability={salesStats.actionsToStability}
+            totalWeeklySales={salesStats.totalWeeklySales}
           />
         </section>
 
