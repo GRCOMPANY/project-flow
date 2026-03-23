@@ -710,7 +710,7 @@ export default function Sales() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {sales.map((sale) => (
+            {filteredSales.map((sale) => (
               <SaleCard
                 key={sale.id}
                 sale={sale}
