@@ -8,6 +8,7 @@ export function useCreatives() {
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchCreatives = async () => {
     setLoading(true);
