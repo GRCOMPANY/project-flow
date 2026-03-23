@@ -8,6 +8,7 @@ export function useSuppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchSuppliers = async () => {
     setLoading(true);
