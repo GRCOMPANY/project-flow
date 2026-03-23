@@ -185,6 +185,7 @@ export function useTasks() {
           dedup_key: task.dedupKey,
           context: (task.context || {}) as Json,
           status: "pendiente" as const,
+          company_id: companyId,
         });
 
         if (insertError && !insertError.message.includes("duplicate key")) {
