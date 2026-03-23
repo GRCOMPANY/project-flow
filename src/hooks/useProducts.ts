@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product, MarginLevel } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Helper para calcular nivel de margen
