@@ -1,76 +1,62 @@
 
 
-# Plan: Mejoras Completas en CatalogoPublico.tsx
+# Plan: Crear TiendaPublica.tsx + Ruta /tienda
 
-Solo se modifica `src/pages/CatalogoPublico.tsx`. Ningun otro archivo.
+## Archivos a modificar
+1. **Crear** `src/pages/TiendaPublica.tsx` — pagina completa
+2. **Editar** `src/App.tsx` — agregar ruta publica `/tienda`
 
-## Cambios
+## App.tsx
+Agregar import de TiendaPublica y ruta `<Route path="/tienda" element={<TiendaPublica />} />` junto a la ruta de `/catalogo` (publica, sin ProtectedRoute).
 
-### 1. Precio publico sin line-through
-- Quitar `line-through` de la linea del precio publico
-- Cambiar label a "Precio sugerido al cliente" en texto negro normal
+## TiendaPublica.tsx — Estructura
 
-### 2. Logo real
-- Agregar constante `LOGO_URL = "https://i.imgur.com/placeholder.png"`
-- Reemplazar el div placeholder por `<img src={LOGO_URL} alt="GRC" className="h-12 object-contain" />`
+Mismo patron de datos que CatalogoPublico: query a `products_seller_view` con `status = 'activo'`. Misma interface `CatalogProduct`. Solo muestra `retail_price`, nunca wholesale_price.
 
-### 3. Ventas reales — LIMITACION
-La vista `products_seller_view` no tiene campo de ventas. La tabla `sales` tiene RLS y no es accesible sin autenticacion. Hay dos opciones:
-- **Opcion A**: Omitir ventas reales por ahora y mostrar el badge "Popular" como esta (sin numero)
-- **Opcion B**: Crear una migracion adicional (nuevo archivo SQL) con una vista publica que agregue ventas por producto — pero esto toca otro archivo
+### Estado
+- `search`, `category`, `quantities` (max 10 en vez de 50), `selectedProduct`
 
-**Recomendacion**: Ir con Opcion A por ahora (no tocar otros archivos como pides). El campo se puede agregar despues con una migracion.
+### Secciones en orden
 
-### 4. Efectos wow — CSS puro en style tag dentro del componente
+1. **Header sticky** — fondo #111111, flex between. Izquierda: logo img `/logo-grc.png` h-11 + "GRC Importaciones" + subtitulo gris. Derecha: badge verde pulse "Envios activos" + boton rojo "Comprar por WhatsApp →"
 
-**Cards:**
-- Animacion entrada: `opacity-0` inicial + IntersectionObserver o CSS `@keyframes` con `animation-delay` escalonado via `style={{ animationDelay: index * 0.1s }}`
-- Hover: `hover:scale-[1.03] hover:shadow-[0_8px_30px_rgba(193,39,45,0.15)]` con `transition-all duration-300`
-- Badge "Popular" con `animate-pulse`
+2. **Hero banner** — gradient #1a1a1a → #C1272D. Titulo grande, subtitulo semitransparente, 3 badges blancos (Envio rapido, Contra entrega, Garantia)
 
-**Header:**
-- Badge verde ya tiene `animate-pulse` — mantener
-- Boton "Hablar con George": shimmer via CSS `@keyframes shimmer` con pseudo-elemento `::after` gradiente que se desplaza
+3. **Barra confianza** — fondo blanco, 4 columnas con emojis
 
-**Boton WhatsApp:**
-- CSS `@keyframes bounce-subtle` cada 3s
-- Click ripple: estado local + span absoluto con animacion scale desde el punto de click
+4. **Busqueda + Pills categoria** — Todos, Hogar, Electronica, Cocina, Accesorios, Tecnologia. Activo en #C1272D
 
-Todas las animaciones se definen en un `<style>` JSX al inicio del return.
+5. **Grid productos** — grid-cols-2 lg:grid-cols-3 gap-5
+   - Imagen 280px con hover zoom scale(1.05) overflow-hidden
+   - Badge categoria arriba izq (negro semitransparente)
+   - Badge "Mas vendido" arriba der (#C1272D, pulse)
+   - Nombre bold line-clamp-2
+   - Solo retail_price en rojo grande
+   - Texto urgencia rojo pequeno
+   - Selector cantidad [-][n][+] min 1 max 10
+   - Boton verde #25D366 ancho completo: "Comprar [X] por WhatsApp"
+   - Mensaje: "Hola GRC! Quiero comprar [X] unidad(es) de [nombre]. ¿Esta disponible?"
+   - Animacion entrada escalonada
 
-### 5. Modal de producto
-- Nuevo estado: `selectedProduct: CatalogProduct | null`
-- Al hacer clic en imagen o nombre: `setSelectedProduct(p)`
-- Renderizar modal con `Dialog` de radix (ya existe en el proyecto) o un div manual con overlay
-- Usare un div manual para evitar dependencias:
-  - Overlay: `fixed inset-0 z-50 bg-black/60` con `onClick` para cerrar
-  - Panel: `bg-white max-w-lg mx-auto` con scroll, en movil `inset-0` (fullscreen)
-  - Contenido: imagen grande, nombre, descripcion completa, precios, ganancia, cantidad, boton WhatsApp
-  - Boton X arriba derecha
-- Animacion entrada: fade-in + scale-in
+6. **Banner intermedio** despues del 3er producto — col-span-full, fondo #C1272D, "Eres revendedor?" con link a /catalogo
 
-### 6. Banner urgencia mejorado
-- Agregar subtitulo "📲 ¿Dudas? Escribenos ahora"
-- Agregar boton blanco pequeno "Escribir →" que abre WhatsApp
-- Animacion subtle pulse al fondo via CSS
+7. **Seccion garantia** — 3 cards sobre fondo #F8F8F8
 
-## Estructura del archivo resultante
+8. **Boton flotante WhatsApp** — fixed bottom-6 right-6, circulo verde 60px, bounce cada 4s, tooltip
 
-```text
-Constantes (GRC_WHATSAPP, LOGO_URL, CATEGORIES)
-Interface CatalogProduct
-Component CatalogoPublico:
-  States: search, category, quantities, selectedProduct
-  Query: igual que ahora
-  Helpers: formatPrice, profit, getQty, setQty, openWhatsApp
-  Return:
-    <style> (keyframes: shimmer, bounce-subtle, ripple, fade-slide-up)
-    Header (con logo img + shimmer button)
-    Trust bar
-    Filters
-    Product grid (con animaciones escalonadas + click para modal)
-    Banner mejorado (con boton WA)
-    Footer
-    Modal overlay (condicional sobre selectedProduct)
-```
+9. **Footer** — fondo #111111, logo, datos, boton WA, copyright 2026
+
+10. **Modal producto** — overlay negro 70%, panel blanco max-w-[480px], en movil fullscreen bottom sheet con slide-up. Imagen, nombre, precio retail, descripcion, checkmarks confianza, selector cantidad, boton WA verde
+
+### Animaciones
+`<style>` tag con keyframes: fadeSlideUp, bounceSubtle, shimmer. Todos con `@media (prefers-reduced-motion: reduce)` para desactivar.
+
+### Diferencias clave vs CatalogoPublico
+- Solo retail_price visible, sin wholesale ni ganancia
+- Mensaje WA diferente (compra directa, no pedido mayorista)
+- Hero banner con gradient (catalogo no lo tiene)
+- Seccion garantia adicional
+- Banner intermedio enlaza a /catalogo
+- Max cantidad 10 (no 50)
+- Categorias diferentes: incluye "Cocina"
 
