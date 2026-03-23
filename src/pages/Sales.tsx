@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
@@ -173,6 +174,22 @@ export default function Sales() {
       return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     });
   }, [sales, selectedMonth, selectedYear]);
+
+  // Daily chart data for the selected month
+  const dailyChartData = useMemo(() => {
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const daySales = filteredSales.filter(s => {
+        const d = new Date(s.saleDate);
+        return d.getDate() === day;
+      });
+      const total = daySales.reduce((sum, s) => sum + s.totalAmount, 0);
+      const ganancia = daySales.reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
+      return { dia: day, total, ganancia };
+    });
+    return days;
+  }, [filteredSales, selectedMonth, selectedYear]);
 
   const goToPreviousMonth = () => {
     if (selectedMonth === 0) {
@@ -474,6 +491,35 @@ export default function Sales() {
             {MONTH_NAMES[selectedMonth]} {selectedYear} · {filteredSales.length} ventas
           </Badge>
         </div>
+
+        {/* Daily Sales Chart */}
+        <Card className="mb-4">
+          <CardContent className="pt-4 pb-2">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Ventas diarias — {MONTH_NAMES[selectedMonth]} {selectedYear}</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={dailyChartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="dia" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" tickFormatter={(v) => `$${v.toLocaleString()}`} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const data = payload[0].payload;
+                    const fecha = new Date(selectedYear, selectedMonth, data.dia);
+                    return (
+                      <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-xl">
+                        <p className="font-medium">{format(fecha, "d 'de' MMMM, yyyy", { locale: es })}</p>
+                        <p className="text-muted-foreground">Total: <span className="font-semibold text-foreground">${data.total.toLocaleString()}</span></p>
+                        <p className="text-muted-foreground">Ganancia: <span className="font-semibold text-foreground">${data.ganancia.toLocaleString()}</span></p>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="total" fill="#C1272D" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         {/* Dashboard Stats - Global */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
