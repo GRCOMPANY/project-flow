@@ -216,8 +216,7 @@ export function generateRadarAlerts(
       severity: 'opportunity',
       icon: TrendingUp,
       message: `${creativesData.hotCreatives} creativo${creativesData.hotCreatives > 1 ? 's' : ''} 🔥 listo${creativesData.hotCreatives > 1 ? 's' : ''} para escalar`,
-      causality: 'Contenido que funciona sin maximizar — escalar inversión',
-      causality: 'Contenido que funciona sin maximizar',
+      causality: 'Contenido que funciona — escalar inversión',
       action: { label: 'Escalar', path: '/creatives?performance=caliente' }
     });
   }
