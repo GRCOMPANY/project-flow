@@ -95,6 +95,7 @@ export function useProjects() {
         name: project.name,
         description: project.description,
         due_date: project.dueDate || null,
+        company_id: companyId,
       })
       .select()
       .single();
