@@ -262,14 +262,14 @@ export default function CommandCenter() {
         {/* BLOQUE 1: Hero Financial Card - Premium */}
         <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
           <HeroFinancialCard
-            montoEnRiesgo={tensionData.montoEnRiesgo}
-            ventasSinConfirmar={tensionData.unconfirmedOld}
-            ventasEnRiesgo={tensionData.atRisk}
-            pendienteCobro={tensionData.pendingAmount}
-            percentOfWeeklySales={tensionData.percentOfWeeklySales}
-            changeVsYesterday={tensionData.changeVsYesterday}
-            actionsToStability={tensionData.actionsToStability}
-            totalWeeklySales={weeklyStats.totalWeeklySales}
+            montoEnRiesgo={salesStats.pendingAmount}
+            ventasSinConfirmar={salesStats.unconfirmedOld}
+            ventasEnRiesgo={salesStats.atRisk}
+            pendienteCobro={salesStats.pendingAmount}
+            percentOfWeeklySales={salesStats.percentOfWeeklySales}
+            changeVsYesterday={0}
+            actionsToStability={salesStats.actionsToStability}
+            totalWeeklySales={salesStats.totalWeeklySales}
           />
         </section>
 
