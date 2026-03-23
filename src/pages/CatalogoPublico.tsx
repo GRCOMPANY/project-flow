@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 const GRC_WHATSAPP = '573226421110';
-const LOGO_URL = '/grc-logo.png';
+const LOGO_URL = '/logo-grc.png';
 const CATEGORIES = ['Todos', 'Electrónica', 'Hogar', 'Accesorios', 'Tecnología', 'Otro'];
 
 interface CatalogProduct {

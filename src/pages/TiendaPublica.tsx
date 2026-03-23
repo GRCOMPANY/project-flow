@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Minus, Plus, X } from "lucide-react";
-import { Link } from "react-router-dom";
+
 
 const GRC_WHATSAPP = "573226421110";
 
@@ -219,12 +219,14 @@ const TiendaPublica = () => {
                       <p className="text-white/80 text-sm mb-4">
                         Tenemos precios especiales para emprendedores y revendedores
                       </p>
-                      <Link
-                        to="/catalogo"
+                      <a
+                        href="https://wa.me/573226421110?text=Hola%20GRC%2C%20quiero%20informaci%C3%B3n%20sobre%20precios%20mayoristas"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-block bg-white text-[#C1272D] font-bold text-sm px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors"
                       >
                         Ver precios mayoristas →
-                      </Link>
+                      </a>
                     </div>
                   );
                 }
