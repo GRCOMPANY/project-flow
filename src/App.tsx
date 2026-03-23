@@ -17,6 +17,7 @@ import Sales from "./pages/Sales";
 import AI from "./pages/AI";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
+import CatalogoPublico from "./pages/CatalogoPublico";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/catalogo" element={<CatalogoPublico />} />
             <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
