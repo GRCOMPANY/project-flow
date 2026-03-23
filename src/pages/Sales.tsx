@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useSellers } from '@/hooks/useSellers';
