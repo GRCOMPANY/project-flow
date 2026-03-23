@@ -284,11 +284,7 @@ export default function CommandCenter() {
             className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`} 
             style={{ animationDelay: '0.15s' }}
           >
-            <MetricsDashboard
-              salesData={trendData.salesData}
-              profitData={trendData.profitData}
-              marginData={trendData.marginData}
-            />
+            <MetricsDashboard sales={sales} />
           </section>
         </div>
 
