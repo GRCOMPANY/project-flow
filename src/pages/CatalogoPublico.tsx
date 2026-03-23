@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Search, MessageCircle, Plus, Minus, ArrowRight } from 'lucide-react';
+import { Package, Search, MessageCircle, Plus, Minus, ArrowRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 const GRC_WHATSAPP = '573226421110';
-
+const LOGO_URL = '/grc-logo.png';
 const CATEGORIES = ['Todos', 'Electrónica', 'Hogar', 'Accesorios', 'Tecnología', 'Otro'];
 
 interface CatalogProduct {
@@ -23,6 +23,7 @@ export default function CatalogoPublico() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['catalogo-publico'],
@@ -65,31 +66,76 @@ export default function CatalogoPublico() {
     window.open(`https://wa.me/${GRC_WHATSAPP}?text=${msg}`, '_blank');
   };
 
-  const IntermediateBanner = () => (
-    <div className="col-span-full rounded-2xl bg-[#C1272D] p-6 sm:p-8 text-center">
-      <p className="text-white text-lg sm:text-xl font-bold">
-        ⚡ Trabajamos bajo pedido — tú vendes primero, nosotros conseguimos
-      </p>
-    </div>
-  );
+  const modalQty = selectedProduct ? getQty(selectedProduct.id) : 1;
 
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
+      {/* ━━━ ANIMATIONS ━━━ */}
+      <style>{`
+        @keyframes fade-slide-up {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        @keyframes bounce-wa {
+          0%, 85%, 100% { transform: translateY(0); }
+          92% { transform: translateY(-5px); }
+          96% { transform: translateY(0); }
+        }
+        @keyframes pulse-banner {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.92; }
+        }
+        @keyframes modal-in {
+          from { opacity: 0; transform: scale(0.95) translateY(16px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes overlay-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .catalog-card {
+          opacity: 0;
+          animation: fade-slide-up 0.5s ease-out forwards;
+        }
+        .catalog-card:hover {
+          transform: scale(1.03);
+          box-shadow: 0 8px 30px rgba(193, 39, 45, 0.15);
+        }
+        .shimmer-btn {
+          position: relative;
+          overflow: hidden;
+        }
+        .shimmer-btn::after {
+          content: '';
+          position: absolute;
+          top: 0; left: 0;
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+          animation: shimmer 2.5s infinite;
+        }
+        .bounce-wa {
+          animation: bounce-wa 3s infinite;
+        }
+      `}</style>
+
       {/* ━━━ HEADER ━━━ */}
       <header className="sticky top-0 z-30 bg-[#111111]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-[#C1272D] flex items-center justify-center">
-                <span className="text-white font-bold text-base">GRC</span>
-              </div>
+              <img src={LOGO_URL} alt="GRC" className="h-12 object-contain" />
               <h1 className="text-xl sm:text-2xl font-bold text-white">Catálogo Mayorista GRC</h1>
             </div>
             <a
               href={`https://wa.me/${GRC_WHATSAPP}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              className="shimmer-btn hidden sm:inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
             >
               Hablar con George <ArrowRight className="w-4 h-4" />
             </a>
@@ -103,12 +149,11 @@ export default function CatalogoPublico() {
               Disponible ahora
             </span>
           </div>
-          {/* Mobile CTA */}
           <a
             href={`https://wa.me/${GRC_WHATSAPP}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="sm:hidden mt-4 flex items-center justify-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors w-full"
+            className="shimmer-btn sm:hidden mt-4 flex items-center justify-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors w-full"
           >
             Hablar con George <ArrowRight className="w-4 h-4" />
           </a>
@@ -175,14 +220,32 @@ export default function CatalogoPublico() {
                 const ganancia = profit(p);
                 const qty = getQty(p.id);
                 return (
-                  <>
-                    {index === 3 && <IntermediateBanner key="banner" />}
+                  <React.Fragment key={p.id}>
+                    {index === 3 && (
+                      <div className="col-span-full rounded-2xl bg-[#C1272D] p-6 sm:p-8 text-center" style={{ animation: 'pulse-banner 3s ease-in-out infinite' }}>
+                        <p className="text-white text-lg sm:text-xl font-bold mb-2">
+                          ⚡ Trabajamos bajo pedido — tú vendes primero, nosotros conseguimos
+                        </p>
+                        <p className="text-white/80 text-sm mb-3">📲 ¿Dudas? Escríbenos ahora</p>
+                        <a
+                          href={`https://wa.me/${GRC_WHATSAPP}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 bg-white text-[#C1272D] font-semibold text-sm px-5 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          Escribir <ArrowRight className="w-4 h-4" />
+                        </a>
+                      </div>
+                    )}
                     <div
-                      key={p.id}
-                      className="bg-white rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-200"
+                      className="catalog-card bg-white rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
+                      style={{ animationDelay: `${index * 0.08}s` }}
                     >
-                      {/* Image */}
-                      <div className="relative h-[260px] bg-gray-100 overflow-hidden">
+                      {/* Image — clickable */}
+                      <div
+                        className="relative h-[260px] bg-gray-100 overflow-hidden cursor-pointer"
+                        onClick={() => setSelectedProduct(p)}
+                      >
                         {p.image_url ? (
                           <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
                         ) : (
@@ -195,14 +258,17 @@ export default function CatalogoPublico() {
                             {p.category}
                           </span>
                         )}
-                        <span className="absolute top-3 right-3 bg-[#C1272D] text-white text-[10px] font-bold px-2 py-1 rounded-md">
+                        <span className="absolute top-3 right-3 bg-[#C1272D] text-white text-[10px] font-bold px-2 py-1 rounded-md animate-pulse">
                           🔥 Popular
                         </span>
                       </div>
 
                       {/* Info */}
                       <div className="p-4 flex flex-col flex-1 gap-2">
-                        <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2">
+                        <h3
+                          className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#C1272D] transition-colors"
+                          onClick={() => setSelectedProduct(p)}
+                        >
                           {p.name}
                         </h3>
 
@@ -211,7 +277,7 @@ export default function CatalogoPublico() {
                           <p className="text-[10px] uppercase text-gray-400 tracking-wide">Tu precio</p>
                           <p className="text-xl font-bold text-[#C1272D]">{formatPrice(p.wholesale_price)}</p>
                         </div>
-                        <p className="text-sm text-gray-400 line-through">{formatPrice(p.retail_price)} precio público</p>
+                        <p className="text-sm text-gray-600">{formatPrice(p.retail_price)} <span className="text-xs text-gray-400">Precio sugerido al cliente</span></p>
 
                         {ganancia != null && ganancia > 0 && (
                           <div className="bg-green-900 rounded-lg px-3 py-2 text-center">
@@ -244,7 +310,7 @@ export default function CatalogoPublico() {
                         {/* WhatsApp CTA */}
                         <Button
                           onClick={() => openWhatsApp(p.name, qty, p.wholesale_price)}
-                          className="w-full bg-[#25D366] hover:bg-[#1ebe57] text-white gap-2 mt-1 font-semibold"
+                          className="bounce-wa w-full bg-[#25D366] hover:bg-[#1ebe57] text-white gap-2 mt-1 font-semibold"
                           size="sm"
                         >
                           <MessageCircle className="w-4 h-4" />
@@ -252,7 +318,7 @@ export default function CatalogoPublico() {
                         </Button>
                       </div>
                     </div>
-                  </>
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -277,6 +343,98 @@ export default function CatalogoPublico() {
           </a>
         </div>
       </footer>
+
+      {/* ━━━ MODAL DE PRODUCTO ━━━ */}
+      {selectedProduct && (() => {
+        const p = selectedProduct;
+        const ganancia = profit(p);
+        const qty = getQty(p.id);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+            style={{ animation: 'overlay-in 0.2s ease-out' }}
+          >
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedProduct(null)} />
+            {/* Panel */}
+            <div
+              className="relative bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl sm:max-h-[85vh]
+                         max-sm:fixed max-sm:inset-0 max-sm:rounded-none max-sm:max-h-full max-sm:max-w-full"
+              style={{ animation: 'modal-in 0.3s ease-out' }}
+            >
+              {/* Close */}
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Image */}
+              {p.image_url ? (
+                <img src={p.image_url} alt={p.name} className="w-full aspect-square object-cover" />
+              ) : (
+                <div className="w-full aspect-square bg-gray-100 flex items-center justify-center">
+                  <Package className="w-20 h-20 text-gray-200" />
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="p-5 sm:p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
+
+                {p.description && (
+                  <p className="text-sm text-gray-500 leading-relaxed">{p.description}</p>
+                )}
+
+                {/* Prices row */}
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-red-50 rounded-xl p-3">
+                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Tu precio</p>
+                    <p className="text-lg font-bold text-[#C1272D]">{formatPrice(p.wholesale_price)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Sugerido</p>
+                    <p className="text-lg font-bold text-gray-700">{formatPrice(p.retail_price)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-3">
+                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Ganancia</p>
+                    <p className="text-lg font-bold text-green-700">{ganancia != null && ganancia > 0 ? formatPrice(ganancia) : '—'}</p>
+                  </div>
+                </div>
+
+                {/* Quantity */}
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => setQty(p.id, qty - 1)}
+                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  >
+                    <Minus className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <span className="text-2xl font-bold text-gray-900 w-10 text-center">{qty}</span>
+                  <button
+                    onClick={() => setQty(p.id, qty + 1)}
+                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  >
+                    <Plus className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+
+                {/* WhatsApp CTA */}
+                <Button
+                  onClick={() => openWhatsApp(p.name, qty, p.wholesale_price)}
+                  className="w-full bg-[#25D366] hover:bg-[#1ebe57] text-white gap-2 font-semibold h-12 text-base"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Pedir {qty} {qty === 1 ? 'unidad' : 'unidades'} por WhatsApp
+                </Button>
+
+                <p className="text-xs text-green-600 text-center">✅ Te enviamos creativos listos para vender</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
