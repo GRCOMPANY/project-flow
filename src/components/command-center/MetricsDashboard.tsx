@@ -33,8 +33,8 @@ interface MetricsDashboardProps {
 }
 
 function AreaSparkline({ values, trend }: { values: number[]; trend: 'up' | 'down' | 'stable' }) {
-  const width = 140;
-  const height = 56;
+  const width = 160;
+  const height = 64;
   const padding = 6;
   
   const max = Math.max(...values, 1);
@@ -69,16 +69,8 @@ function AreaSparkline({ values, trend }: { values: number[]; trend: 'up' | 'dow
     <svg width={width} height={height} className="overflow-visible">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop 
-            offset="0%" 
-            stopColor={strokeColor} 
-            stopOpacity="0.35" 
-          />
-          <stop 
-            offset="100%" 
-            stopColor={strokeColor} 
-            stopOpacity="0.02" 
-          />
+          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity="0.02" />
         </linearGradient>
       </defs>
       <path d={areaPath} fill={`url(#${gradientId})`} />
@@ -99,21 +91,21 @@ function MetricCard({ data }: { data: SparklineData }) {
       : 'comparison-badge-stable';
 
   return (
-    <div className="metric-card-premium p-5 rounded-2xl">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground">
+    <div className="metric-card-premium p-6 rounded-2xl">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground">
             {data.icon}
           </div>
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.12em]">
             {data.label}
           </span>
         </div>
       </div>
       
       <div className="flex items-end justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-3xl font-bold text-foreground tracking-tight">
+        <div className="space-y-2.5">
+          <p className="text-3xl md:text-4xl font-bold text-primary tracking-tight" style={{ fontFeatureSettings: "'tnum'" }}>
             {data.currentValue}
           </p>
           <div className="flex flex-col gap-1">
@@ -172,16 +164,13 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
     const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
     const previousSales = filterByMonth(prevMonth, prevYear);
 
-    // Days in selected month
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
 
-    // Sales per day (quantity)
     const salesPerDay = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
       return currentSales.filter(s => new Date(s.saleDate).getDate() === day).reduce((sum, s) => sum + s.quantity, 0);
     });
 
-    // Profit per day (paid only)
     const profitPerDay = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
       return currentSales
@@ -189,7 +178,6 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
         .reduce((sum, s) => sum + ((s.marginAtSale || 0) * s.quantity), 0);
     });
 
-    // Margin per day (avg margin of paid sales)
     const marginPerDay = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
       const daySales = currentSales.filter(s => new Date(s.saleDate).getDate() === day && s.paymentStatus === 'pagado');
@@ -197,7 +185,6 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
       return daySales.reduce((sum, s) => sum + (s.marginAtSale || 0), 0) / daySales.length;
     });
 
-    // Totals
     const totalSales = currentSales.reduce((sum, s) => sum + s.quantity, 0);
     const prevTotalSales = previousSales.reduce((sum, s) => sum + s.quantity, 0);
 
@@ -242,7 +229,7 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
   }, [sales, selectedMonth, selectedYear]);
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       {/* Section Header */}
       <div className="flex items-center gap-2">
         <div className="w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center">
@@ -295,7 +282,7 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <MetricCard data={metricsData.salesData} />
         <MetricCard data={metricsData.profitData} />
         <MetricCard data={metricsData.marginData} />

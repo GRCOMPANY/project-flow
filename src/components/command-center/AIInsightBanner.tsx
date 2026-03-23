@@ -72,7 +72,7 @@ export function AIInsightBanner({ insight, className }: AIInsightBannerProps) {
   const Icon = config.icon;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       {/* Section Header */}
       <div className="flex items-center gap-2">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center animate-glow-ai">
@@ -89,44 +89,40 @@ export function AIInsightBanner({ insight, className }: AIInsightBannerProps) {
         <div className="h-px flex-1 bg-border/50" />
       </div>
 
-      {/* Insight Card - Premium Glass Effect */}
+      {/* Insight Card */}
       <div className={cn(
         "ai-insight-banner gradient-border-ai relative overflow-hidden rounded-2xl",
         "transition-all duration-300",
         config.glowClass
       )}>
-        {/* Background Gradient */}
         <div className={cn(
           "absolute inset-0 bg-gradient-to-br pointer-events-none",
           config.gradient
         )} />
 
-        {/* Content */}
-        <div className="relative p-6 md:p-8">
-          <div className="flex flex-col md:flex-row md:items-center gap-5">
+        <div className="relative p-8 md:p-10">
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
             {/* Icon */}
             <div className={cn(
-              "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0",
+              "w-16 h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-2xl flex items-center justify-center shrink-0",
               config.iconBg,
               "shadow-sm ring-1 ring-white/10"
             )}>
-              <Icon className="w-8 h-8" />
+              <Icon className="w-8 h-8 md:w-9 md:h-9" />
             </div>
 
             {/* Message + Causality */}
-            <div className="flex-1 min-w-0 space-y-2">
-              <p className="text-xl font-semibold text-foreground leading-relaxed">
+            <div className="flex-1 min-w-0 space-y-2.5">
+              <p className="text-xl md:text-2xl font-semibold text-foreground leading-relaxed">
                 "{insight.message}"
               </p>
               
-              {/* Causality */}
               {insight.causality && (
                 <p className="narrative-causality text-sm">
                   {insight.causality}
                 </p>
               )}
 
-              {/* Estimated Impact */}
               {insight.estimatedImpact && insight.estimatedImpact > 0 && (
                 <div className="flex items-center gap-2 pt-1">
                   <Sparkles className="w-4 h-4 text-accent" />
@@ -155,7 +151,6 @@ export function AIInsightBanner({ insight, className }: AIInsightBannerProps) {
   );
 }
 
-// Helper to generate daily insight
 export function generateDailyInsight(
   salesData: {
     pendingAmount: number;
@@ -170,7 +165,6 @@ export function generateDailyInsight(
     coldWithPotential: number;
   }
 ): DailyInsight {
-  // Priority 1: Pending collections (money recovery)
   if (salesData.pendingAmount > 100000) {
     return {
       type: 'money',
@@ -181,7 +175,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Priority 2: Old unconfirmed sales
   if (salesData.unconfirmedOld > 0) {
     return {
       type: 'warning',
@@ -191,7 +184,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Priority 3: At risk sales
   if (salesData.atRisk > 0) {
     return {
       type: 'warning',
@@ -201,7 +193,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Priority 4: Hot products to scale
   if (productData.hotProducts > 0) {
     return {
       type: 'growth',
@@ -211,7 +202,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Priority 5: Cold products with potential
   if (productData.coldWithPotential > 0) {
     return {
       type: 'growth',
@@ -221,7 +211,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Priority 6: Celebration (if revenue today)
   if (salesData.revenueToday > 0) {
     return {
       type: 'celebration',
@@ -230,7 +219,6 @@ export function generateDailyInsight(
     };
   }
 
-  // Default: Healthy business
   return {
     type: 'celebration',
     message: 'Tu negocio está estable. Enfócate en crear contenido para atraer más clientes.',

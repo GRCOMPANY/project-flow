@@ -73,7 +73,7 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -96,7 +96,7 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
       </div>
       
       {/* Alerts Grid */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {alerts.slice(0, 5).map((alert, index) => {
           const styles = getSeverityStyles(alert.severity);
           
@@ -113,13 +113,13 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
             >
               {/* Severity Dot */}
               <div className={cn(
-                "w-2.5 h-2.5 rounded-full shrink-0 animate-pulse",
+                "w-3 h-3 rounded-full shrink-0 animate-pulse",
                 styles.dot
               )} />
               
               {/* Icon */}
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
                 styles.icon
               )}>
                 <alert.icon className="w-5 h-5" />
@@ -153,7 +153,7 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
               
               {/* Action */}
               <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
-                <span className="hidden sm:inline">{alert.action.label}</span>
+                <span className="hidden md:inline">{alert.action.label}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </button>

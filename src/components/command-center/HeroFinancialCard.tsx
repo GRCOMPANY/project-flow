@@ -18,7 +18,6 @@ interface HeroFinancialCardProps {
   ventasSinConfirmar: number;
   ventasEnRiesgo: number;
   pendienteCobro: number;
-  // New premium props
   percentOfWeeklySales?: number;
   changeVsYesterday?: number;
   actionsToStability?: number;
@@ -39,7 +38,6 @@ export function HeroFinancialCard({
 }: HeroFinancialCardProps) {
   const navigate = useNavigate();
 
-  // Determine business state
   const getBusinessState = (): BusinessState => {
     if (ventasEnRiesgo > 0 || ventasSinConfirmar > 2) return 'critical';
     if (pendienteCobro > 100000 || ventasSinConfirmar > 0) return 'warning';
@@ -86,7 +84,6 @@ export function HeroFinancialCard({
   const config = stateConfig[businessState];
   const StateIcon = config.icon;
 
-  // Trend indicator
   const TrendIcon = changeVsYesterday > 0 ? TrendingUp : changeVsYesterday < 0 ? TrendingDown : Minus;
   const trendColor = changeVsYesterday > 0 ? 'text-destructive' : changeVsYesterday < 0 ? 'text-success' : 'text-muted-foreground';
   const trendBg = changeVsYesterday > 0 ? 'bg-destructive/10' : changeVsYesterday < 0 ? 'bg-success/10' : 'bg-muted/50';
@@ -94,7 +91,7 @@ export function HeroFinancialCard({
   return (
     <div
       className={cn(
-        'hero-financial-card hero-glass relative overflow-hidden rounded-2xl border p-6 md:p-8',
+        'hero-financial-card hero-glass relative overflow-hidden rounded-2xl border p-8 md:p-10',
         'bg-gradient-to-br transition-all duration-300',
         config.bgGradient,
         config.borderClass,
@@ -107,24 +104,24 @@ export function HeroFinancialCard({
       </div>
 
       {/* Two column layout */}
-      <div className="relative grid md:grid-cols-[1fr,300px] gap-6 md:gap-10">
+      <div className="relative grid md:grid-cols-[1fr,320px] gap-8 md:gap-12">
         {/* Left: Financial Data */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Label */}
           <div className="flex items-center gap-3">
             <div className={cn('p-2.5 rounded-xl', config.iconBg)}>
               <DollarSign className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.15em]">
                 Balance Crítico del Día
               </span>
             </div>
           </div>
 
           {/* Hero Number */}
-          <div className="space-y-2">
-            <h2 className="hero-financial-number text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
+          <div className="space-y-3">
+            <h2 className="hero-financial-number text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground">
               ${montoEnRiesgo.toLocaleString()}
             </h2>
             <div className="flex flex-wrap items-center gap-3">
@@ -132,7 +129,6 @@ export function HeroFinancialCard({
                 {hasUrgency ? 'en riesgo hoy' : 'pendiente de gestión'}
               </p>
               
-              {/* Trend vs Yesterday */}
               {changeVsYesterday !== 0 && (
                 <div className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
@@ -145,7 +141,6 @@ export function HeroFinancialCard({
               )}
             </div>
             
-            {/* Context: % of weekly sales */}
             {percentOfWeeklySales > 0 && (
               <p className="narrative-context text-sm">
                 Representa el <span className="font-semibold text-foreground">{percentOfWeeklySales}%</span> de tus ventas semanales
@@ -198,10 +193,10 @@ export function HeroFinancialCard({
         </div>
 
         {/* Right: Business State + CTA */}
-        <div className="flex flex-col justify-between gap-5 md:border-l md:border-border/40 md:pl-10">
+        <div className="flex flex-col justify-between gap-6 md:border-l md:border-border/40 md:pl-10">
           {/* State Indicator */}
           <div className="space-y-4">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.15em]">
               Estado del Negocio
             </span>
             
@@ -221,7 +216,6 @@ export function HeroFinancialCard({
               </div>
             </div>
 
-            {/* Actions to stability hint */}
             {actionsToStability > 0 && businessState !== 'healthy' && (
               <p className="narrative-causality pl-1">
                 {actionsToStability} {actionsToStability === 1 ? 'acción te separa' : 'acciones te separan'} de estabilidad
