@@ -5,7 +5,7 @@ import { Package, Search, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-const GRC_WHATSAPP = '573001234567'; // TODO: Replace with real number
+const GRC_WHATSAPP = '573226421110';
 
 interface CatalogProduct {
   id: string;
