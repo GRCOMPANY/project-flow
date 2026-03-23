@@ -22,6 +22,7 @@ type FilterType = 'all' | ProductPriority | 'sin_creativos' | 'destacados';
 const Products = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const { products, loading: productsLoading, addProduct, uploadProductImage, checkSkuAvailable } = useProducts();
   const { sales, loading: salesLoading } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
