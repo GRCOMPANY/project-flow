@@ -1,69 +1,76 @@
 
 
-# Plan: Rediseno Completo CatalogoPublico.tsx para Conversion Mayorista
+# Plan: Mejoras Completas en CatalogoPublico.tsx
 
-Reescritura completa del archivo `src/pages/CatalogoPublico.tsx` manteniendo la misma query de datos y sin tocar otros archivos.
+Solo se modifica `src/pages/CatalogoPublico.tsx`. Ningun otro archivo.
 
-## Cambios en un solo archivo: `src/pages/CatalogoPublico.tsx`
+## Cambios
 
-### Estado nuevo
-- `search` (string) — busqueda por nombre
-- `category` (string) — filtro por categoria, default "Todos"
-- `quantities` (Record<string, number>) — cantidad por producto, default 1
+### 1. Precio publico sin line-through
+- Quitar `line-through` de la linea del precio publico
+- Cambiar label a "Precio sugerido al cliente" en texto negro normal
 
-### Estructura de la pagina
+### 2. Logo real
+- Agregar constante `LOGO_URL = "https://i.imgur.com/placeholder.png"`
+- Reemplazar el div placeholder por `<img src={LOGO_URL} alt="GRC" className="h-12 object-contain" />`
 
-**1. Header** — fondo `#111111`, sticky
-- Logo placeholder: cuadrado rojo con "GRC" en blanco
-- Titulo: "Catalogo Mayorista GRC" en blanco, bold
-- Subtitulo: "Gana dinero vendiendo productos que la gente ya quiere comprar"
-- Badge verde animado (pulse): "● Disponible ahora"
-- Boton rojo `#C1272D`: "Hablar con George →" enlaza a wa.me/573226421110
+### 3. Ventas reales — LIMITACION
+La vista `products_seller_view` no tiene campo de ventas. La tabla `sales` tiene RLS y no es accesible sin autenticacion. Hay dos opciones:
+- **Opcion A**: Omitir ventas reales por ahora y mostrar el badge "Popular" como esta (sin numero)
+- **Opcion B**: Crear una migracion adicional (nuevo archivo SQL) con una vista publica que agregue ventas por producto — pero esto toca otro archivo
 
-**2. Barra de confianza** — fondo blanco, 3 columnas centradas
-- "📦 Sin inventario · solo bajo pedido"
-- "🚚 Entrega en Bogota mismo dia"
-- "💰 Ganancias desde $15.000 por unidad"
+**Recomendacion**: Ir con Opcion A por ahora (no tocar otros archivos como pides). El campo se puede agregar despues con una migracion.
 
-**3. Busqueda + Filtros de categoria**
-- Input de busqueda con icono
-- Pills horizontales scrollables: Todos, Electronica, Hogar, Accesorios, Tecnologia, Otro
-- Pill activa en `#C1272D` con texto blanco
+### 4. Efectos wow — CSS puro en style tag dentro del componente
 
-**4. Grid de productos** — `grid-cols-2 lg:grid-cols-3`, gap-4
-- Imagen: `h-[260px] object-cover`
-- Badge categoria arriba izquierda (gris oscuro)
-- Badge "🔥 Popular" arriba derecha (rojo)
-- Nombre bold, `line-clamp-2`
-- "Tu precio" grande rojo `#C1272D`
-- Precio publico tachado gris (`line-through`)
-- Box verde oscuro `bg-green-900 text-green-100`: "💰 Ganas $X por unidad"
-- Texto gris pequeno: "📦 Disponible bajo pedido"
-- "✅ Te enviamos creativos listos para vender"
-- Selector cantidad: botones [-] [n] [+], min 1, max 50
-- Boton verde WhatsApp full width: "Pedir [X] unidades por WhatsApp"
-  - Mensaje: "Hola GRC, quiero pedir [X] unidades de [nombre]. Mi precio total: $[X * wholesale_price]"
+**Cards:**
+- Animacion entrada: `opacity-0` inicial + IntersectionObserver o CSS `@keyframes` con `animation-delay` escalonado via `style={{ animationDelay: index * 0.1s }}`
+- Hover: `hover:scale-[1.03] hover:shadow-[0_8px_30px_rgba(193,39,45,0.15)]` con `transition-all duration-300`
+- Badge "Popular" con `animate-pulse`
 
-**5. Banner intermedio** — insertado despues del 3er producto en el grid
-- Fondo `#C1272D`, texto blanco, centrado
-- "⚡ Trabajamos bajo pedido — tu vendes primero, nosotros conseguimos"
-- Ocupa las columnas completas del grid (`col-span-full`)
+**Header:**
+- Badge verde ya tiene `animate-pulse` — mantener
+- Boton "Hablar con George": shimmer via CSS `@keyframes shimmer` con pseudo-elemento `::after` gradiente que se desplaza
 
-**6. Footer** — fondo `#111111`
-- "GRC Importaciones · Bogota, Colombia"
-- "📲 +57 322 642 1110"
-- "Somos tu proveedor, tu eres el vendedor"
-- Boton WhatsApp verde
+**Boton WhatsApp:**
+- CSS `@keyframes bounce-subtle` cada 3s
+- Click ripple: estado local + span absoluto con animacion scale desde el punto de click
 
-### Lo que NO cambia
-- Query a `products_seller_view` con filtro `status = 'activo'`
-- Interface `CatalogProduct`
-- Constante `GRC_WHATSAPP`
-- Ningun otro archivo del proyecto
+Todas las animaciones se definen en un `<style>` JSX al inicio del return.
 
-### Detalle tecnico
-- Filtrado por categoria: compara `p.category?.toLowerCase()` contra la pill seleccionada
-- Cantidades: objeto `{ [productId]: number }`, incremento/decremento con Math.min/max
-- Banner intermedio: al renderizar el array filtrado, insertar el banner JSX cuando el indice es 3
-- Animacion del badge verde: clase `animate-pulse` de Tailwind
+### 5. Modal de producto
+- Nuevo estado: `selectedProduct: CatalogProduct | null`
+- Al hacer clic en imagen o nombre: `setSelectedProduct(p)`
+- Renderizar modal con `Dialog` de radix (ya existe en el proyecto) o un div manual con overlay
+- Usare un div manual para evitar dependencias:
+  - Overlay: `fixed inset-0 z-50 bg-black/60` con `onClick` para cerrar
+  - Panel: `bg-white max-w-lg mx-auto` con scroll, en movil `inset-0` (fullscreen)
+  - Contenido: imagen grande, nombre, descripcion completa, precios, ganancia, cantidad, boton WhatsApp
+  - Boton X arriba derecha
+- Animacion entrada: fade-in + scale-in
+
+### 6. Banner urgencia mejorado
+- Agregar subtitulo "📲 ¿Dudas? Escribenos ahora"
+- Agregar boton blanco pequeno "Escribir →" que abre WhatsApp
+- Animacion subtle pulse al fondo via CSS
+
+## Estructura del archivo resultante
+
+```text
+Constantes (GRC_WHATSAPP, LOGO_URL, CATEGORIES)
+Interface CatalogProduct
+Component CatalogoPublico:
+  States: search, category, quantities, selectedProduct
+  Query: igual que ahora
+  Helpers: formatPrice, profit, getQty, setQty, openWhatsApp
+  Return:
+    <style> (keyframes: shimmer, bounce-subtle, ripple, fade-slide-up)
+    Header (con logo img + shimmer button)
+    Trust bar
+    Filters
+    Product grid (con animaciones escalonadas + click para modal)
+    Banner mejorado (con boton WA)
+    Footer
+    Modal overlay (condicional sobre selectedProduct)
+```
 
