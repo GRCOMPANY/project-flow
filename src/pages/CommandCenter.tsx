@@ -8,7 +8,7 @@ import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { HeroFinancialCard } from '@/components/command-center/HeroFinancialCard';
 import { AIRadarPanel, generateRadarAlerts } from '@/components/command-center/AIRadarPanel';
-import { MetricsDashboard, calculateTrendData } from '@/components/command-center/MetricsDashboard';
+import { MetricsDashboard } from '@/components/command-center/MetricsDashboard';
 import { ProductSpotlight, identifyKeyProducts } from '@/components/command-center/ProductSpotlight';
 import { AIInsightBanner, generateDailyInsight } from '@/components/command-center/AIInsightBanner';
 import { QuickActionsBar, generateSmartActions } from '@/components/command-center/QuickActionsBar';
