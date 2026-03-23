@@ -97,6 +97,12 @@ export default function CatalogoPublico() {
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        @keyframes bounce-fab {
+          0%, 88%, 100% { transform: translateY(0); }
+          92% { transform: translateY(-8px); }
+          96% { transform: translateY(0); }
+          98% { transform: translateY(-3px); }
+        }
         .catalog-card {
           opacity: 0;
           animation: fade-slide-up 0.5s ease-out forwards;
