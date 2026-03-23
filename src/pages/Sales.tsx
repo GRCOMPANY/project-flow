@@ -75,6 +75,11 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
 const SALES_CHANNELS: { value: SalesChannel; label: string }[] = [
   { value: 'marketplace', label: 'Marketplace' },
   { value: 'whatsapp', label: 'WhatsApp' },
