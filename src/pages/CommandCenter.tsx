@@ -137,10 +137,7 @@ export default function CommandCenter() {
     );
   }, [salesStats, productMetrics, creativeMetrics]);
 
-  // Trend metrics data (now includes margin)
-  const trendData = useMemo(() => {
-    return calculateTrendData(sales);
-  }, [sales]);
+  // Trend metrics handled internally by MetricsDashboard
 
   // Key products (get the most important one for spotlight)
   const keyProducts = useMemo(() => {
