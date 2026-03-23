@@ -127,16 +127,15 @@ export default function CommandCenter() {
   const radarAlerts = useMemo(() => {
     return generateRadarAlerts(
       {
-        unconfirmedOld: tensionData.unconfirmedOld,
-        atRisk: tensionData.atRisk,
-        pendingAmount: tensionData.pendingAmount,
-        pendingCount: tensionData.pendingCount,
-        avgSaleAmount: tensionData.avgSaleAmount,
+        unconfirmedOld: salesStats.unconfirmedOld,
+        atRisk: salesStats.atRisk,
+        pendingAmount: salesStats.pendingAmount,
+        pendingCount: salesStats.pendingCount,
       },
       productMetrics,
       creativeMetrics
     );
-  }, [tensionData, productMetrics, creativeMetrics]);
+  }, [salesStats, productMetrics, creativeMetrics]);
 
   // Trend metrics data (now includes margin)
   const trendData = useMemo(() => {
