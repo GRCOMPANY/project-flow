@@ -12,6 +12,7 @@ import {
   SaleSource,
 } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
 
 // Labels para estados operativos
 export const OPERATIONAL_STATUS_LABELS: Record<OperationalStatus, string> = {
