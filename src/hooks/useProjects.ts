@@ -174,6 +174,7 @@ export function useProjects() {
         priority: task.priority,
         due_date: task.dueDate || null,
         assigned_to: task.assignedTo || null,
+        company_id: companyId,
       })
       .select(`
         *,

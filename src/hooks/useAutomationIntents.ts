@@ -97,6 +97,7 @@ export function useAutomationIntents() {
           intent_type: input.intentType,
           status: 'pending',
           metadata: metadata as Json,
+          company_id: companyId,
         })
         .select()
         .single();
