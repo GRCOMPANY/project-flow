@@ -18,6 +18,7 @@ import AI from "./pages/AI";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 import CatalogoPublico from "./pages/CatalogoPublico";
+import TiendaPublica from "./pages/TiendaPublica";
 
 const queryClient = new QueryClient();
 
