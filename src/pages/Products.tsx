@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Filter, TrendingUp, Pause, AlertTriangle, Search, Link } from 'lucide-react';
+import { Plus, Package, Filter, TrendingUp, Pause, AlertTriangle, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
@@ -113,14 +113,17 @@ const Products = () => {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={() => {
-                  const url = `${window.location.origin}/catalogo`;
-                  navigator.clipboard.writeText(url);
-                  toast({ title: 'Link copiado', description: url });
-                }}
+                onClick={() => window.open("https://mindful-project-tasks.lovable.app/tienda", "_blank")}
               >
-                <Link className="w-4 h-4" />
-                Ver catálogo mayorista
+                🛍️ Ver tienda
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => window.open("https://mindful-project-tasks.lovable.app/catalogo", "_blank")}
+              >
+                📦 Ver catálogo mayorista
               </Button>
               {isAdmin && (
                 <Button onClick={() => setFormOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
