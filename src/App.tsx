@@ -17,6 +17,7 @@ import Sales from "./pages/Sales";
 import AI from "./pages/AI";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
+import CatalogoPublico from "./pages/CatalogoPublico";
 
 const queryClient = new QueryClient();
 
