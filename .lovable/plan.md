@@ -1,62 +1,58 @@
 
 
-# Plan: Crear TiendaPublica.tsx + Ruta /tienda
+# Plan: Rediseno Visual Premium de TiendaPublica.tsx
 
-## Archivos a modificar
-1. **Crear** `src/pages/TiendaPublica.tsx` — pagina completa
-2. **Editar** `src/App.tsx` — agregar ruta publica `/tienda`
+Solo se modifica `src/pages/TiendaPublica.tsx`. Ninguna logica de datos, queries, hooks ni variables cambia.
 
-## App.tsx
-Agregar import de TiendaPublica y ruta `<Route path="/tienda" element={<TiendaPublica />} />` junto a la ruta de `/catalogo` (publica, sin ProtectedRoute).
+## Cambios
 
-## TiendaPublica.tsx — Estructura
+### 1. Top Bar (nueva)
+Barra fina sticky encima del header, 32px altura, fondo #C1272D, texto blanco centrado:
+"🚚 Envio gratis a todo Colombia — Pago contra entrega disponible"
+El header pasa a `top: 32px` sticky.
 
-Mismo patron de datos que CatalogoPublico: query a `products_seller_view` con `status = 'activo'`. Misma interface `CatalogProduct`. Solo muestra `retail_price`, nunca wholesale_price.
+### 2. Product Cards — rediseno completo
+- Imagen: 300px altura (antes 280px)
+- Sombra: `shadow-md hover:shadow-lg`
+- Hover: `hover:scale-[1.02]` en toda la card (mas sutil que antes)
+- Descripcion: primeros 60 chars del campo `description`, texto gris pequeno debajo del nombre
+- Stock: texto verde `"✓ Disponible · Entrega hoy en Bogota"` (antes era rojo)
+- Dos botones:
+  - Primario rojo #C1272D "Comprar ahora" → abre drawer
+  - Secundario verde #16a34a "Comprar por WhatsApp" → abre wa.me
+- Badges sin cambios funcionales, solo ajustes de estilo
 
-### Estado
-- `search`, `category`, `quantities` (max 10 en vez de 50), `selectedProduct`
+### 3. Drawer lateral (reemplaza modal)
+- Slide-in desde la derecha (nuevo keyframe `slideInRight`)
+- Desktop: 480px ancho, fixed derecha
+- Mobile: fullscreen
+- Overlay oscuro, click afuera cierra
+- Contenido igual al modal actual pero reorganizado:
+  - Imagen ancho completo
+  - Nombre bold, precio rojo grande
+  - Descripcion completa
+  - Checkmarks de beneficios
+  - Selector cantidad
+  - Boton verde grande "Comprar por WhatsApp"
+  - Texto "Te responderemos en menos de 1 hora"
 
-### Secciones en orden
+### 4. Hero mejorado
+- Titulo: `text-3xl sm:text-5xl` (antes text-2xl/4xl)
+- Subtexto adicional: "Mas de 100 clientes satisfechos en Colombia"
+- Badges como pills mas visibles con fondo blanco/20 y padding mayor
+- Dos botones: primario rojo solido + secundario outline blanco
 
-1. **Header sticky** — fondo #111111, flex between. Izquierda: logo img `/logo-grc.png` h-11 + "GRC Importaciones" + subtitulo gris. Derecha: badge verde pulse "Envios activos" + boton rojo "Comprar por WhatsApp →"
+### 5. CSS Keyframes
+- Agregar `slideInRight` para drawer
+- Agregar `slideOutRight` para cierre
+- Mantener fadeSlideUp, bounceSubtle, shimmer existentes
+- `prefers-reduced-motion` para todos
 
-2. **Hero banner** — gradient #1a1a1a → #C1272D. Titulo grande, subtitulo semitransparente, 3 badges blancos (Envio rapido, Contra entrega, Garantia)
+### 6. Grid responsive
+- `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (antes 2/3)
 
-3. **Barra confianza** — fondo blanco, 4 columnas con emojis
-
-4. **Busqueda + Pills categoria** — Todos, Hogar, Electronica, Cocina, Accesorios, Tecnologia. Activo en #C1272D
-
-5. **Grid productos** — grid-cols-2 lg:grid-cols-3 gap-5
-   - Imagen 280px con hover zoom scale(1.05) overflow-hidden
-   - Badge categoria arriba izq (negro semitransparente)
-   - Badge "Mas vendido" arriba der (#C1272D, pulse)
-   - Nombre bold line-clamp-2
-   - Solo retail_price en rojo grande
-   - Texto urgencia rojo pequeno
-   - Selector cantidad [-][n][+] min 1 max 10
-   - Boton verde #25D366 ancho completo: "Comprar [X] por WhatsApp"
-   - Mensaje: "Hola GRC! Quiero comprar [X] unidad(es) de [nombre]. ¿Esta disponible?"
-   - Animacion entrada escalonada
-
-6. **Banner intermedio** despues del 3er producto — col-span-full, fondo #C1272D, "Eres revendedor?" con link a /catalogo
-
-7. **Seccion garantia** — 3 cards sobre fondo #F8F8F8
-
-8. **Boton flotante WhatsApp** — fixed bottom-6 right-6, circulo verde 60px, bounce cada 4s, tooltip
-
-9. **Footer** — fondo #111111, logo, datos, boton WA, copyright 2026
-
-10. **Modal producto** — overlay negro 70%, panel blanco max-w-[480px], en movil fullscreen bottom sheet con slide-up. Imagen, nombre, precio retail, descripcion, checkmarks confianza, selector cantidad, boton WA verde
-
-### Animaciones
-`<style>` tag con keyframes: fadeSlideUp, bounceSubtle, shimmer. Todos con `@media (prefers-reduced-motion: reduce)` para desactivar.
-
-### Diferencias clave vs CatalogoPublico
-- Solo retail_price visible, sin wholesale ni ganancia
-- Mensaje WA diferente (compra directa, no pedido mayorista)
-- Hero banner con gradient (catalogo no lo tiene)
-- Seccion garantia adicional
-- Banner intermedio enlaza a /catalogo
-- Max cantidad 10 (no 50)
-- Categorias diferentes: incluye "Cocina"
+## Lo que NO cambia
+- Query a supabase, interface, estados, helpers (formatPrice, getQty, setQty, openWhatsApp, openGenericWA)
+- Logica de gridItems con banner
+- Footer, floating WhatsApp, guarantee section (solo ajustes minimos de estilo)
 
