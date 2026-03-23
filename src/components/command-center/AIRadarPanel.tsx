@@ -171,7 +171,6 @@ export function generateRadarAlerts(
     atRisk: number;
     pendingAmount: number;
     pendingCount: number;
-    avgSaleAmount?: number;
   },
   productData: {
     hotProducts: number;
@@ -185,7 +184,6 @@ export function generateRadarAlerts(
   }
 ): RadarAlert[] {
   const alerts: RadarAlert[] = [];
-  const avgSale = salesData.avgSaleAmount || 150000;
 
   // Critical: Old unconfirmed sales
   if (salesData.unconfirmedOld > 0) {
@@ -194,7 +192,6 @@ export function generateRadarAlerts(
       severity: 'critical',
       icon: PhoneCall,
       message: `${salesData.unconfirmedOld} venta${salesData.unconfirmedOld > 1 ? 's' : ''} sin confirmar hace más de 2 días`,
-      estimatedImpact: Math.round(salesData.unconfirmedOld * avgSale),
       causality: 'Porque llevan mucho tiempo sin contacto',
       action: { label: 'Llamar', path: '/sales' }
     });
@@ -207,7 +204,6 @@ export function generateRadarAlerts(
       severity: 'critical',
       icon: AlertTriangle,
       message: `${salesData.atRisk} venta${salesData.atRisk > 1 ? 's' : ''} en riesgo de devolución`,
-      estimatedImpact: Math.round(salesData.atRisk * avgSale),
       causality: 'Requiere atención urgente',
       action: { label: 'Revisar', path: '/sales' }
     });
