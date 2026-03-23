@@ -435,6 +435,46 @@ export default function Sales() {
           )}
         </div>
 
+        {/* Period Filter */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <Button variant="outline" size="icon" onClick={goToPreviousMonth} title="Mes anterior">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
+          <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(Number(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_NAMES.map((name, i) => (
+                <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map(y => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {!isCurrentMonth && (
+            <Button variant="ghost" size="sm" onClick={goToCurrentMonth}>
+              Mes actual
+            </Button>
+          )}
+
+          <Badge variant="secondary" className="ml-auto">
+            <Calendar className="w-3 h-3 mr-1" />
+            {MONTH_NAMES[selectedMonth]} {selectedYear} · {filteredSales.length} ventas
+          </Badge>
+        </div>
+
         {/* Dashboard Stats - Global */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <Card>
