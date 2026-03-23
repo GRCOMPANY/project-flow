@@ -55,6 +55,7 @@ export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchSales = async () => {
     setLoading(true);
