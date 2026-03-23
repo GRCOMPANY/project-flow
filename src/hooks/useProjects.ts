@@ -8,6 +8,7 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { companyId } = useCompany();
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
