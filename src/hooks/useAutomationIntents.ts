@@ -27,6 +27,7 @@ export function useAutomationIntents() {
   const [intents, setIntents] = useState<AutomationIntentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { companyId } = useCompany();
 
   const fetchIntents = useCallback(async () => {
     try {
