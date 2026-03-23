@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Package, Filter, TrendingUp, Pause, AlertTriangle, Search } from 'lucide-react';
+import { Plus, Package, Filter, TrendingUp, Pause, AlertTriangle, Search, Link } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
