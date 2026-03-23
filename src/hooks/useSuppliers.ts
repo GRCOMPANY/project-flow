@@ -51,6 +51,7 @@ export function useSuppliers() {
         contact: supplier.contact || null,
         conditions: supplier.conditions || null,
         notes: supplier.notes || null,
+        company_id: companyId,
       })
       .select()
       .single();

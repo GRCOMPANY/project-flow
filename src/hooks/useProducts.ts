@@ -149,6 +149,7 @@ export function useProducts() {
 
         // Relaciones
         supplier_id: product.supplierId || null,
+        company_id: companyId,
       })
       .select()
       .single();

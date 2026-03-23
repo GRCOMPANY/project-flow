@@ -165,6 +165,7 @@ export function useCreatives() {
       // New fields
       cta_text: creative.ctaText || null,
       publication_reference: creative.publicationReference || null,
+      company_id: companyId,
     };
 
     const { data, error } = await supabase

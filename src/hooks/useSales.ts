@@ -287,6 +287,7 @@ export function useSales() {
         partner_percentage: effectivePartnerPct,
         my_profit_amount: myProfitAmount,
         partner_profit_amount: partnerProfitAmount,
+        company_id: companyId,
       })
       .select()
       .single();

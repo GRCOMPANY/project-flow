@@ -103,7 +103,7 @@ export function useSellers() {
         type: seller.type || 'revendedor',
         status: seller.status || 'activo',
         notes: seller.notes || null,
-        // Don't send commission - deprecated
+        company_id: companyId,
       })
       .select()
       .single();
