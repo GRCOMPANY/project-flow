@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Minus, Plus, X, ShoppingBag, ChevronRight } from "lucide-react";
+import { Search, Minus, Plus, ShoppingBag } from "lucide-react";
 
 const GRC_WHATSAPP = "573226421110";
 
