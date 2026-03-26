@@ -266,7 +266,7 @@ export default function CatalogoPublico() {
                       {/* Image — clickable */}
                       <div
                         className="relative h-[260px] bg-gray-100 overflow-hidden cursor-pointer"
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                       >
                         {p.image_url ? (
                           <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -289,7 +289,7 @@ export default function CatalogoPublico() {
                       <div className="p-4 flex flex-col flex-1 gap-2">
                         <h3
                           className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#C1272D] transition-colors"
-                          onClick={() => setSelectedProduct(p)}
+                          onClick={() => handleSelectProduct(p)}
                         >
                           {p.name}
                         </h3>
