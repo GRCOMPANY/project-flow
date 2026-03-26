@@ -66,8 +66,7 @@ export default function CatalogoPublico() {
   };
 
   const handleSelectProduct = (p: CatalogProduct) => {
-    setSelectedProduct(p);
-    setActiveModalImage(p.image_url || getAllImages(p)[0] || "");
+    navigate(`/producto/${p.id}`);
   };
 
   const setQty = (id: string, val: number) => {
