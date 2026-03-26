@@ -19,6 +19,7 @@ import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 import CatalogoPublico from "./pages/CatalogoPublico";
 import TiendaPublica from "./pages/TiendaPublica";
+import ProductoDetalle from "./pages/ProductoDetalle";
 
 const queryClient = new QueryClient();
 
