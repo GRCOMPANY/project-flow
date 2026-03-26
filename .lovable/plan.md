@@ -1,58 +1,121 @@
 
 
-# Plan: Rediseno Visual Premium de TiendaPublica.tsx
+# Plan: Múltiples Imágenes por Producto
 
-Solo se modifica `src/pages/TiendaPublica.tsx`. Ninguna logica de datos, queries, hooks ni variables cambia.
+## Resumen
+Agregar campo `images TEXT[]` a la tabla `products`, actualizar la vista `products_seller_view`, y crear galerías de imágenes en el admin, tienda pública y catálogo mayorista.
 
-## Cambios
+---
 
-### 1. Top Bar (nueva)
-Barra fina sticky encima del header, 32px altura, fondo #C1272D, texto blanco centrado:
-"🚚 Envio gratis a todo Colombia — Pago contra entrega disponible"
-El header pasa a `top: 32px` sticky.
+## Archivos a modificar/crear
 
-### 2. Product Cards — rediseno completo
-- Imagen: 300px altura (antes 280px)
-- Sombra: `shadow-md hover:shadow-lg`
-- Hover: `hover:scale-[1.02]` en toda la card (mas sutil que antes)
-- Descripcion: primeros 60 chars del campo `description`, texto gris pequeno debajo del nombre
-- Stock: texto verde `"✓ Disponible · Entrega hoy en Bogota"` (antes era rojo)
-- Dos botones:
-  - Primario rojo #C1272D "Comprar ahora" → abre drawer
-  - Secundario verde #16a34a "Comprar por WhatsApp" → abre wa.me
-- Badges sin cambios funcionales, solo ajustes de estilo
+| Archivo | Acción |
+|---------|--------|
+| Nueva migración SQL | Crear — agrega columna `images` + actualiza vista |
+| `src/types/index.ts` | Editar — agregar `images?: string[]` al tipo `Product` |
+| `src/hooks/useProducts.ts` | Editar — mapear `images` en fetch, insert, update |
+| `src/components/products/ProductForm.tsx` | Editar — sección "Imágenes adicionales" |
+| `src/pages/TiendaPublica.tsx` | Editar — galería en drawer + interface |
+| `src/pages/CatalogoPublico.tsx` | Editar — galería en modal + interface |
+| `src/pages/ProductDetail.tsx` | Editar — mostrar galería en detalle admin |
 
-### 3. Drawer lateral (reemplaza modal)
-- Slide-in desde la derecha (nuevo keyframe `slideInRight`)
-- Desktop: 480px ancho, fixed derecha
-- Mobile: fullscreen
-- Overlay oscuro, click afuera cierra
-- Contenido igual al modal actual pero reorganizado:
-  - Imagen ancho completo
-  - Nombre bold, precio rojo grande
-  - Descripcion completa
-  - Checkmarks de beneficios
-  - Selector cantidad
-  - Boton verde grande "Comprar por WhatsApp"
-  - Texto "Te responderemos en menos de 1 hora"
+---
 
-### 4. Hero mejorado
-- Titulo: `text-3xl sm:text-5xl` (antes text-2xl/4xl)
-- Subtexto adicional: "Mas de 100 clientes satisfechos en Colombia"
-- Badges como pills mas visibles con fondo blanco/20 y padding mayor
-- Dos botones: primario rojo solido + secundario outline blanco
+## Detalle técnico
 
-### 5. CSS Keyframes
-- Agregar `slideInRight` para drawer
-- Agregar `slideOutRight` para cierre
-- Mantener fadeSlideUp, bounceSubtle, shimmer existentes
-- `prefers-reduced-motion` para todos
+### 1. Migración SQL
 
-### 6. Grid responsive
-- `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (antes 2/3)
+```sql
+-- Agregar columna images al tabla products
+ALTER TABLE public.products
+ADD COLUMN images TEXT[] DEFAULT '{}';
 
-## Lo que NO cambia
-- Query a supabase, interface, estados, helpers (formatPrice, getQty, setQty, openWhatsApp, openGenericWA)
-- Logica de gridItems con banner
-- Footer, floating WhatsApp, guarantee section (solo ajustes minimos de estilo)
+-- Recrear vista para incluir images
+DROP VIEW IF EXISTS public.products_seller_view;
+CREATE VIEW public.products_seller_view 
+WITH (security_invoker = true) AS
+SELECT 
+  id, name, sku, category, status, 
+  wholesale_price, suggested_price as retail_price,
+  image_url, images,
+  description, is_featured,
+  main_channel, delivery_type,
+  created_at, updated_at
+FROM public.products
+WHERE status = 'activo';
+```
+
+### 2. Tipo Product (`types/index.ts`)
+
+Agregar `images?: string[]` después de `imageUrl` en la interface `Product`.
+
+### 3. Hook useProducts.ts
+
+- **fetch**: mapear `p.images` → `product.images`
+- **insert**: incluir `images: product.images || []`
+- **update**: si `updates.images !== undefined`, mapear a `updateData.images`
+
+### 4. ProductForm.tsx — Sección "Imágenes adicionales"
+
+Después del upload de imagen principal actual (línea ~272):
+
+- Nuevo estado: `const [additionalImages, setAdditionalImages] = useState<string[]>([])`
+- Inicializar desde `initialData?.images || []`
+- UI: grid de miniaturas con botón ❌ cada una
+- Botón "Agregar imagen" que permite:
+  - Subir archivo (reutiliza `onUploadImage`)
+  - O pegar URL manual
+- Validaciones: max 6 imágenes, sin duplicados, sin duplicar `imageUrl`
+- Al submit: incluir `images: additionalImages` en el objeto
+
+### 5. TiendaPublica.tsx — Galería en drawer
+
+- Agregar `images` a la interface `CatalogProduct` y al select de la query
+- En el drawer, reemplazar la imagen única por:
+  - Imagen hero (estado `activeImage`, inicia con `image_url`)
+  - Fila de miniaturas debajo (solo si hay más de 1 imagen total)
+  - Click en miniatura cambia `activeImage` con transición fade
+  - Miniatura activa: border rojo `#C1272D`
+
+### 6. CatalogoPublico.tsx — Galería en modal
+
+- Mismo patrón exacto que TiendaPublica:
+  - Agregar `images` a interface y query
+  - Estado `activeImage` local al modal
+  - Imagen principal + miniaturas clickeables
+  - Indicador visual de imagen activa
+
+### 7. ProductDetail.tsx
+
+- Mostrar galería de miniaturas debajo de la imagen principal existente
+
+---
+
+## Flujo de datos
+
+```text
+Admin crea producto:
+  ProductForm → images[] → useProducts.addProduct → Supabase (TEXT[])
+
+Tienda/Catálogo lee producto:
+  products_seller_view (incluye images) → query → galería UI
+
+Prioridad de imágenes:
+  1. image_url (hero principal)
+  2. images[] (adicionales, en orden del array)
+```
+
+## Edge cases
+
+- Producto sin `image_url` ni `images`: placeholder
+- Producto con `image_url` pero sin `images`: solo imagen principal, sin miniaturas
+- Producto con `images` pero sin `image_url`: primera de `images` como hero
+- Array vacío `[]` en DB: equivale a sin imágenes adicionales
+- Productos existentes: `images` default `'{}'` (array vacío), sin impacto
+
+## Sin cambios en
+
+- Lógica de precios, ventas, márgenes
+- Estructura de pedidos, transacciones
+- Diseño general existente (solo se agrega galería)
 
