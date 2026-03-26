@@ -1,121 +1,102 @@
 
 
-# Plan: Múltiples Imágenes por Producto
+# Plan: Landing Page de Producto + Ruta /producto/:id
 
 ## Resumen
-Agregar campo `images TEXT[]` a la tabla `products`, actualizar la vista `products_seller_view`, y crear galerías de imágenes en el admin, tienda pública y catálogo mayorista.
+Crear una pagina completa de detalle de producto publica (landing page de conversion) en `/producto/:id`, y modificar `/tienda` y `/catalogo` para que el click navegue a esa ruta en lugar de abrir drawer/modal.
 
----
+## Archivos
 
-## Archivos a modificar/crear
-
-| Archivo | Acción |
+| Archivo | Accion |
 |---------|--------|
-| Nueva migración SQL | Crear — agrega columna `images` + actualiza vista |
-| `src/types/index.ts` | Editar — agregar `images?: string[]` al tipo `Product` |
-| `src/hooks/useProducts.ts` | Editar — mapear `images` en fetch, insert, update |
-| `src/components/products/ProductForm.tsx` | Editar — sección "Imágenes adicionales" |
-| `src/pages/TiendaPublica.tsx` | Editar — galería en drawer + interface |
-| `src/pages/CatalogoPublico.tsx` | Editar — galería en modal + interface |
-| `src/pages/ProductDetail.tsx` | Editar — mostrar galería en detalle admin |
+| `src/pages/ProductoDetalle.tsx` | **Crear** — Landing page completa con 7 secciones |
+| `src/App.tsx` | **Editar** — Agregar ruta publica `/producto/:id` |
+| `src/pages/TiendaPublica.tsx` | **Editar** — Click navega a `/producto/:id` en lugar de abrir drawer |
+| `src/pages/CatalogoPublico.tsx` | **Editar** — Click navega a `/producto/:id` en lugar de abrir modal |
 
----
+## Detalle
 
-## Detalle técnico
-
-### 1. Migración SQL
-
-```sql
--- Agregar columna images al tabla products
-ALTER TABLE public.products
-ADD COLUMN images TEXT[] DEFAULT '{}';
-
--- Recrear vista para incluir images
-DROP VIEW IF EXISTS public.products_seller_view;
-CREATE VIEW public.products_seller_view 
-WITH (security_invoker = true) AS
-SELECT 
-  id, name, sku, category, status, 
-  wholesale_price, suggested_price as retail_price,
-  image_url, images,
-  description, is_featured,
-  main_channel, delivery_type,
-  created_at, updated_at
-FROM public.products
-WHERE status = 'activo';
+### 1. `src/App.tsx`
+Agregar:
+```tsx
+import ProductoDetalle from "./pages/ProductoDetalle";
+// En Routes, ruta publica:
+<Route path="/producto/:id" element={<ProductoDetalle />} />
 ```
 
-### 2. Tipo Product (`types/index.ts`)
+### 2. `src/pages/TiendaPublica.tsx`
+- Agregar `import { useNavigate } from "react-router-dom"`
+- `handleSelectProduct` cambia de abrir drawer a `navigate(\`/producto/${p.id}\`)`
+- Eliminar el drawer completo (lineas 454-578) y el estado `activeDrawerImage`
+- Mantener todo lo demas intacto (cards, grid, hero, footer, floating WA)
 
-Agregar `images?: string[]` después de `imageUrl` en la interface `Product`.
+### 3. `src/pages/CatalogoPublico.tsx`
+- Mismo cambio: click en producto navega a `/producto/${p.id}` en lugar de abrir modal
+- Eliminar el modal y estado `activeModalImage`
 
-### 3. Hook useProducts.ts
+### 4. `src/pages/ProductoDetalle.tsx` — Landing page completa
 
-- **fetch**: mapear `p.images` → `product.images`
-- **insert**: incluir `images: product.images || []`
-- **update**: si `updates.images !== undefined`, mapear a `updateData.images`
+**Datos**: Query directa a `products_seller_view` por `id` (misma vista publica, sin login).
 
-### 4. ProductForm.tsx — Sección "Imágenes adicionales"
-
-Después del upload de imagen principal actual (línea ~272):
-
-- Nuevo estado: `const [additionalImages, setAdditionalImages] = useState<string[]>([])`
-- Inicializar desde `initialData?.images || []`
-- UI: grid de miniaturas con botón ❌ cada una
-- Botón "Agregar imagen" que permite:
-  - Subir archivo (reutiliza `onUploadImage`)
-  - O pegar URL manual
-- Validaciones: max 6 imágenes, sin duplicados, sin duplicar `imageUrl`
-- Al submit: incluir `images: additionalImages` en el objeto
-
-### 5. TiendaPublica.tsx — Galería en drawer
-
-- Agregar `images` a la interface `CatalogProduct` y al select de la query
-- En el drawer, reemplazar la imagen única por:
-  - Imagen hero (estado `activeImage`, inicia con `image_url`)
-  - Fila de miniaturas debajo (solo si hay más de 1 imagen total)
-  - Click en miniatura cambia `activeImage` con transición fade
-  - Miniatura activa: border rojo `#C1272D`
-
-### 6. CatalogoPublico.tsx — Galería en modal
-
-- Mismo patrón exacto que TiendaPublica:
-  - Agregar `images` a interface y query
-  - Estado `activeImage` local al modal
-  - Imagen principal + miniaturas clickeables
-  - Indicador visual de imagen activa
-
-### 7. ProductDetail.tsx
-
-- Mostrar galería de miniaturas debajo de la imagen principal existente
-
----
-
-## Flujo de datos
+**Estructura de secciones**:
 
 ```text
-Admin crea producto:
-  ProductForm → images[] → useProducts.addProduct → Supabase (TEXT[])
+[Top Bar roja - promo]
+[Header sticky - logo + boton WA]
 
-Tienda/Catálogo lee producto:
-  products_seller_view (incluye images) → query → galería UI
+SECCION 1 — HERO
+  Desktop: 2 columnas
+  Izq: Galeria (imagen principal + miniaturas)
+  Der: Badge "Mas vendido" + Nombre (text-4xl) + Precio (text-5xl, #C1272D)
+       + Reviews (estaticas) + Beneficios checkmarks
+       + Selector cantidad + CTA rojo "COMPRAR AHORA"
+       + CTA verde "Comprar por WhatsApp"
+       + Badges confianza (envio, garantia, pago)
 
-Prioridad de imágenes:
-  1. image_url (hero principal)
-  2. images[] (adicionales, en orden del array)
+SECCION 2 — EL PROBLEMA
+  Titulo: "¿Buscas una solucion practica?"
+  Texto generico emocional (aplicable a cualquier producto)
+
+SECCION 3 — LA SOLUCION
+  Titulo + 3 beneficios con iconos
+
+SECCION 4 — COMPARACION
+  Tabla 2 columnas: Metodo tradicional vs Producto GRC
+
+SECCION 5 — GALERIA / DEMO
+  Grid con imagenes del producto (reutiliza images[])
+  Placeholders si no hay suficientes
+
+SECCION 6 — TESTIMONIOS
+  3 cards con resenas ficticias (nombres colombianos, estrellas)
+
+SECCION 7 — CTA FINAL
+  Fondo #C1272D, precio grande, urgencia, botones compra
+
+[Footer]
+[Floating WhatsApp]
+[Sticky CTA mobile - bottom bar con boton comprar]
 ```
 
-## Edge cases
+**Componentes inline** (dentro del mismo archivo para simplicidad):
+- `ProductGallery` — imagen hero + miniaturas clickeables
+- `BenefitsList` — checkmarks verdes
+- `ComparisonTable` — tabla 2 columnas
+- `TestimonialCard` — card con estrellas y texto
+- `FinalCTA` — seccion roja final
 
-- Producto sin `image_url` ni `images`: placeholder
-- Producto con `image_url` pero sin `images`: solo imagen principal, sin miniaturas
-- Producto con `images` pero sin `image_url`: primera de `images` como hero
-- Array vacío `[]` en DB: equivale a sin imágenes adicionales
-- Productos existentes: `images` default `'{}'` (array vacío), sin impacto
+**Responsive**:
+- Mobile: secciones stacked, botones full-width, sticky CTA bottom bar
+- Desktop: hero 2 columnas, grid galeria 2-3 cols
 
-## Sin cambios en
+**Datos que se muestran**: solo `name`, `retail_price`, `image_url`, `images`, `description`, `category`, `is_featured`. Sin costos, sin margenes.
 
-- Lógica de precios, ventas, márgenes
-- Estructura de pedidos, transacciones
-- Diseño general existente (solo se agrega galería)
+**WhatsApp**: reutiliza constante `GRC_WHATSAPP = "573226421110"` con mensaje prellenado incluyendo nombre y cantidad.
+
+## Lo que NO cambia
+- Queries de Supabase (misma vista `products_seller_view`)
+- Logica de precios
+- Pagina interna `ProductDetail.tsx` (admin)
+- Diseno de cards en grid de tienda/catalogo (solo cambia el destino del click)
+- Footer, floating WA, hero de tienda/catalogo
 
