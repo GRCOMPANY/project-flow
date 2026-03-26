@@ -534,7 +534,7 @@ const TiendaPublica = () => {
 
         {/* FLOATING "GANA VENDIENDO" */}
         <button
-          onClick={() => window.open("/catalogo", "_blank")}
+          onClick={() => window.open("https://wa.me/573226421110?text=Hola%2C%20me%20interesa%20obtener%20informaci%C3%B3n%20para%20vender%20este%20producto", "_blank")}
           className="fixed z-50 font-bold text-xs text-white px-4 py-2.5 rounded-full shadow-lg transition-transform hover:scale-105"
           style={{ bottom: 28, left: 24, background: "#E85D00" }}
         >
