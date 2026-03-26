@@ -22,11 +22,10 @@ interface CatalogProduct {
 }
 
 export default function CatalogoPublico() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
-  const [activeModalImage, setActiveModalImage] = useState<string>("");
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['catalogo-publico'],
