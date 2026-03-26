@@ -21,11 +21,10 @@ interface CatalogProduct {
 }
 
 const TiendaPublica = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
-  const [activeDrawerImage, setActiveDrawerImage] = useState<string>("");
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["tienda-products"],
@@ -62,8 +61,7 @@ const TiendaPublica = () => {
   };
 
   const handleSelectProduct = (p: CatalogProduct) => {
-    setSelectedProduct(p);
-    setActiveDrawerImage(p.image_url || getAllImages(p)[0] || "");
+    navigate(`/producto/${p.id}`);
   };
 
   const openWhatsApp = (name: string, qty: number) => {
