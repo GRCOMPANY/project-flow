@@ -51,6 +51,20 @@ const TiendaPublica = () => {
   const setQty = (id: string, n: number) =>
     setQuantities((prev) => ({ ...prev, [id]: Math.max(1, Math.min(10, n)) }));
 
+  const getAllImages = (p: CatalogProduct) => {
+    const imgs: string[] = [];
+    if (p.image_url) imgs.push(p.image_url);
+    if (p.images && Array.isArray(p.images)) {
+      p.images.forEach(img => { if (img && !imgs.includes(img)) imgs.push(img); });
+    }
+    return imgs;
+  };
+
+  const handleSelectProduct = (p: CatalogProduct) => {
+    setSelectedProduct(p);
+    setActiveDrawerImage(p.image_url || getAllImages(p)[0] || "");
+  };
+
   const openWhatsApp = (name: string, qty: number) => {
     const msg = encodeURIComponent(
       `Hola GRC! Quiero comprar ${qty} unidad(es) de ${name}. ¿Está disponible?`
