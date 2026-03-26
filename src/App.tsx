@@ -19,6 +19,7 @@ import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 import CatalogoPublico from "./pages/CatalogoPublico";
 import TiendaPublica from "./pages/TiendaPublica";
+import ProductoDetalle from "./pages/ProductoDetalle";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/catalogo" element={<CatalogoPublico />} />
             <Route path="/tienda" element={<TiendaPublica />} />
+            <Route path="/producto/:id" element={<ProductoDetalle />} />
             <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />

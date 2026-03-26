@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Search, MessageCircle, Plus, Minus, ArrowRight, X } from 'lucide-react';
+import { Package, Search, MessageCircle, Plus, Minus, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -21,11 +22,10 @@ interface CatalogProduct {
 }
 
 export default function CatalogoPublico() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
-  const [activeModalImage, setActiveModalImage] = useState<string>("");
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['catalogo-publico'],
@@ -66,8 +66,7 @@ export default function CatalogoPublico() {
   };
 
   const handleSelectProduct = (p: CatalogProduct) => {
-    setSelectedProduct(p);
-    setActiveModalImage(p.image_url || getAllImages(p)[0] || "");
+    navigate(`/producto/${p.id}`);
   };
 
   const setQty = (id: string, val: number) => {
@@ -82,7 +81,7 @@ export default function CatalogoPublico() {
     window.open(`https://wa.me/${GRC_WHATSAPP}?text=${msg}`, '_blank');
   };
 
-  const modalQty = selectedProduct ? getQty(selectedProduct.id) : 1;
+  
 
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
@@ -366,115 +365,6 @@ export default function CatalogoPublico() {
         </div>
       </footer>
 
-      {/* ━━━ MODAL DE PRODUCTO ━━━ */}
-      {selectedProduct && (() => {
-        const p = selectedProduct;
-        const ganancia = profit(p);
-        const qty = getQty(p.id);
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-            style={{ animation: 'overlay-in 0.2s ease-out' }}
-          >
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedProduct(null)} />
-            {/* Panel */}
-            <div
-              className="relative bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl sm:max-h-[85vh]
-                         max-sm:fixed max-sm:inset-0 max-sm:rounded-none max-sm:max-h-full max-sm:max-w-full"
-              style={{ animation: 'modal-in 0.3s ease-out' }}
-            >
-              {/* Close */}
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {/* Image Gallery */}
-              {activeModalImage || p.image_url ? (
-                <img src={activeModalImage || p.image_url || ""} alt={p.name} className="w-full aspect-square object-cover transition-opacity duration-300" />
-              ) : (
-                <div className="w-full aspect-square bg-gray-100 flex items-center justify-center">
-                  <Package className="w-20 h-20 text-gray-200" />
-                </div>
-              )}
-              {(() => {
-                const allImgs = getAllImages(p);
-                return allImgs.length > 1 ? (
-                  <div className="flex gap-2 p-3 overflow-x-auto">
-                    {allImgs.map((img, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setActiveModalImage(img)}
-                        className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                          (activeModalImage || p.image_url) === img ? 'border-[#C1272D] ring-1 ring-[#C1272D]' : 'border-gray-200 opacity-70 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={img} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
-
-              {/* Content */}
-              <div className="p-5 sm:p-6 space-y-4">
-                <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
-
-                {p.description && (
-                  <p className="text-sm text-gray-500 leading-relaxed">{p.description}</p>
-                )}
-
-                {/* Prices row */}
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-red-50 rounded-xl p-3">
-                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Tu precio</p>
-                    <p className="text-lg font-bold text-[#C1272D]">{formatPrice(p.wholesale_price)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Sugerido</p>
-                    <p className="text-lg font-bold text-gray-700">{formatPrice(p.retail_price)}</p>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-3">
-                    <p className="text-[10px] uppercase text-gray-400 tracking-wide">Ganancia</p>
-                    <p className="text-lg font-bold text-green-700">{ganancia != null && ganancia > 0 ? formatPrice(ganancia) : '—'}</p>
-                  </div>
-                </div>
-
-                {/* Quantity */}
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => setQty(p.id, qty - 1)}
-                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                  >
-                    <Minus className="w-4 h-4 text-gray-600" />
-                  </button>
-                  <span className="text-2xl font-bold text-gray-900 w-10 text-center">{qty}</span>
-                  <button
-                    onClick={() => setQty(p.id, qty + 1)}
-                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                  >
-                    <Plus className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-
-                {/* WhatsApp CTA */}
-                <Button
-                  onClick={() => openWhatsApp(p.name, qty, p.wholesale_price)}
-                  className="w-full bg-[#25D366] hover:bg-[#1ebe57] text-white gap-2 font-semibold h-12 text-base"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Pedir {qty} {qty === 1 ? 'unidad' : 'unidades'} por WhatsApp
-                </Button>
-
-                <p className="text-xs text-green-600 text-center">✅ Te enviamos creativos listos para vender</p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ━━━ BOTÓN FLOTANTE WHATSAPP ━━━ */}
       <a
