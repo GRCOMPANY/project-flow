@@ -13,6 +13,7 @@ interface CatalogProduct {
   description: string | null;
   category: string | null;
   image_url: string | null;
+  images: string[] | null;
   retail_price: number | null;
   is_featured: boolean | null;
   status: string | null;
@@ -23,13 +24,14 @@ const TiendaPublica = () => {
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [activeDrawerImage, setActiveDrawerImage] = useState<string>("");
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["tienda-products"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products_seller_view")
-        .select("id, name, description, category, image_url, retail_price, is_featured, status")
+        .select("id, name, description, category, image_url, images, retail_price, is_featured, status")
         .eq("status", "activo");
       if (error) throw error;
       return (data ?? []) as CatalogProduct[];
