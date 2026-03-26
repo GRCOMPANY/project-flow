@@ -13,6 +13,7 @@ interface CatalogProduct {
   description: string | null;
   category: string | null;
   image_url: string | null;
+  images: string[] | null;
   retail_price: number | null;
   is_featured: boolean | null;
   status: string | null;
@@ -23,13 +24,14 @@ const TiendaPublica = () => {
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [activeDrawerImage, setActiveDrawerImage] = useState<string>("");
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["tienda-products"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products_seller_view")
-        .select("id, name, description, category, image_url, retail_price, is_featured, status")
+        .select("id, name, description, category, image_url, images, retail_price, is_featured, status")
         .eq("status", "activo");
       if (error) throw error;
       return (data ?? []) as CatalogProduct[];
@@ -48,6 +50,20 @@ const TiendaPublica = () => {
   const getQty = (id: string) => quantities[id] ?? 1;
   const setQty = (id: string, n: number) =>
     setQuantities((prev) => ({ ...prev, [id]: Math.max(1, Math.min(10, n)) }));
+
+  const getAllImages = (p: CatalogProduct) => {
+    const imgs: string[] = [];
+    if (p.image_url) imgs.push(p.image_url);
+    if (p.images && Array.isArray(p.images)) {
+      p.images.forEach(img => { if (img && !imgs.includes(img)) imgs.push(img); });
+    }
+    return imgs;
+  };
+
+  const handleSelectProduct = (p: CatalogProduct) => {
+    setSelectedProduct(p);
+    setActiveDrawerImage(p.image_url || getAllImages(p)[0] || "");
+  };
 
   const openWhatsApp = (name: string, qty: number) => {
     const msg = encodeURIComponent(
@@ -290,7 +306,7 @@ const TiendaPublica = () => {
                     {/* Image */}
                     <div
                       className="relative overflow-hidden cursor-pointer"
-                      onClick={() => setSelectedProduct(p)}
+                      onClick={() => handleSelectProduct(p)}
                     >
                       <img
                         src={p.image_url || "/placeholder.svg"}
@@ -313,7 +329,7 @@ const TiendaPublica = () => {
                     <div className="p-4 flex flex-col flex-1">
                       <h3
                         className="font-semibold text-base text-card-foreground line-clamp-2 cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                       >
                         {p.name}
                       </h3>
@@ -353,7 +369,7 @@ const TiendaPublica = () => {
 
                       {/* Buttons */}
                       <button
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                       >
                         <ShoppingBag className="w-4 h-4" />
@@ -457,12 +473,30 @@ const TiendaPublica = () => {
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Image */}
+              {/* Image Gallery */}
               <img
-                src={selectedProduct.image_url || "/placeholder.svg"}
+                src={activeDrawerImage || "/placeholder.svg"}
                 alt={selectedProduct.name ?? ""}
-                className="w-full h-[280px] sm:h-[320px] object-cover"
+                className="w-full h-[280px] sm:h-[320px] object-cover transition-opacity duration-300"
               />
+              {(() => {
+                const allImgs = getAllImages(selectedProduct);
+                return allImgs.length > 1 ? (
+                  <div className="flex gap-2 p-3 overflow-x-auto">
+                    {allImgs.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveDrawerImage(img)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                          activeDrawerImage === img ? 'border-primary ring-1 ring-primary' : 'border-border opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
 
               <div className="p-6">
                 {selectedProduct.category && (

@@ -13,6 +13,7 @@ interface CatalogProduct {
   id: string;
   name: string;
   image_url: string | null;
+  images: string[] | null;
   wholesale_price: number | null;
   retail_price: number | null;
   category: string | null;
@@ -24,13 +25,14 @@ export default function CatalogoPublico() {
   const [category, setCategory] = useState('Todos');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [activeModalImage, setActiveModalImage] = useState<string>("");
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['catalogo-publico'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products_seller_view')
-        .select('id, name, image_url, wholesale_price, retail_price, category, description')
+        .select('id, name, image_url, images, wholesale_price, retail_price, category, description')
         .eq('status', 'activo')
         .order('name');
       if (error) throw error;
@@ -53,6 +55,20 @@ export default function CatalogoPublico() {
       : null;
 
   const getQty = (id: string) => quantities[id] ?? 1;
+
+  const getAllImages = (p: CatalogProduct) => {
+    const imgs: string[] = [];
+    if (p.image_url) imgs.push(p.image_url);
+    if (p.images && Array.isArray(p.images)) {
+      p.images.forEach(img => { if (img && !imgs.includes(img)) imgs.push(img); });
+    }
+    return imgs;
+  };
+
+  const handleSelectProduct = (p: CatalogProduct) => {
+    setSelectedProduct(p);
+    setActiveModalImage(p.image_url || getAllImages(p)[0] || "");
+  };
 
   const setQty = (id: string, val: number) => {
     setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(50, val)) }));
@@ -250,7 +266,7 @@ export default function CatalogoPublico() {
                       {/* Image — clickable */}
                       <div
                         className="relative h-[260px] bg-gray-100 overflow-hidden cursor-pointer"
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                       >
                         {p.image_url ? (
                           <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -273,7 +289,7 @@ export default function CatalogoPublico() {
                       <div className="p-4 flex flex-col flex-1 gap-2">
                         <h3
                           className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#C1272D] transition-colors"
-                          onClick={() => setSelectedProduct(p)}
+                          onClick={() => handleSelectProduct(p)}
                         >
                           {p.name}
                         </h3>
@@ -376,14 +392,32 @@ export default function CatalogoPublico() {
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Image */}
-              {p.image_url ? (
-                <img src={p.image_url} alt={p.name} className="w-full aspect-square object-cover" />
+              {/* Image Gallery */}
+              {activeModalImage || p.image_url ? (
+                <img src={activeModalImage || p.image_url || ""} alt={p.name} className="w-full aspect-square object-cover transition-opacity duration-300" />
               ) : (
                 <div className="w-full aspect-square bg-gray-100 flex items-center justify-center">
                   <Package className="w-20 h-20 text-gray-200" />
                 </div>
               )}
+              {(() => {
+                const allImgs = getAllImages(p);
+                return allImgs.length > 1 ? (
+                  <div className="flex gap-2 p-3 overflow-x-auto">
+                    {allImgs.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveModalImage(img)}
+                        className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                          (activeModalImage || p.image_url) === img ? 'border-[#C1272D] ring-1 ring-[#C1272D]' : 'border-gray-200 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Content */}
               <div className="p-5 sm:p-6 space-y-4">

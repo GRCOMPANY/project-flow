@@ -94,11 +94,14 @@ export function ProductForm({
   
   // Content
   const [imageUrl, setImageUrl] = useState('');
+  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [description, setDescription] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [supplierId, setSupplierId] = useState<string | undefined>();
   
   const [uploading, setUploading] = useState(false);
+  const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Calculate margins
@@ -121,6 +124,8 @@ export function ProductForm({
       setIsFeatured(initialData.isFeatured);
       setAutoPromote(initialData.autoPromote || false);
       setImageUrl(initialData.imageUrl || '');
+      setAdditionalImages(initialData.images || []);
+      setNewImageUrl('');
       setDescription(initialData.description || '');
       setInternalNotes(initialData.internalNotes || '');
       setSupplierId(initialData.supplierId);
@@ -144,6 +149,8 @@ export function ProductForm({
     setIsFeatured(false);
     setAutoPromote(false);
     setImageUrl('');
+    setAdditionalImages([]);
+    setNewImageUrl('');
     setDescription('');
     setInternalNotes('');
     setSupplierId(undefined);
@@ -208,6 +215,7 @@ export function ProductForm({
       isFeatured,
       autoPromote,
       imageUrl: imageUrl || undefined,
+      images: additionalImages,
       description: description.trim() || undefined,
       internalNotes: internalNotes.trim() || undefined,
       supplierId,
@@ -269,6 +277,85 @@ export function ProductForm({
                 disabled={uploading}
               />
             </label>
+          </div>
+
+          {/* Additional Images */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Imágenes adicionales ({additionalImages.length}/6)
+            </h3>
+            
+            {additionalImages.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {additionalImages.map((url, i) => (
+                  <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
+                    <img src={url} alt={`Extra ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setAdditionalImages(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {additionalImages.length === 0 && (
+              <p className="text-xs text-muted-foreground">No hay imágenes adicionales</p>
+            )}
+
+            {additionalImages.length < 6 && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Pegar URL de imagen..."
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  className="flex-1 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!newImageUrl.trim() || additionalImages.includes(newImageUrl.trim()) || newImageUrl.trim() === imageUrl}
+                  onClick={() => {
+                    const url = newImageUrl.trim();
+                    if (url && !additionalImages.includes(url) && url !== imageUrl) {
+                      setAdditionalImages(prev => [...prev, url]);
+                      setNewImageUrl('');
+                    }
+                  }}
+                >
+                  Agregar
+                </Button>
+                <label>
+                  <Button type="button" variant="outline" size="sm" asChild disabled={uploadingAdditional}>
+                    <span className="cursor-pointer">
+                      <Upload className="w-3 h-3 mr-1" />
+                      {uploadingAdditional ? '...' : 'Subir'}
+                    </span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingAdditional}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingAdditional(true);
+                      const url = await onUploadImage(file);
+                      if (url && !additionalImages.includes(url)) {
+                        setAdditionalImages(prev => [...prev, url]);
+                      }
+                      setUploadingAdditional(false);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Section 1: Basic Info */}

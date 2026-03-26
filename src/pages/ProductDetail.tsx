@@ -174,11 +174,22 @@ const ProductDetail = () => {
           {/* Main content */}
           <div className="md:col-span-2 space-y-6">
             {/* Image */}
-            <div className="aspect-video rounded-xl border-2 border-border overflow-hidden bg-secondary flex items-center justify-center">
-              {product.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <Package className="w-20 h-20 text-muted-foreground" />
+            <div className="space-y-3">
+              <div className="aspect-video rounded-xl border-2 border-border overflow-hidden bg-secondary flex items-center justify-center">
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Package className="w-20 h-20 text-muted-foreground" />
+                )}
+              </div>
+              {product.images && product.images.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto">
+                  {[product.imageUrl, ...product.images].filter(Boolean).map((img, i) => (
+                    <div key={i} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border">
+                      <img src={img!} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 

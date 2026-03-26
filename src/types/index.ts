@@ -128,6 +128,7 @@ export interface Product {
   
   // Contenido
   imageUrl?: string;
+  images?: string[];
   description?: string;
   internalNotes?: string;  // Solo admin
   
