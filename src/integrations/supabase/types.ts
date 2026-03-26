@@ -445,6 +445,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          images: string[] | null
           internal_notes: string | null
           is_featured: boolean
           main_channel: string | null
@@ -468,6 +469,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           internal_notes?: string | null
           is_featured?: boolean
           main_channel?: string | null
@@ -491,6 +493,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           internal_notes?: string | null
           is_featured?: boolean
           main_channel?: string | null
@@ -1028,6 +1031,7 @@ export type Database = {
           description: string | null
           id: string | null
           image_url: string | null
+          images: string[] | null
           is_featured: boolean | null
           main_channel: string | null
           name: string | null
@@ -1044,6 +1048,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           image_url?: string | null
+          images?: string[] | null
           is_featured?: boolean | null
           main_channel?: string | null
           name?: string | null
@@ -1060,6 +1065,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           image_url?: string | null
+          images?: string[] | null
           is_featured?: boolean | null
           main_channel?: string | null
           name?: string | null
