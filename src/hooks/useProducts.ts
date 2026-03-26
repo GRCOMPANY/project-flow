@@ -76,6 +76,7 @@ export function useProducts() {
 
           // Contenido
           imageUrl: p.image_url || undefined,
+          images: Array.isArray(p.images) ? p.images : [],
           description: p.description || undefined,
           internalNotes: isAdmin ? p.internal_notes || undefined : undefined,
 
@@ -143,6 +144,7 @@ export function useProducts() {
 
         // Contenido
         image_url: product.imageUrl || null,
+        images: product.images || [],
         description: product.description || null,
         internal_notes: product.internalNotes || null,
         store_name: product.storeName || null,
@@ -206,6 +208,7 @@ export function useProducts() {
 
     // Contenido
     if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
+    if (updates.images !== undefined) updateData.images = updates.images;
     if (updates.description !== undefined) updateData.description = updates.description;
     if (updates.internalNotes !== undefined) updateData.internal_notes = updates.internalNotes;
     if (updates.storeName !== undefined) updateData.store_name = updates.storeName;
