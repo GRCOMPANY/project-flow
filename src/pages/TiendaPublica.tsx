@@ -473,12 +473,30 @@ const TiendaPublica = () => {
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Image */}
+              {/* Image Gallery */}
               <img
-                src={selectedProduct.image_url || "/placeholder.svg"}
+                src={activeDrawerImage || "/placeholder.svg"}
                 alt={selectedProduct.name ?? ""}
-                className="w-full h-[280px] sm:h-[320px] object-cover"
+                className="w-full h-[280px] sm:h-[320px] object-cover transition-opacity duration-300"
               />
+              {(() => {
+                const allImgs = getAllImages(selectedProduct);
+                return allImgs.length > 1 ? (
+                  <div className="flex gap-2 p-3 overflow-x-auto">
+                    {allImgs.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveDrawerImage(img)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                          activeDrawerImage === img ? 'border-primary ring-1 ring-primary' : 'border-border opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
 
               <div className="p-6">
                 {selectedProduct.category && (
