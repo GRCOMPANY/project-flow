@@ -306,7 +306,7 @@ const TiendaPublica = () => {
                     {/* Image */}
                     <div
                       className="relative overflow-hidden cursor-pointer"
-                      onClick={() => setSelectedProduct(p)}
+                      onClick={() => handleSelectProduct(p)}
                     >
                       <img
                         src={p.image_url || "/placeholder.svg"}
@@ -329,7 +329,7 @@ const TiendaPublica = () => {
                     <div className="p-4 flex flex-col flex-1">
                       <h3
                         className="font-semibold text-base text-card-foreground line-clamp-2 cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                       >
                         {p.name}
                       </h3>
@@ -369,7 +369,7 @@ const TiendaPublica = () => {
 
                       {/* Buttons */}
                       <button
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => handleSelectProduct(p)}
                         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                       >
                         <ShoppingBag className="w-4 h-4" />
