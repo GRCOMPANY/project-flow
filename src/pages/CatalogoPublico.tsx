@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Package, Search, MessageCircle, Plus, Minus, ArrowRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Package, Plus, Minus, TrendingUp, Users, Star, ChevronRight, CheckCircle2 } from "lucide-react";
 
-const GRC_WHATSAPP = '573226421110';
-const LOGO_URL = '/logo-grc.png';
-const CATEGORIES = ['Todos', 'Electrónica', 'Hogar', 'Accesorios', 'Tecnología', 'Otro'];
+const GRC_WA = "573226421110";
+
+const WA_ICON = (
+  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current flex-shrink-0">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
+
+const CATEGORIES = ["Todos", "Electrónica", "Hogar", "Accesorios", "Tecnología", "Otro"];
 
 interface CatalogProduct {
   id: string;
@@ -21,324 +25,388 @@ interface CatalogProduct {
   description: string | null;
 }
 
+const fmt = (n: number | null) => (n != null ? `$${n.toLocaleString("es-CO")}` : "—");
+const profitAmt = (p: CatalogProduct) =>
+  p.retail_price != null && p.wholesale_price != null ? p.retail_price - p.wholesale_price : null;
+const profitPct = (p: CatalogProduct) => {
+  if (!p.wholesale_price || !p.retail_price) return null;
+  return Math.round(((p.retail_price - p.wholesale_price) / p.wholesale_price) * 100);
+};
+
+/* ── CatalogCard ── */
+const CatalogCard = ({
+  product, qty, onQty, onWA, onDetail,
+}: {
+  product: CatalogProduct;
+  qty: number;
+  onQty: (v: number) => void;
+  onWA: () => void;
+  onDetail: () => void;
+}) => {
+  const gain = profitAmt(product);
+  const pct = profitPct(product);
+
+  return (
+    <article className="cat-card bg-white rounded-3xl overflow-hidden flex flex-col border border-gray-100 hover:border-[#C1272D]/20">
+      {/* Image */}
+      <div
+        className="relative bg-[#F5F5F5] aspect-[4/3] overflow-hidden cursor-pointer"
+        onClick={onDetail}
+      >
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package className="w-14 h-14 text-gray-200" />
+          </div>
+        )}
+        {product.category && (
+          <span className="absolute top-3 left-3 bg-[#1A1A1A]/80 backdrop-blur-sm text-white text-[10px] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-full">
+            {product.category}
+          </span>
+        )}
+        {pct != null && pct > 0 && (
+          <span className="absolute top-3 right-3 bg-[#C1272D] text-white text-[10px] font-black px-3 py-1.5 rounded-full">
+            +{pct}% ganancia
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-5 flex flex-col flex-1 gap-4">
+        <h3
+          className="font-bold text-[#1A1A1A] text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#C1272D] transition-colors"
+          onClick={onDetail}
+        >
+          {product.name}
+        </h3>
+
+        {/* Price block */}
+        <div className="bg-[#F5F5F5] rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400 font-medium">Tu precio</span>
+            <span className="text-xl font-black text-[#C1272D]">{fmt(product.wholesale_price)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400 font-medium">Precio cliente</span>
+            <span className="text-sm font-semibold text-gray-700">{fmt(product.retail_price)}</span>
+          </div>
+        </div>
+
+        {/* Profit */}
+        {gain != null && gain > 0 && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
+            <span className="text-emerald-500 text-base">💰</span>
+            <span className="text-sm font-black text-emerald-700">
+              Ganas {fmt(gain)} por unidad
+            </span>
+          </div>
+        )}
+
+        {/* Perks */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <CheckCircle2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            Disponible bajo pedido
+          </div>
+          <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+            Creativos listos para vender
+          </div>
+        </div>
+
+        {/* Qty */}
+        <div className="flex items-center justify-between bg-[#F5F5F5] rounded-2xl px-4 py-2.5">
+          <span className="text-xs font-semibold text-gray-600">Cantidad</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onQty(qty - 1)}
+              className="w-7 h-7 rounded-xl bg-white border border-gray-200 hover:border-[#C1272D] flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Minus className="w-3 h-3 text-gray-600" />
+            </button>
+            <span className="font-black text-[#1A1A1A] w-6 text-center text-base">{qty}</span>
+            <button
+              onClick={() => onQty(qty + 1)}
+              className="w-7 h-7 rounded-xl bg-white border border-gray-200 hover:border-[#C1272D] flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Plus className="w-3 h-3 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={onWA}
+          className="w-full flex items-center justify-center gap-2 font-bold text-sm py-3.5 rounded-2xl text-white transition-all hover:shadow-lg hover:scale-[1.01]"
+          style={{ background: "#25D366" }}
+        >
+          {WA_ICON}
+          Pedir {qty} {qty === 1 ? "unidad" : "unidades"}
+        </button>
+      </div>
+    </article>
+  );
+};
+
+/* ── Mid CTA Banner ── */
+const MidBanner = () => (
+  <div className="col-span-full bg-[#F5F5F5] border-2 border-[#C1272D]/10 rounded-3xl p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+    <div>
+      <span className="text-[#C1272D] text-xs font-bold uppercase tracking-widest">Modelo de negocio GRC</span>
+      <h3 className="font-black text-2xl text-[#1A1A1A] mt-1 mb-2">⚡ Trabajamos bajo pedido</h3>
+      <p className="text-gray-500 text-sm max-w-md">
+        Tú vendes primero, nosotros conseguimos. Sin riesgo de inventario. Solo pagas lo que ya vendiste.
+      </p>
+    </div>
+    <a
+      href={`https://wa.me/${GRC_WA}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex-shrink-0 flex items-center gap-2 bg-[#C1272D] text-white font-bold text-sm px-6 py-3.5 rounded-2xl hover:bg-[#B71C1C] transition-colors shadow-sm"
+    >
+      {WA_ICON}
+      Hablar con George
+    </a>
+  </div>
+);
+
+/* ── Main ── */
 export default function CatalogoPublico() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('Todos');
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['catalogo-publico'],
+    queryKey: ["catalogo-publico"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('products_seller_view')
-        .select('id, name, image_url, images, wholesale_price, retail_price, category, description')
-        .eq('status', 'activo')
-        .order('name');
+        .from("products_seller_view")
+        .select("id, name, image_url, images, wholesale_price, retail_price, category, description")
+        .eq("status", "activo")
+        .order("name");
       if (error) throw error;
       return data as CatalogProduct[];
     },
   });
 
-  const filtered = products?.filter(p => {
-    const matchesSearch = p.name?.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = category === 'Todos' || p.category?.toLowerCase() === category.toLowerCase();
-    return matchesSearch && matchesCategory;
-  }) ?? [];
-
-  const formatPrice = (n: number | null) =>
-    n != null ? `$${n.toLocaleString('es-CO')}` : '—';
-
-  const profit = (p: CatalogProduct) =>
-    p.retail_price != null && p.wholesale_price != null
-      ? p.retail_price - p.wholesale_price
-      : null;
+  const filtered =
+    products?.filter((p) => {
+      const ms = p.name?.toLowerCase().includes(search.toLowerCase());
+      const mc = category === "Todos" || p.category?.toLowerCase() === category.toLowerCase();
+      return ms && mc;
+    }) ?? [];
 
   const getQty = (id: string) => quantities[id] ?? 1;
+  const setQty = (id: string, v: number) =>
+    setQuantities((prev) => ({ ...prev, [id]: Math.max(1, Math.min(50, v)) }));
 
-  const getAllImages = (p: CatalogProduct) => {
-    const imgs: string[] = [];
-    if (p.image_url) imgs.push(p.image_url);
-    if (p.images && Array.isArray(p.images)) {
-      p.images.forEach(img => { if (img && !imgs.includes(img)) imgs.push(img); });
-    }
-    return imgs;
+  const openWA = (name: string, qty: number, price: number | null) => {
+    const total = price != null ? qty * price : 0;
+    const msg = `Hola GRC, quiero pedir ${qty} unidades de ${name}. Total: $${total.toLocaleString("es-CO")}`;
+    window.open(`https://wa.me/${GRC_WA}?text=${encodeURIComponent(msg)}`, "_blank");
   };
-
-  const handleSelectProduct = (p: CatalogProduct) => {
-    navigate(`/producto/${p.id}`);
-  };
-
-  const setQty = (id: string, val: number) => {
-    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(50, val)) }));
-  };
-
-  const openWhatsApp = (name: string, qty: number, unitPrice: number | null) => {
-    const total = unitPrice != null ? qty * unitPrice : 0;
-    const msg = encodeURIComponent(
-      `Hola GRC, quiero pedir ${qty} unidades de ${name}. Mi precio total: $${total.toLocaleString('es-CO')}`
-    );
-    window.open(`https://wa.me/${GRC_WHATSAPP}?text=${msg}`, '_blank');
-  };
-
-  
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
-      {/* ━━━ ANIMATIONS ━━━ */}
+    <div className="min-h-screen" style={{ background: "#F5F5F5" }}>
       <style>{`
-        @keyframes fade-slide-up {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes catFadeUp {
+          from{opacity:0;transform:translateY(20px)}
+          to{opacity:1;transform:translateY(0)}
         }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
+        @keyframes waBounce {
+          0%,88%,100%{transform:translateY(0)}
+          92%{transform:translateY(-8px)}
+          96%{transform:translateY(0)}
+          98%{transform:translateY(-3px)}
         }
-        @keyframes bounce-wa {
-          0%, 85%, 100% { transform: translateY(0); }
-          92% { transform: translateY(-5px); }
-          96% { transform: translateY(0); }
-        }
-        @keyframes pulse-banner {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.92; }
-        }
-        @keyframes modal-in {
-          from { opacity: 0; transform: scale(0.95) translateY(16px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes overlay-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes bounce-fab {
-          0%, 88%, 100% { transform: translateY(0); }
-          92% { transform: translateY(-8px); }
-          96% { transform: translateY(0); }
-          98% { transform: translateY(-3px); }
-        }
-        .catalog-card {
+        .cat-card {
           opacity: 0;
-          animation: fade-slide-up 0.5s ease-out forwards;
+          animation: catFadeUp 0.5s ease-out var(--delay,0ms) forwards;
+          box-shadow: 0 2px 16px rgba(0,0,0,0.04);
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
         }
-        .catalog-card:hover {
-          transform: scale(1.03);
-          box-shadow: 0 8px 30px rgba(193, 39, 45, 0.15);
+        .cat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(193,39,45,0.09);
         }
-        .shimmer-btn {
-          position: relative;
-          overflow: hidden;
-        }
-        .shimmer-btn::after {
-          content: '';
-          position: absolute;
-          top: 0; left: 0;
-          width: 50%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
-          animation: shimmer 2.5s infinite;
-        }
-        .bounce-wa {
-          animation: bounce-wa 3s infinite;
+        .scrollbar-hide::-webkit-scrollbar{display:none}
+        .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
+        @media(prefers-reduced-motion:reduce){
+          .cat-card{animation:none;opacity:1}
+          .cat-card:hover{transform:none}
         }
       `}</style>
 
-      {/* ━━━ HEADER ━━━ */}
-      <header className="sticky top-0 z-30 bg-[#111111]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <img src={LOGO_URL} alt="GRC" className="h-12 object-contain" />
-              <h1 className="text-xl sm:text-2xl font-bold text-white">Catálogo Mayorista GRC</h1>
+      {/* ── HEADER ── */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <img src="/logo-grc.png" alt="GRC" className="h-10 object-contain" />
+            <div>
+              <h1 className="font-black text-[#1A1A1A] text-base leading-tight">Catálogo Mayorista</h1>
+              <p className="text-gray-400 text-xs">GRC Importaciones</p>
             </div>
-            <a
-              href={`https://wa.me/${GRC_WHATSAPP}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shimmer-btn hidden sm:inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
-            >
-              Hablar con George <ArrowRight className="w-4 h-4" />
-            </a>
-          </div>
-          <p className="text-gray-400 text-sm sm:text-base max-w-lg">
-            Gana dinero vendiendo productos que la gente ya quiere comprar
-          </p>
-          <div className="flex items-center gap-3 mt-4">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-400 bg-green-400/10 px-3 py-1 rounded-full animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              Disponible ahora
-            </span>
           </div>
           <a
-            href={`https://wa.me/${GRC_WHATSAPP}`}
+            href={`https://wa.me/${GRC_WA}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="shimmer-btn sm:hidden mt-4 flex items-center justify-center gap-2 bg-[#C1272D] hover:bg-[#a01f25] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors w-full"
+            className="flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors shadow-sm"
           >
-            Hablar con George <ArrowRight className="w-4 h-4" />
+            {WA_ICON}
+            <span className="hidden sm:inline">Hablar con George</span>
           </a>
         </div>
       </header>
 
-      {/* ━━━ BARRA DE CONFIANZA ━━━ */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-sm text-gray-700 font-medium">
-            <span>📦 Sin inventario · solo bajo pedido</span>
-            <span>🚚 Entrega en Bogotá mismo día</span>
-            <span>💰 Ganancias desde $15.000 por unidad</span>
+      {/* ── HERO ── */}
+      <section className="bg-white border-b border-gray-100 py-14 sm:py-20 px-4">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-[#C1272D]/8 text-[#C1272D] text-xs font-bold px-4 py-2 rounded-full mb-5">
+              <TrendingUp className="w-3.5 h-3.5" />
+              Para revendedores y emprendedores
+            </div>
+            <h2 className="font-black text-4xl sm:text-5xl text-[#1A1A1A] leading-tight mb-4">
+              Gana dinero vendiendo<br />
+              <span className="text-[#C1272D]">lo que la gente ya quiere.</span>
+            </h2>
+            <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-lg">
+              Sin inventario. Sin riesgo. Tú vendes primero, nosotros conseguimos.
+              Márgenes reales desde el primer pedido.
+            </p>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              {[
+                { icon: <Users className="w-5 h-5 text-[#C1272D]" />, v: "+120", l: "Revendedores" },
+                { icon: <TrendingUp className="w-5 h-5 text-[#C1272D]" />, v: "+500", l: "Pedidos/mes" },
+                { icon: <Star className="w-5 h-5 text-[#D4AF37]" />, v: "4.9★", l: "Calificación" },
+              ].map((s) => (
+                <div key={s.l} className="bg-[#F5F5F5] rounded-2xl p-4 text-center">
+                  <div className="flex justify-center mb-1">{s.icon}</div>
+                  <p className="font-black text-xl text-[#1A1A1A]">{s.v}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{s.l}</p>
+                </div>
+              ))}
+            </div>
+            <a
+              href={`https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC, quiero empezar a revender sus productos. ¿Cómo funciona?")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-[#C1272D]/25"
+            >
+              {WA_ICON}
+              Comenzar a revender
+            </a>
+          </div>
+
+          {/* How to make money */}
+          <div className="space-y-4">
+            <p className="font-black text-[#1A1A1A] text-lg mb-5">Así ganas dinero con GRC</p>
+            {[
+              { n: "01", t: "Elige un producto", d: "Selecciona del catálogo lo que quieres vender" },
+              { n: "02", t: "Véndelo antes de comprar", d: "Usa nuestros creativos y vende en tus redes primero" },
+              { n: "03", t: "Haz el pedido", d: "Páganos el precio mayorista, tú te quedas la diferencia" },
+              { n: "04", t: "Nosotros entregamos", d: "Despacho el mismo día en Bogotá, 1-3 días nacional" },
+            ].map((s) => (
+              <div key={s.n} className="flex gap-4 bg-[#F5F5F5] rounded-2xl p-4">
+                <span className="font-black text-[#C1272D] text-lg w-8 flex-shrink-0">{s.n}</span>
+                <div>
+                  <p className="font-bold text-[#1A1A1A] text-sm">{s.t}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{s.d}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ━━━ FILTROS ━━━ */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-2">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Buscar producto..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-10 text-sm bg-white border-gray-200"
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                category === cat
-                  ? 'bg-[#C1272D] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {cat}
-            </button>
+      {/* ── TRUST ── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          {[
+            { e: "📦", t: "Sin inventario · solo bajo pedido" },
+            { e: "🚚", t: "Entrega en Bogotá mismo día" },
+            { e: "💰", t: "Ganancias desde $15.000 por unidad" },
+          ].map((x) => (
+            <div key={x.t} className="flex items-center justify-center gap-2 text-sm font-medium text-gray-600 py-1">
+              <span>{x.e}</span> {x.t}
+            </div>
           ))}
         </div>
       </div>
 
-      {/* ━━━ CONTENT ━━━ */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      {/* ── CATALOG ── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        {/* Search + filters */}
+        <div className="mb-8">
+          <div className="relative mb-4">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#C1272D] transition-colors shadow-sm"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                  category === cat
+                    ? "bg-[#C1272D] text-white"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-[#C1272D]/50"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl h-[480px] animate-pulse" />
+              <div key={i} className="bg-white rounded-3xl aspect-[3/4] animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <Package className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p className="text-lg font-medium">No se encontraron productos</p>
+          <div className="text-center py-24">
+            <Package className="w-14 h-14 mx-auto text-gray-200 mb-4" />
+            <p className="font-bold text-xl text-[#1A1A1A] mb-1">Sin productos</p>
+            <p className="text-gray-400 text-sm">Intenta con otra búsqueda</p>
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-4">{filtered.length} productos disponibles</p>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-sm text-gray-400">{filtered.length} productos disponibles</p>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Stock disponible
+              </span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map((p, index) => {
-                const ganancia = profit(p);
                 const qty = getQty(p.id);
                 return (
                   <React.Fragment key={p.id}>
-                    {index === 3 && (
-                      <div className="col-span-full rounded-2xl bg-[#C1272D] p-6 sm:p-8 text-center" style={{ animation: 'pulse-banner 3s ease-in-out infinite' }}>
-                        <p className="text-white text-lg sm:text-xl font-bold mb-2">
-                          ⚡ Trabajamos bajo pedido — tú vendes primero, nosotros conseguimos
-                        </p>
-                        <p className="text-white/80 text-sm mb-3">📲 ¿Dudas? Escríbenos ahora</p>
-                        <a
-                          href={`https://wa.me/${GRC_WHATSAPP}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 bg-white text-[#C1272D] font-semibold text-sm px-5 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          Escribir <ArrowRight className="w-4 h-4" />
-                        </a>
-                      </div>
-                    )}
-                    <div
-                      className="catalog-card bg-white rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
-                      style={{ animationDelay: `${index * 0.08}s` }}
-                    >
-                      {/* Image — clickable */}
-                      <div
-                        className="relative h-[260px] bg-gray-100 overflow-hidden cursor-pointer"
-                        onClick={() => handleSelectProduct(p)}
-                      >
-                        {p.image_url ? (
-                          <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-16 h-16 text-gray-200" />
-                          </div>
-                        )}
-                        {p.category && (
-                          <span className="absolute top-3 left-3 bg-gray-800/80 text-white text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-md">
-                            {p.category}
-                          </span>
-                        )}
-                        <span className="absolute top-3 right-3 bg-[#C1272D] text-white text-[10px] font-bold px-2 py-1 rounded-md animate-pulse">
-                          🔥 Popular
-                        </span>
-                      </div>
-
-                      {/* Info */}
-                      <div className="p-4 flex flex-col flex-1 gap-2">
-                        <h3
-                          className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#C1272D] transition-colors"
-                          onClick={() => handleSelectProduct(p)}
-                        >
-                          {p.name}
-                        </h3>
-
-                        {/* Prices */}
-                        <div className="mt-1">
-                          <p className="text-[10px] uppercase text-gray-400 tracking-wide">Tu precio</p>
-                          <p className="text-xl font-bold text-[#C1272D]">{formatPrice(p.wholesale_price)}</p>
-                        </div>
-                        <p className="text-sm text-gray-600">{formatPrice(p.retail_price)} <span className="text-xs text-gray-400">Precio sugerido al cliente</span></p>
-
-                        {ganancia != null && ganancia > 0 && (
-                          <div className="bg-green-900 rounded-lg px-3 py-2 text-center">
-                            <span className="text-sm text-green-100 font-semibold">
-                              💰 Ganas {formatPrice(ganancia)} por unidad
-                            </span>
-                          </div>
-                        )}
-
-                        <p className="text-xs text-gray-400">📦 Disponible bajo pedido</p>
-                        <p className="text-xs text-green-600">✅ Te enviamos creativos listos para vender</p>
-
-                        {/* Quantity selector */}
-                        <div className="flex items-center justify-center gap-3 mt-2">
-                          <button
-                            onClick={() => setQty(p.id, qty - 1)}
-                            className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                          >
-                            <Minus className="w-3.5 h-3.5 text-gray-600" />
-                          </button>
-                          <span className="text-lg font-bold text-gray-900 w-8 text-center">{qty}</span>
-                          <button
-                            onClick={() => setQty(p.id, qty + 1)}
-                            className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-gray-600" />
-                          </button>
-                        </div>
-
-                        {/* WhatsApp CTA */}
-                        <Button
-                          onClick={() => openWhatsApp(p.name, qty, p.wholesale_price)}
-                          className="bounce-wa w-full bg-[#25D366] hover:bg-[#1ebe57] text-white gap-2 mt-1 font-semibold"
-                          size="sm"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          Pedir {qty} {qty === 1 ? 'unidad' : 'unidades'} por WhatsApp
-                        </Button>
-                      </div>
-                    </div>
+                    {index === 3 && <MidBanner />}
+                    <CatalogCard
+                      product={p}
+                      qty={qty}
+                      onQty={(v) => setQty(p.id, v)}
+                      onWA={() => openWA(p.name, qty, p.wholesale_price)}
+                      onDetail={() => navigate(`/producto/${p.id}`)}
+                    />
                   </React.Fragment>
                 );
               })}
@@ -347,43 +415,78 @@ export default function CatalogoPublico() {
         )}
       </main>
 
-      {/* ━━━ FOOTER ━━━ */}
-      <footer className="bg-[#111111] py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-3">
-          <p className="text-white font-bold text-lg">GRC Importaciones · Bogotá, Colombia</p>
-          <p className="text-gray-400 text-sm">📲 +57 322 642 1110</p>
-          <p className="text-gray-500 text-sm italic">Somos tu proveedor, tú eres el vendedor</p>
+      {/* ── TESTIMONIALS ── */}
+      <section className="bg-white py-16 px-4 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto text-center">
+          <h2 className="font-black text-3xl text-[#1A1A1A] mb-10">Lo que dicen nuestros revendedores</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {[
+              { name: "Diego R.", city: "Bogotá", text: "En el primer mes ya recuperé la inversión. El modelo es increíble, vendes antes de comprar." },
+              { name: "Mariana T.", city: "Medellín", text: "Los creativos que dan son increíbles. Solo los publico y la gente escribe sola." },
+              { name: "Felipe A.", city: "Cali", text: "Llevo 6 meses con GRC y ya tengo ingresos fijos. El soporte es muy rápido." },
+            ].map((t) => (
+              <div key={t.name} className="bg-[#F5F5F5] rounded-3xl p-6 text-left">
+                <div className="flex gap-0.5 mb-3">
+                  {[1,2,3,4,5].map(i=><Star key={i} className="w-4 h-4 fill-[#D4AF37] text-[#D4AF37]"/>)}
+                </div>
+                <p className="text-[#1A1A1A] text-sm leading-relaxed mb-4 italic">"{t.text}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#C1272D]/10 flex items-center justify-center font-black text-[#C1272D] text-sm">
+                    {t.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-[#1A1A1A]">{t.name}</p>
+                    <p className="text-xs text-gray-400">{t.city} · Revendedor verificado</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="bg-[#1A1A1A] py-12 px-4">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <img src="/logo-grc.png" alt="GRC" className="h-9 object-contain" />
+            <span className="font-black text-white text-lg">GRC Importaciones</span>
+          </div>
+          <p className="text-gray-500 text-sm mb-1">📍 Bogotá, Colombia · 📲 +57 322 642 1110</p>
+          <p className="text-gray-600 text-sm italic mb-6">Somos tu proveedor, tú eres el vendedor</p>
           <a
-            href={`https://wa.me/${GRC_WHATSAPP}`}
+            href={`https://wa.me/${GRC_WA}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold px-6 py-2.5 rounded-lg transition-colors mt-2"
+            className="inline-flex items-center gap-2 text-white font-bold text-sm px-6 py-3 rounded-2xl transition-colors"
+            style={{ background: "#25D366" }}
           >
-            <MessageCircle className="w-4 h-4" />
+            {WA_ICON}
             Escríbenos por WhatsApp
           </a>
+          <div className="border-t border-white/10 mt-8 pt-5">
+            <p className="text-gray-600 text-xs">© 2026 GRC Importaciones · Todos los derechos reservados</p>
+          </div>
         </div>
       </footer>
 
-
-      {/* ━━━ BOTÓN FLOTANTE WHATSAPP ━━━ */}
+      {/* Floating WA */}
       <a
-        href={`https://wa.me/${GRC_WHATSAPP}?text=${encodeURIComponent('Hola GRC, quiero más info sobre el catálogo mayorista')}`}
+        href={`https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC, quiero más info sobre el catálogo mayorista")}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed z-[999] group"
+        className="fixed z-50 group"
         style={{ bottom: 24, right: 24 }}
-        title="Hablar con George"
       >
-        <span className="absolute -top-10 right-0 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <span className="absolute -top-11 right-0 bg-[#1A1A1A] text-white text-xs px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
           Hablar con George
         </span>
         <div
-          className="w-[60px] h-[60px] rounded-full bg-[#25D366] flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:shadow-[0_6px_28px_rgba(37,211,102,0.55)] transition-shadow"
-          style={{ animation: 'bounce-fab 4s infinite' }}
+          className="w-[58px] h-[58px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+          style={{ background: "#25D366", boxShadow: "0 4px 24px rgba(37,211,102,0.45)", animation: "waBounce 4s infinite" }}
         >
           <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
           </svg>
         </div>
       </a>
