@@ -13,7 +13,8 @@ import {
   Image,
   Sparkles,
   Zap,
-  ListTodo
+  ListTodo,
+  Store
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/suppliers', label: 'Proveedores', icon: Truck, adminOnly: true },
   { path: '/sellers', label: 'Vendedores', icon: Users },
   { path: '/ai', label: 'IA', icon: Sparkles, adminOnly: true },
+  { path: '/tienda-config', label: 'Tienda', icon: Store, adminOnly: true },
 ];
 
 export function CommandCenterNav() {

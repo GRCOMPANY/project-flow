@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import CatalogoPublico from "./pages/CatalogoPublico";
 import TiendaPublica from "./pages/TiendaPublica";
 import ProductoDetalle from "./pages/ProductoDetalle";
+import TiendaConfig from "./pages/TiendaConfig";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             {/* Admin-only routes */}
             <Route path="/suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
             <Route path="/ai" element={<AdminRoute><AI /></AdminRoute>} />
+            <Route path="/tienda-config" element={<AdminRoute><TiendaConfig /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
