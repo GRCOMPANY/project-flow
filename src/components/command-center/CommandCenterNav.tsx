@@ -3,15 +3,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { 
-  LogOut, 
-  Package, 
-  Truck, 
-  Users, 
-  ShoppingCart, 
+import {
+  LogOut,
+  Package,
+  Users,
+  ShoppingCart,
   LayoutDashboard,
   Image,
-  Sparkles,
   Zap,
   ListTodo,
   Store
@@ -30,9 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/creatives', label: 'Creativos', icon: Image },
   { path: '/sales', label: 'Ventas', icon: ShoppingCart },
   { path: '/tasks', label: 'Tareas', icon: ListTodo },
-  { path: '/suppliers', label: 'Proveedores', icon: Truck, adminOnly: true },
   { path: '/sellers', label: 'Vendedores', icon: Users },
-  { path: '/ai', label: 'IA', icon: Sparkles, adminOnly: true },
   { path: '/tienda-config', label: 'Tienda', icon: Store, adminOnly: true },
 ];
 

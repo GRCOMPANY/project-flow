@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useStoreConfig } from "@/hooks/useStoreConfig";
 import { Search, Package, Plus, Minus, TrendingUp, Users, Star, ChevronRight, CheckCircle2 } from "lucide-react";
-
-const GRC_WA = "573226421110";
 
 const WA_ICON = (
   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current flex-shrink-0">
@@ -154,17 +153,17 @@ const CatalogCard = ({
 };
 
 /* ── Mid CTA Banner ── */
-const MidBanner = () => (
+const MidBanner = ({ waHref }: { waHref: string }) => (
   <div className="col-span-full bg-[#F5F5F5] border-2 border-[#C1272D]/10 rounded-3xl p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
     <div>
-      <span className="text-[#C1272D] text-xs font-bold uppercase tracking-widest">Modelo de negocio GRC</span>
+      <span className="text-[#C1272D] text-xs font-bold uppercase tracking-widest">Modelo de negocio</span>
       <h3 className="font-black text-2xl text-[#1A1A1A] mt-1 mb-2">⚡ Trabajamos bajo pedido</h3>
       <p className="text-gray-500 text-sm max-w-md">
         Tú vendes primero, nosotros conseguimos. Sin riesgo de inventario. Solo pagas lo que ya vendiste.
       </p>
     </div>
     <a
-      href={`https://wa.me/${GRC_WA}`}
+      href={waHref}
       target="_blank"
       rel="noopener noreferrer"
       className="flex-shrink-0 flex items-center gap-2 bg-[#C1272D] text-white font-bold text-sm px-6 py-3.5 rounded-2xl hover:bg-[#B71C1C] transition-colors shadow-sm"
@@ -178,6 +177,7 @@ const MidBanner = () => (
 /* ── Main ── */
 export default function CatalogoPublico() {
   const navigate = useNavigate();
+  const { waNumber, storeName, logoUrl, waGenericUrl, waUrl } = useStoreConfig();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -208,8 +208,8 @@ export default function CatalogoPublico() {
 
   const openWA = (name: string, qty: number, price: number | null) => {
     const total = price != null ? qty * price : 0;
-    const msg = `Hola GRC, quiero pedir ${qty} unidades de ${name}. Total: $${total.toLocaleString("es-CO")}`;
-    window.open(`https://wa.me/${GRC_WA}?text=${encodeURIComponent(msg)}`, "_blank");
+    const msg = `Hola ${storeName}, quiero pedir ${qty} unidades de ${name}. Total: $${total.toLocaleString("es-CO")}`;
+    window.open(waUrl(msg), "_blank");
   };
 
   return (
@@ -247,14 +247,20 @@ export default function CatalogoPublico() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo-grc.png" alt="GRC" className="h-10 object-contain" />
+            {logoUrl ? (
+              <img src={logoUrl} alt={storeName} className="h-10 object-contain" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: "#C1272D" }}>
+                {storeName.charAt(0)}
+              </div>
+            )}
             <div>
               <h1 className="font-black text-[#1A1A1A] text-base leading-tight">Catálogo Mayorista</h1>
-              <p className="text-gray-400 text-xs">GRC Importaciones</p>
+              <p className="text-gray-400 text-xs">{storeName}</p>
             </div>
           </div>
           <a
-            href={`https://wa.me/${GRC_WA}`}
+            href={waGenericUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors shadow-sm"
@@ -296,7 +302,7 @@ export default function CatalogoPublico() {
               ))}
             </div>
             <a
-              href={`https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC, quiero empezar a revender sus productos. ¿Cómo funciona?")}`}
+              href={waUrl(`Hola ${storeName}, quiero empezar a revender sus productos. ¿Cómo funciona?`)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-[#C1272D]/25"
@@ -399,7 +405,7 @@ export default function CatalogoPublico() {
                 const qty = getQty(p.id);
                 return (
                   <React.Fragment key={p.id}>
-                    {index === 3 && <MidBanner />}
+                    {index === 3 && <MidBanner waHref={waGenericUrl} />}
                     <CatalogCard
                       product={p}
                       qty={qty}
@@ -449,13 +455,19 @@ export default function CatalogoPublico() {
       <footer className="bg-[#1A1A1A] py-12 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <img src="/logo-grc.png" alt="GRC" className="h-9 object-contain" />
-            <span className="font-black text-white text-lg">GRC Importaciones</span>
+            {logoUrl ? (
+              <img src={logoUrl} alt={storeName} className="h-9 object-contain" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ background: "#C1272D" }}>
+                {storeName.charAt(0)}
+              </div>
+            )}
+            <span className="font-black text-white text-lg">{storeName}</span>
           </div>
           <p className="text-gray-500 text-sm mb-1">📍 Bogotá, Colombia · 📲 +57 322 642 1110</p>
           <p className="text-gray-600 text-sm italic mb-6">Somos tu proveedor, tú eres el vendedor</p>
           <a
-            href={`https://wa.me/${GRC_WA}`}
+            href={waGenericUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-white font-bold text-sm px-6 py-3 rounded-2xl transition-colors"
@@ -465,14 +477,14 @@ export default function CatalogoPublico() {
             Escríbenos por WhatsApp
           </a>
           <div className="border-t border-white/10 mt-8 pt-5">
-            <p className="text-gray-600 text-xs">© 2026 GRC Importaciones · Todos los derechos reservados</p>
+            <p className="text-gray-600 text-xs">© 2026 {storeName} · Todos los derechos reservados</p>
           </div>
         </div>
       </footer>
 
       {/* Floating WA */}
       <a
-        href={`https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC, quiero más info sobre el catálogo mayorista")}`}
+        href={waUrl(`Hola ${storeName}, quiero más info sobre el catálogo mayorista`)}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed z-50 group"

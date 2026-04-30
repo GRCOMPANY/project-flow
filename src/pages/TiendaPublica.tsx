@@ -10,17 +10,9 @@ import {
 /* ═══════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════ */
-const GRC_WA = "573226421110";
 const fmt = (v: number | null) => (v != null ? `$${v.toLocaleString("es-CO")}` : "");
 const anchorPrice = (p: number) => Math.round(p * 1.42);
 const discPct = (real: number, anc: number) => Math.round(((anc - real) / anc) * 100);
-
-const waProduct = (name: string, price: string) =>
-  `https://wa.me/${GRC_WA}?text=${encodeURIComponent(
-    `Hola GRC 👋 Quiero ${name} por ${price}.\n\nDirección: ___\nPago: Contra entrega`
-  )}`;
-
-const waGenericUrl = `https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC 👋 Quiero ver los productos disponibles")}`;
 
 const CATS = [
   { key: "Todos",        icon: "✦", label: "Todo" },
@@ -89,6 +81,12 @@ const HERO_DEFAULTS = {
   hero_subtexto: "Productos innovadores que transforman tu hogar. Los descubrimos antes que todos.",
   hero_boton_1: "Descubrir productos",
   hero_boton_2: "Hablar con George",
+  // Brand identity — also editable from TiendaConfig
+  wa_number: "573226421110",
+  store_name: "GRC IMPORTACIONES",
+  store_slogan: "Lo mejor del mundo",
+  store_logo_url: "",
+  store_instagram: "@grc.importaciones",
 };
 
 /* ═══════════════════════════════════════════
@@ -131,7 +129,7 @@ const WASvg = ({ cls = "w-5 h-5" }: { cls?: string }) => (
 /* ═══════════════════════════════════════════
    PRODUCT CARD
 ═══════════════════════════════════════════ */
-const ProductCard = ({ p, onDetail }: { p: Product; onDetail: () => void }) => {
+const ProductCard = ({ p, onDetail, onWA }: { p: Product; onDetail: () => void; onWA: () => void }) => {
   const badge = getBadge(p.id);
   const anc = p.retail_price ? anchorPrice(p.retail_price) : null;
   const disc = anc && p.retail_price ? discPct(p.retail_price, anc) : null;
@@ -195,7 +193,7 @@ const ProductCard = ({ p, onDetail }: { p: Product; onDetail: () => void }) => {
           style={{ background: "#C1272D" }}
           onClick={(e) => {
             e.stopPropagation();
-            window.open(waProduct(p.name, fmt(p.retail_price)), "_blank");
+            onWA();
           }}
         >
           Lo quiero
@@ -348,6 +346,21 @@ export default function TiendaPublica() {
   const hero = (key: keyof typeof HERO_DEFAULTS): string =>
     (heroConfig as Record<string, string>)[key] ?? HERO_DEFAULTS[key];
 
+  // Brand identity — read from store_config via heroConfig (same query)
+  const waNumber = hero("wa_number");
+  const storeName = hero("store_name");
+  const storeSlogan = hero("store_slogan");
+  const storeLogoUrl = hero("store_logo_url");
+  const storeInstagram = hero("store_instagram");
+
+  const waProduct = (name: string, price: string) =>
+    `https://wa.me/${waNumber}?text=${encodeURIComponent(
+      `Hola ${storeName} 👋 Quiero ${name} por ${price}.\n\nDirección: ___\nPago: Contra entrega`
+    )}`;
+  const waGenericUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(
+    `Hola ${storeName} 👋 Quiero ver los productos disponibles`
+  )}`;
+
   const filtered = products.filter((p) => {
     const ms = !search || p.name?.toLowerCase().includes(search.toLowerCase());
     const mc = activeCat === "Todos" || smartCat(p.name, p.description, p.category) === activeCat;
@@ -383,7 +396,7 @@ export default function TiendaPublica() {
         <div className="py-2.5 px-4 flex items-center justify-center gap-3 flex-wrap" style={{ background: "#C1272D" }}>
           <span className="text-white text-xs font-bold flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-white inline-block" style={{ animation: "pulseDot 1.5s infinite" }} />
-            🔥 Lo mejor del mundo, primero en Colombia · Envío gratis a Bogotá
+            🔥 {storeSlogan}, primero en Colombia · Envío gratis a Bogotá
           </span>
           <span className="font-mono font-black text-white text-xs tracking-widest bg-[#A01E22] px-2.5 py-1 rounded-lg">
             {h}:{m}:{s}
@@ -395,13 +408,17 @@ export default function TiendaPublica() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center gap-4">
             {/* Logo */}
             <a href="/tienda" className="flex-shrink-0 flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ background: "#C1272D" }}>
-                G
-              </div>
+              {storeLogoUrl ? (
+                <img src={storeLogoUrl} alt={storeName} className="h-9 object-contain" />
+              ) : (
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ background: "#C1272D" }}>
+                  {storeName.charAt(0)}
+                </div>
+              )}
               <div>
-                <p className="font-black text-[#111111] text-sm leading-none tracking-tight">GRC IMPORTACIONES</p>
+                <p className="font-black text-[#111111] text-sm leading-none tracking-tight">{storeName}</p>
                 <p className="text-[9px] font-bold uppercase tracking-widest leading-none" style={{ color: "#C1272D" }}>
-                  Lo mejor del mundo
+                  {storeSlogan}
                 </p>
               </div>
             </a>
@@ -623,7 +640,12 @@ export default function TiendaPublica() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {firstBatch.map((p) => (
-                <ProductCard key={p.id} p={p} onDetail={() => navigate(`/producto/${p.id}`)} />
+                <ProductCard
+                  key={p.id}
+                  p={p}
+                  onDetail={() => navigate(`/producto/${p.id}`)}
+                  onWA={() => window.open(waProduct(p.name, fmt(p.retail_price)), "_blank")}
+                />
               ))}
             </div>
           )}
@@ -762,7 +784,12 @@ export default function TiendaPublica() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {secondBatch.map((p) => (
-                <ProductCard key={p.id} p={p} onDetail={() => navigate(`/producto/${p.id}`)} />
+                <ProductCard
+                  key={p.id}
+                  p={p}
+                  onDetail={() => navigate(`/producto/${p.id}`)}
+                  onWA={() => window.open(waProduct(p.name, fmt(p.retail_price)), "_blank")}
+                />
               ))}
             </div>
           </section>
@@ -865,13 +892,17 @@ export default function TiendaPublica() {
               {/* Brand */}
               <div>
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ background: "#C1272D" }}>
-                    G
-                  </div>
-                  <p className="font-black text-white text-sm">GRC IMPORTACIONES</p>
+                  {storeLogoUrl ? (
+                    <img src={storeLogoUrl} alt={storeName} className="h-9 object-contain" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm" style={{ background: "#C1272D" }}>
+                      {storeName.charAt(0)}
+                    </div>
+                  )}
+                  <p className="font-black text-white text-sm">{storeName}</p>
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  Lo mejor del mundo,<br />primero en Colombia.
+                  {storeSlogan},<br />primero en Colombia.
                 </p>
               </div>
 
@@ -910,13 +941,13 @@ export default function TiendaPublica() {
                     <WASvg cls="w-4 h-4" />
                   </a>
                 </div>
-                <p className="text-gray-400 text-xs">@grc.importaciones</p>
+                <p className="text-gray-400 text-xs">{storeInstagram}</p>
               </div>
             </div>
 
             <div className="pt-8 border-t border-white/10 text-center">
               <p className="text-gray-500 text-sm">
-                © 2026 GRC Importaciones · Todos los derechos reservados
+                © 2026 {storeName} · Todos los derechos reservados
               </p>
             </div>
           </div>

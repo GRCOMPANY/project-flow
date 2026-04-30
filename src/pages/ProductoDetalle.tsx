@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useStoreConfig } from "@/hooks/useStoreConfig";
 import {
   ArrowLeft, Star, Truck, Shield, Check,
   Play, Package, ChevronRight, Clock, Instagram
@@ -10,16 +11,9 @@ import {
 /* ═══════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════ */
-const GRC_WA = "573226421110";
 const fmt = (v: number | null) => (v != null ? `$${v.toLocaleString("es-CO")}` : "");
 const anchorPrice = (p: number) => Math.round(p * 1.42);
 const discPct = (real: number, anc: number) => Math.round(((anc - real) / anc) * 100);
-const waGenericUrl = `https://wa.me/${GRC_WA}?text=${encodeURIComponent("Hola GRC 👋 Quiero ver los productos disponibles")}`;
-
-const waMsg = (name: string, price: string, qty: number) =>
-  `https://wa.me/${GRC_WA}?text=${encodeURIComponent(
-    `Hola GRC 👋 Quiero ${name} por ${price}${qty > 1 ? ` (${qty} unidades)` : ""}.\n\nDirección: ___\nPago: Contra entrega`
-  )}`;
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -170,10 +164,16 @@ const Gallery = ({
 export default function ProductoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { waNumber, storeName, storeSlogan, logoUrl, instagram, waGenericUrl, waUrl } = useStoreConfig();
   const [activeImg, setActiveImg] = useState("");
   const [qty, setQty] = useState(1);
   const [scrolled, setScrolled] = useState(false);
   const db = supabase as any;
+
+  const waMsg = (name: string, price: string, qty: number) =>
+    waUrl(
+      `Hola ${storeName} 👋 Quiero ${name} por ${price}${qty > 1 ? ` (${qty} unidades)` : ""}.\n\nDirección: ___\nPago: Contra entrega`
+    );
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 100);
@@ -320,10 +320,14 @@ export default function ProductoDetalle() {
                 <ArrowLeft className="w-4 h-4 text-gray-600" />
               </button>
               <a href="/tienda" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs" style={{ background: "#C1272D" }}>G</div>
+                {logoUrl ? (
+                  <img src={logoUrl} alt={storeName} className="h-8 object-contain" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs" style={{ background: "#C1272D" }}>{storeName.charAt(0)}</div>
+                )}
                 <div className="hidden sm:block">
-                  <p className="font-black text-[#111111] text-sm leading-none">GRC IMPORTACIONES</p>
-                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#C1272D" }}>Lo mejor del mundo</p>
+                  <p className="font-black text-[#111111] text-sm leading-none">{storeName}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#C1272D" }}>{storeSlogan}</p>
                 </div>
               </a>
             </div>
@@ -604,21 +608,30 @@ export default function ProductoDetalle() {
         <footer className="py-10 px-4" style={{ background: "#111111" }}>
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs" style={{ background: "#C1272D" }}>G</div>
+              {logoUrl ? (
+                <img src={logoUrl} alt={storeName} className="h-8 object-contain" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs" style={{ background: "#C1272D" }}>{storeName.charAt(0)}</div>
+              )}
               <div>
-                <p className="font-black text-white text-sm leading-none">GRC IMPORTACIONES</p>
-                <p className="text-gray-500 text-xs">Lo mejor del mundo, primero en Colombia</p>
+                <p className="font-black text-white text-sm leading-none">{storeName}</p>
+                <p className="text-gray-500 text-xs">{storeSlogan}, primero en Colombia</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <a href="#" className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+              <a
+                href={instagram ? `https://instagram.com/${instagram.replace("@", "")}` : "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              >
                 <Instagram className="w-4 h-4" />
               </a>
               <a href={waGenericUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
                 <WASvg cls="w-4 h-4" />
               </a>
             </div>
-            <p className="text-gray-500 text-xs">© 2026 GRC Importaciones</p>
+            <p className="text-gray-500 text-xs">© 2026 {storeName}</p>
           </div>
         </footer>
 
