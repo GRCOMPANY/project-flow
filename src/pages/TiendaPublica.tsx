@@ -31,10 +31,10 @@ const PRODUCT_BADGES: Record<number, { label: string; color: string }> = {
 };
 const getBadge = (id: string) => PRODUCT_BADGES[id.charCodeAt(0) % 4];
 
-const TESTIMONIALS = [
-  { name: "Valentina R.", city: "Bogotá",      text: "Vi el producto, lo compré sin pensarlo dos veces. Ya pedí el doble para regalar.", stars: 5, initial: "V" },
-  { name: "Santiago M.", city: "Medellín",     text: "Pensé que era como los demás. No. Está brutal. Lo tienen todos en mi trabajo.",    stars: 5, initial: "S" },
-  { name: "Daniela P.", city: "Cali",          text: "GRC siempre me sorprende. Llevo 4 compras y cada una mejor que la anterior.",       stars: 5, initial: "D" },
+const TESTIMONIALS_FALLBACK = [
+  { nombre: "Valentina R.", ciudad: "Bogotá",   texto: "Vi el producto, lo compré sin pensarlo dos veces. Ya pedí el doble para regalar.", calificacion: 5 },
+  { nombre: "Santiago M.",  ciudad: "Medellín", texto: "Pensé que era como los demás. No. Está brutal. Lo tienen todos en mi trabajo.",    calificacion: 5 },
+  { nombre: "Daniela P.",   ciudad: "Cali",     texto: "GRC siempre me sorprende. Llevo 4 compras y cada una mejor que la anterior.",       calificacion: 5 },
 ];
 
 const INITIALS_COLORS = ["#C1272D", "#D4AF37", "#111111", "#2563EB", "#059669"];
@@ -74,6 +74,13 @@ interface Banner {
   orden: number;
 }
 
+interface Testimonio {
+  id: string;
+  nombre: string;
+  texto: string;
+  calificacion: number;
+}
+
 const HERO_DEFAULTS = {
   hero_titulo_1: "Lo mejor del mundo,",
   hero_titulo_2: "primero en Colombia.",
@@ -81,12 +88,24 @@ const HERO_DEFAULTS = {
   hero_subtexto: "Productos innovadores que transforman tu hogar. Los descubrimos antes que todos.",
   hero_boton_1: "Descubrir productos",
   hero_boton_2: "Hablar con George",
-  // Brand identity — also editable from TiendaConfig
+  // Brand identity
   wa_number: "573226421110",
   store_name: "GRC IMPORTACIONES",
   store_slogan: "Lo mejor del mundo",
   store_logo_url: "",
   store_instagram: "@grc.importaciones",
+  color_primario: "#C1272D",
+  // Section toggles & content
+  seccion_topbar_activa:       "true",
+  topbar_texto:                "Lo mejor del mundo, primero en Colombia · Envío gratis a Bogotá",
+  seccion_hero_activa:         "true",
+  seccion_trust_activa:        "true",
+  productos_limite:            "8",
+  seccion_storytelling_activa: "true",
+  story_titulo:                '"En GRC no vendemos productos comunes."',
+  story_texto:                 "Buscamos lo más innovador del mundo para que tú lo tengas primero en Colombia.",
+  seccion_videos_activa:       "true",
+  seccion_testimonios_activa:  "true",
 };
 
 /* ═══════════════════════════════════════════
@@ -160,7 +179,6 @@ const ProductCard = ({ p, onDetail, onWA }: { p: Product; onDetail: () => void; 
             <Package className="w-12 h-12 text-gray-200" />
           </div>
         )}
-        {/* Badge */}
         <span
           className="absolute top-3 left-3 text-[10px] font-black px-3 py-1.5 rounded-full text-white"
           style={{ background: badge.color }}
@@ -342,16 +360,40 @@ export default function TiendaPublica() {
     },
   });
 
+  const { data: testimoniosDB = [] } = useQuery({
+    queryKey: ["tienda-testimonios"],
+    queryFn: async () => {
+      const { data } = await db
+        .from("testimonios")
+        .select("id, nombre, texto, calificacion")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      return (data ?? []) as Testimonio[];
+    },
+  });
+
   /* ── Derived ── */
   const hero = (key: keyof typeof HERO_DEFAULTS): string =>
     (heroConfig as Record<string, string>)[key] ?? HERO_DEFAULTS[key];
 
-  // Brand identity — read from store_config via heroConfig (same query)
-  const waNumber = hero("wa_number");
-  const storeName = hero("store_name");
-  const storeSlogan = hero("store_slogan");
+  // Brand identity
+  const waNumber     = hero("wa_number");
+  const storeName    = hero("store_name");
+  const storeSlogan  = hero("store_slogan");
   const storeLogoUrl = hero("store_logo_url");
   const storeInstagram = hero("store_instagram");
+
+  // Section toggles
+  const topbarActiva      = hero("seccion_topbar_activa") !== "false";
+  const heroActiva        = hero("seccion_hero_activa") !== "false";
+  const trustActiva       = hero("seccion_trust_activa") !== "false";
+  const storyActiva       = hero("seccion_storytelling_activa") !== "false";
+  const videosActiva      = hero("seccion_videos_activa") !== "false";
+  const testimoniosActiva = hero("seccion_testimonios_activa") !== "false";
+  const productosLimite   = parseInt(hero("productos_limite") || "8", 10);
+  const topbarTexto       = hero("topbar_texto");
+  const storyTitulo       = hero("story_titulo");
+  const storyTexto        = hero("story_texto");
 
   const waProduct = (name: string, price: string) =>
     `https://wa.me/${waNumber}?text=${encodeURIComponent(
@@ -367,9 +409,9 @@ export default function TiendaPublica() {
     return ms && mc;
   });
 
-  const featured = products.find((p) => p.is_featured) ?? products[0];
-  const firstBatch = filtered.slice(0, 8);
-  const secondBatch = filtered.slice(8, 16);
+  const featured    = products.find((p) => p.is_featured) ?? products[0];
+  const firstBatch  = filtered.slice(0, productosLimite);
+  const secondBatch = filtered.slice(productosLimite, productosLimite * 2);
   const scrollToCatalog = () => catalogRef.current?.scrollIntoView({ behavior: "smooth" });
 
   /* ── Video placeholders ── */
@@ -378,6 +420,9 @@ export default function TiendaPublica() {
     videos[1] ?? null,
     videos[2] ?? null,
   ];
+
+  /* ── Testimonios: use DB if available, else fallback ── */
+  const testimoniosList = testimoniosDB.length > 0 ? testimoniosDB : TESTIMONIALS_FALLBACK;
 
   return (
     <>
@@ -393,15 +438,17 @@ export default function TiendaPublica() {
       <div className="min-h-screen" style={{ background: "#F8F5F2" }}>
 
         {/* ══ 1. TOP BAR ══ */}
-        <div className="py-2.5 px-4 flex items-center justify-center gap-3 flex-wrap" style={{ background: "#C1272D" }}>
-          <span className="text-white text-xs font-bold flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-white inline-block" style={{ animation: "pulseDot 1.5s infinite" }} />
-            🔥 {storeSlogan}, primero en Colombia · Envío gratis a Bogotá
-          </span>
-          <span className="font-mono font-black text-white text-xs tracking-widest bg-[#A01E22] px-2.5 py-1 rounded-lg">
-            {h}:{m}:{s}
-          </span>
-        </div>
+        {topbarActiva && (
+          <div className="py-2.5 px-4 flex items-center justify-center gap-3 flex-wrap" style={{ background: "#C1272D" }}>
+            <span className="text-white text-xs font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white inline-block" style={{ animation: "pulseDot 1.5s infinite" }} />
+              🔥 {topbarTexto}
+            </span>
+            <span className="font-mono font-black text-white text-xs tracking-widest bg-[#A01E22] px-2.5 py-1 rounded-lg">
+              {h}:{m}:{s}
+            </span>
+          </div>
+        )}
 
         {/* ══ 2. HEADER ══ */}
         <header className={`sticky top-0 z-50 bg-white transition-all duration-300 ${scrolled ? "shadow-md" : "border-b border-gray-100"}`}>
@@ -465,92 +512,94 @@ export default function TiendaPublica() {
         </header>
 
         {/* ══ 3. HERO ══ */}
-        <section className="bg-white border-b border-gray-100 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              {/* Text */}
-              <div className="fade-up">
-                <div
-                  className="inline-flex items-center gap-2 text-xs font-black px-4 py-1.5 rounded-full mb-6"
-                  style={{ background: "#FFF0F0", color: "#C1272D" }}
-                >
-                  ✦ {hero("hero_badge")}
-                </div>
-                <h1 className="font-black text-5xl sm:text-6xl lg:text-7xl text-[#111111] leading-[1.05] tracking-tight mb-4">
-                  {hero("hero_titulo_1")}<br />
-                  <span style={{ color: "#C1272D" }}>{hero("hero_titulo_2")}</span>
-                </h1>
-                <p className="text-gray-500 text-lg sm:text-xl leading-relaxed mb-8 max-w-md">
-                  {hero("hero_subtexto")}
-                </p>
-                <div className="flex flex-wrap gap-3 mb-10">
-                  <button
-                    onClick={scrollToCatalog}
-                    className="flex items-center gap-2 text-white font-bold text-base px-7 py-3.5 rounded-2xl transition-all hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5"
-                    style={{ background: "#C1272D" }}
+        {heroActiva && (
+          <section className="bg-white border-b border-gray-100 overflow-hidden">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+              <div className="grid lg:grid-cols-2 gap-12 items-center">
+                {/* Text */}
+                <div className="fade-up">
+                  <div
+                    className="inline-flex items-center gap-2 text-xs font-black px-4 py-1.5 rounded-full mb-6"
+                    style={{ background: "#FFF0F0", color: "#C1272D" }}
                   >
-                    {hero("hero_boton_1")}
-                  </button>
-                  <a
-                    href={waGenericUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 font-bold text-base px-7 py-3.5 rounded-2xl border-2 border-[#111111] text-[#111111] transition-all hover:bg-[#111111] hover:text-white"
-                  >
-                    <WASvg cls="w-4 h-4" />
-                    {hero("hero_boton_2")}
-                  </a>
-                </div>
-                {/* Stats */}
-                <div className="flex items-center gap-6 flex-wrap">
-                  <div>
-                    <p className="font-black text-2xl text-[#111111]">+500</p>
-                    <p className="text-gray-500 text-xs">Pedidos este mes</p>
+                    ✦ {hero("hero_badge")}
                   </div>
-                  <div className="w-px h-8 bg-gray-200" />
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <p className="font-black text-2xl text-[#111111]">4.9</p>
-                      <Star className="w-4 h-4 fill-[#D4AF37] text-[#D4AF37]" />
+                  <h1 className="font-black text-5xl sm:text-6xl lg:text-7xl text-[#111111] leading-[1.05] tracking-tight mb-4">
+                    {hero("hero_titulo_1")}<br />
+                    <span style={{ color: "#C1272D" }}>{hero("hero_titulo_2")}</span>
+                  </h1>
+                  <p className="text-gray-500 text-lg sm:text-xl leading-relaxed mb-8 max-w-md">
+                    {hero("hero_subtexto")}
+                  </p>
+                  <div className="flex flex-wrap gap-3 mb-10">
+                    <button
+                      onClick={scrollToCatalog}
+                      className="flex items-center gap-2 text-white font-bold text-base px-7 py-3.5 rounded-2xl transition-all hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5"
+                      style={{ background: "#C1272D" }}
+                    >
+                      {hero("hero_boton_1")}
+                    </button>
+                    <a
+                      href={waGenericUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 font-bold text-base px-7 py-3.5 rounded-2xl border-2 border-[#111111] text-[#111111] transition-all hover:bg-[#111111] hover:text-white"
+                    >
+                      <WASvg cls="w-4 h-4" />
+                      {hero("hero_boton_2")}
+                    </a>
+                  </div>
+                  {/* Stats */}
+                  <div className="flex items-center gap-6 flex-wrap">
+                    <div>
+                      <p className="font-black text-2xl text-[#111111]">+500</p>
+                      <p className="text-gray-500 text-xs">Pedidos este mes</p>
                     </div>
-                    <p className="text-gray-500 text-xs">Calificación media</p>
-                  </div>
-                  <div className="w-px h-8 bg-gray-200" />
-                  <div>
-                    <p className="font-black text-2xl text-[#111111]">24h</p>
-                    <p className="text-gray-500 text-xs">Entrega Bogotá</p>
+                    <div className="w-px h-8 bg-gray-200" />
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <p className="font-black text-2xl text-[#111111]">4.9</p>
+                        <Star className="w-4 h-4 fill-[#D4AF37] text-[#D4AF37]" />
+                      </div>
+                      <p className="text-gray-500 text-xs">Calificación media</p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-200" />
+                    <div>
+                      <p className="font-black text-2xl text-[#111111]">24h</p>
+                      <p className="text-gray-500 text-xs">Entrega Bogotá</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Hero image / featured product */}
-              {featured?.image_url ? (
-                <div
-                  className="relative rounded-3xl overflow-hidden cursor-pointer group"
-                  style={{ background: "#F8F5F2" }}
-                  onClick={() => navigate(`/producto/${featured.id}`)}
-                >
-                  <img
-                    src={featured.image_url}
-                    alt={featured.name}
-                    className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-103"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white/80 to-transparent">
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: "#C1272D" }}>
-                      Producto estrella
-                    </p>
-                    <p className="font-bold text-[#111111] text-lg leading-snug">{featured.name}</p>
-                    <p className="font-black text-2xl mt-1" style={{ color: "#C1272D" }}>{fmt(featured.retail_price)}</p>
+                {/* Hero image / featured product */}
+                {featured?.image_url ? (
+                  <div
+                    className="relative rounded-3xl overflow-hidden cursor-pointer group"
+                    style={{ background: "#F8F5F2" }}
+                    onClick={() => navigate(`/producto/${featured.id}`)}
+                  >
+                    <img
+                      src={featured.image_url}
+                      alt={featured.name}
+                      className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-103"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white/80 to-transparent">
+                      <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: "#C1272D" }}>
+                        Producto estrella
+                      </p>
+                      <p className="font-bold text-[#111111] text-lg leading-snug">{featured.name}</p>
+                      <p className="font-black text-2xl mt-1" style={{ color: "#C1272D" }}>{fmt(featured.retail_price)}</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-3xl bg-[#F8F5F2] aspect-square flex items-center justify-center">
-                  <Package className="w-20 h-20 text-gray-200" />
-                </div>
-              )}
+                ) : (
+                  <div className="rounded-3xl bg-[#F8F5F2] aspect-square flex items-center justify-center">
+                    <Package className="w-20 h-20 text-gray-200" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ══ BANNERS (si hay en BD) ══ */}
         {banners.length > 0 && (
@@ -583,7 +632,7 @@ export default function TiendaPublica() {
         )}
 
         {/* ══ 4. TRUST BAR ══ */}
-        <TrustBar />
+        {trustActiva && <TrustBar />}
 
         {/* ══ 5. CATEGORÍAS ══ */}
         <section className="bg-white border-b border-gray-100 py-5 px-4">
@@ -652,42 +701,45 @@ export default function TiendaPublica() {
         </section>
 
         {/* ══ 7. VIDEOS ══ */}
-        <section className="bg-white py-16 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-10">
-              <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: "#C1272D" }}>EN ACCIÓN</p>
-              <h2 className="font-black text-4xl text-[#111111] mb-3">Míralo en acción</h2>
-              <p className="text-gray-500 text-lg">Videos reales de nuestros productos</p>
+        {videosActiva && (
+          <section className="bg-white py-16 px-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-10">
+                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: "#C1272D" }}>EN ACCIÓN</p>
+                <h2 className="font-black text-4xl text-[#111111] mb-3">Míralo en acción</h2>
+                <p className="text-gray-500 text-lg">Videos reales de nuestros productos</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                {videoSlots.map((v, i) => (
+                  <VideoCard key={i} v={v} />
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
-              {videoSlots.map((v, i) => (
-                <VideoCard key={i} v={v} />
-              ))}
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ══ 8. STORYTELLING BANNER ══ */}
-        <section className="py-20 px-4" style={{ background: "#F8F5F2" }}>
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="font-black text-4xl sm:text-5xl text-[#111111] leading-tight mb-6">
-              "En GRC no vendemos<br />
-              <span style={{ color: "#C1272D" }}>productos comunes.</span>"
-            </p>
-            <p className="text-gray-500 text-xl leading-relaxed mb-8 max-w-xl mx-auto">
-              Buscamos lo más innovador del mundo para que tú lo tengas primero en Colombia.
-            </p>
-            <a
-              href={waGenericUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5"
-              style={{ background: "#C1272D" }}
-            >
-              Conocer nuestra historia
-            </a>
-          </div>
-        </section>
+        {storyActiva && (
+          <section className="py-20 px-4" style={{ background: "#F8F5F2" }}>
+            <div className="max-w-3xl mx-auto text-center">
+              <p className="font-black text-4xl sm:text-5xl text-[#111111] leading-tight mb-6">
+                {storyTitulo}
+              </p>
+              <p className="text-gray-500 text-xl leading-relaxed mb-8 max-w-xl mx-auto">
+                {storyTexto}
+              </p>
+              <a
+                href={waGenericUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5"
+                style={{ background: "#C1272D" }}
+              >
+                Conocer nuestra historia
+              </a>
+            </div>
+          </section>
+        )}
 
         {/* ══ 9. PRODUCTO ESTRELLA ══ */}
         {featured && (
@@ -727,7 +779,6 @@ export default function TiendaPublica() {
                   {featured.description && (
                     <p className="text-gray-500 text-lg leading-relaxed mb-6">{featured.description}</p>
                   )}
-                  {/* Benefits */}
                   <ul className="space-y-3 mb-8">
                     {[
                       "Diseño premium de importación directa",
@@ -822,38 +873,40 @@ export default function TiendaPublica() {
         </section>
 
         {/* ══ 12. TESTIMONIOS ══ */}
-        <section className="py-16 px-4" style={{ background: "#F8F5F2" }}>
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: "#C1272D" }}>COMUNIDAD</p>
-              <h2 className="font-black text-4xl text-[#111111]">Lo dicen los GRC Lovers</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {TESTIMONIALS.map((t, i) => (
-                <div key={i} className="bg-white rounded-2xl p-6" style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                      style={{ background: INITIALS_COLORS[i % INITIALS_COLORS.length] }}
-                    >
-                      {t.initial}
+        {testimoniosActiva && (
+          <section className="py-16 px-4" style={{ background: "#F8F5F2" }}>
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: "#C1272D" }}>COMUNIDAD</p>
+                <h2 className="font-black text-4xl text-[#111111]">Lo dicen los GRC Lovers</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {testimoniosList.map((t, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-6" style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                        style={{ background: INITIALS_COLORS[i % INITIALS_COLORS.length] }}
+                      >
+                        {t.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#111111] text-sm leading-none mb-0.5">{t.nombre}</p>
+                        {"ciudad" in t && <p className="text-gray-400 text-xs">{(t as any).ciudad}</p>}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-[#111111] text-sm leading-none mb-0.5">{t.name}</p>
-                      <p className="text-gray-400 text-xs">{t.city}</p>
+                    <div className="flex gap-0.5 mb-3">
+                      {[...Array(t.calificacion)].map((_, j) => (
+                        <Star key={j} className="w-3.5 h-3.5 fill-[#D4AF37] text-[#D4AF37]" />
+                      ))}
                     </div>
+                    <p className="text-gray-600 text-sm leading-relaxed">"{t.texto}"</p>
                   </div>
-                  <div className="flex gap-0.5 mb-3">
-                    {[...Array(t.stars)].map((_, j) => (
-                      <Star key={j} className="w-3.5 h-3.5 fill-[#D4AF37] text-[#D4AF37]" />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 text-sm leading-relaxed">"{t.text}"</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ══ 13. CTA FINAL ══ */}
         <section className="py-20 px-4" style={{ background: "#C1272D" }}>
@@ -960,11 +1013,11 @@ export default function TiendaPublica() {
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl wa-float group"
           style={{ background: "#25D366" }}
-          title="Hablar con George"
+          title="Hablar por WhatsApp"
         >
           <WASvg cls="w-6 h-6" />
           <span className="absolute right-16 bg-white text-[#111111] text-xs font-bold px-3 py-1.5 rounded-full shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            Hablar con George
+            Hablar por WhatsApp
           </span>
         </a>
 
