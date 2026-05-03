@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
+import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import CommandCenter from "./pages/CommandCenter";
 import Auth from "./pages/Auth";
 import Products from "./pages/Products";
@@ -21,6 +22,8 @@ import CatalogoPublico from "./pages/CatalogoPublico";
 import TiendaPublica from "./pages/TiendaPublica";
 import ProductoDetalle from "./pages/ProductoDetalle";
 import TiendaConfig from "./pages/TiendaConfig";
+import Registro from "./pages/Registro";
+import SuperAdmin from "./pages/SuperAdmin";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +36,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/registro" element={<Registro />} />
             <Route path="/catalogo" element={<CatalogoPublico />} />
             <Route path="/tienda" element={<TiendaPublica />} />
             <Route path="/producto/:id" element={<ProductoDetalle />} />
@@ -47,6 +51,7 @@ const App = () => (
             <Route path="/suppliers" element={<AdminRoute><Suppliers /></AdminRoute>} />
             <Route path="/ai" element={<AdminRoute><AI /></AdminRoute>} />
             <Route path="/tienda-config" element={<AdminRoute><TiendaConfig /></AdminRoute>} />
+            <Route path="/superadmin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
