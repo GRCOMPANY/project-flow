@@ -36,6 +36,7 @@ const db = supabase as any;
 
 /* ─── Página Pública Tab ─────────────────────────────────── */
 const STORE_KEYS = [
+  "topbar_texto",
   "garantia_1","garantia_2","garantia_3",
   "badge_1","badge_2","badge_3",
   "caracteristica_1","caracteristica_2","caracteristica_3",
@@ -44,12 +45,13 @@ const STORE_KEYS = [
 
 const PaginaPublicaTab = ({ productId }: { productId: string }) => {
   const qc = useQueryClient();
-  type SubTab = "garantias" | "badges" | "caracteristicas" | "videos" | "testimonios";
-  const [subTab, setSubTab] = useState<SubTab>("garantias");
+  type SubTab = "anuncio" | "garantias" | "badges" | "caracteristicas" | "videos" | "testimonios";
+  const [subTab, setSubTab] = useState<SubTab>("anuncio");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
   /* store_config values */
+  const [topbarText, setTopbarText] = useState("");
   const [garantias, setGarantias] = useState(["","",""]);
   const [badges, setBadges] = useState(["","",""]);
   const [chars, setChars] = useState(
@@ -69,6 +71,7 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
 
   useEffect(() => {
     if (!configData) return;
+    setTopbarText(configData["topbar_texto"] ?? "");
     setGarantias([
       configData["garantia_1"] ?? "",
       configData["garantia_2"] ?? "",
@@ -90,6 +93,13 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
     db.from("store_config").upsert({ clave, valor }, { onConflict: "clave" });
 
   const flash = (text: string) => { setMsg(text); setTimeout(() => setMsg(""), 2500); };
+
+  const saveTopbar = async () => {
+    setSaving(true);
+    await upsertConfig("topbar_texto", topbarText);
+    qc.invalidateQueries({ queryKey: ["store-brand-config"] });
+    setSaving(false); flash("Barra de anuncio guardada");
+  };
 
   const saveGarantias = async () => {
     setSaving(true);
@@ -213,11 +223,12 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
   const inputCls = "w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary bg-background";
 
   const subTabs: { key: SubTab; label: string; icon: React.ReactNode }[] = [
-    { key: "garantias",      label: "Garantías",      icon: <Shield className="w-3.5 h-3.5" /> },
-    { key: "badges",         label: "Badges",          icon: <CheckCircle className="w-3.5 h-3.5" /> },
-    { key: "caracteristicas",label: "Características", icon: <Globe className="w-3.5 h-3.5" /> },
-    { key: "videos",         label: "Videos",          icon: <Video className="w-3.5 h-3.5" /> },
-    { key: "testimonios",    label: "Testimonios",     icon: <MessageSquare className="w-3.5 h-3.5" /> },
+    { key: "anuncio",        label: "Anuncio top",     icon: <Star className="w-3.5 h-3.5" /> },
+    { key: "garantias",      label: "Garantías",       icon: <Shield className="w-3.5 h-3.5" /> },
+    { key: "badges",         label: "Badges",           icon: <CheckCircle className="w-3.5 h-3.5" /> },
+    { key: "caracteristicas",label: "Características",  icon: <Globe className="w-3.5 h-3.5" /> },
+    { key: "videos",         label: "Videos",           icon: <Video className="w-3.5 h-3.5" /> },
+    { key: "testimonios",    label: "Testimonios",      icon: <MessageSquare className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -239,6 +250,42 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
           </button>
         ))}
       </div>
+
+      {/* ── Anuncio top ── */}
+      {subTab === "anuncio" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Star className="w-4 h-4" /> Barra de anuncio superior
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {configLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Texto de la barra roja en la parte superior de la página de producto. Puedes usar emojis.
+                </p>
+                <input
+                  type="text"
+                  value={topbarText}
+                  onChange={e => setTopbarText(e.target.value)}
+                  placeholder="🚚 Envío gratis · Pago contra entrega · Respuesta inmediata"
+                  className={inputCls}
+                />
+                <div
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-white text-center"
+                  style={{ background: "#C1272D" }}
+                >
+                  {topbarText || "Vista previa del anuncio"}
+                </div>
+                <SaveBtn onClick={saveTopbar} />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Garantías ── */}
       {subTab === "garantias" && (

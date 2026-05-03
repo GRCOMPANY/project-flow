@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,22 +54,17 @@ const WASvg = ({ cls = "w-5 h-5" }: { cls?: string }) => (
   </svg>
 );
 
-/* ─── Reveal hook (scroll animation) ────────────────────────── */
-function useReveal(threshold = 0.1) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
-}
+/* ─── Stars ──────────────────────────────────────────────────── */
+const Stars = ({ n }: { n: number }) => (
+  <div className="flex gap-0.5">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Star
+        key={i}
+        className={`w-3.5 h-3.5 ${i < n ? "fill-[#C1272D] text-[#C1272D]" : "text-gray-200"}`}
+      />
+    ))}
+  </div>
+);
 
 /* ─── Gallery ────────────────────────────────────────────────── */
 const Gallery = ({
@@ -145,18 +140,6 @@ const Gallery = ({
   );
 };
 
-/* ─── Stars ──────────────────────────────────────────────────── */
-const Stars = ({ n }: { n: number }) => (
-  <div className="flex gap-0.5">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <Star
-        key={i}
-        className={`w-3.5 h-3.5 ${i < n ? "fill-[#C1272D] text-[#C1272D]" : "text-gray-200"}`}
-      />
-    ))}
-  </div>
-);
-
 /* ─── Loading skeleton ───────────────────────────────────────── */
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-white">
@@ -167,7 +150,7 @@ const LoadingSkeleton = () => (
         <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
         <div className="space-y-5 pt-2">
           <div className="flex gap-2">
-            {[1,2,3].map(i => <div key={i} className="h-7 w-24 bg-gray-100 rounded-full animate-pulse" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="h-7 w-24 bg-gray-100 rounded-full animate-pulse" />)}
           </div>
           <div className="h-10 w-3/4 bg-gray-100 rounded-lg animate-pulse" />
           <div className="h-14 w-2/5 bg-gray-100 rounded-lg animate-pulse" />
@@ -177,7 +160,7 @@ const LoadingSkeleton = () => (
           </div>
           <div className="h-px bg-gray-100" />
           <div className="space-y-3">
-            {[1,2,3].map(i => <div key={i} className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />)}
           </div>
           <div className="h-14 bg-gray-100 rounded-xl animate-pulse" />
           <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
@@ -195,13 +178,6 @@ export default function ProductoDetalle() {
     useStoreConfig();
 
   const [qty, setQty] = useState(1);
-
-  /* Reveal refs */
-  const revealStory = useReveal();
-  const revealChars = useReveal();
-  const revealVideos = useReveal();
-  const revealTestimonios = useReveal();
-  const revealRelated = useReveal();
 
   /* ── Queries ── */
   const { data: product, isLoading } = useQuery({
@@ -303,18 +279,17 @@ export default function ProductoDetalle() {
   const unitPrice = product?.retail_price ?? null;
   const totalPrice = unitPrice !== null ? unitPrice * qty : null;
 
-  const garantias = [get("garantia_1"), get("garantia_2"), get("garantia_3")].filter(Boolean);
-  const badges = [get("badge_1"), get("badge_2"), get("badge_3")].filter(Boolean);
-  const caracteristicas = [1, 2, 3, 4, 5, 6]
-    .map((i) => {
-      const raw = get(`caracteristica_${i}` as any);
-      const [titulo, sub] = raw.split("||");
-      return { titulo: titulo?.trim() || "", sub: sub?.trim() || "" };
-    })
-    .filter((c) => c.titulo);
-
-  const storyTitulo = get("story_titulo");
-  const storyTexto = get("story_texto");
+  /* Store-config driven content — always has values from BRAND_DEFAULTS */
+  const topbarTexto    = get("topbar_texto");
+  const garantias      = [get("garantia_1"), get("garantia_2"), get("garantia_3")];
+  const badges         = [get("badge_1"), get("badge_2"), get("badge_3")].filter(Boolean);
+  const caracteristicas = [1, 2, 3, 4, 5, 6].map((i) => {
+    const raw = get(`caracteristica_${i}` as any);
+    const [titulo, sub] = raw.split("||");
+    return { titulo: titulo?.trim() || "", sub: sub?.trim() || "" };
+  });
+  const storyTitulo    = get("story_titulo");
+  const storyTexto     = get("story_texto");
 
   const openWA = () => {
     if (!product) return;
@@ -344,21 +319,12 @@ export default function ProductoDetalle() {
     );
   }
 
-  const reveal = (r: { ref: React.RefObject<HTMLDivElement>; visible: boolean }, delay = 0) => ({
-    ref: r.ref,
-    style: {
-      opacity: r.visible ? 1 : 0,
-      transform: r.visible ? "translateY(0)" : "translateY(28px)",
-      transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
-    } as React.CSSProperties,
-  });
-
   return (
     <div className="min-h-screen bg-white pb-24 lg:pb-0">
 
       {/* ── Top bar ── */}
       <div className="bg-[#C1272D] text-white text-xs font-semibold text-center py-2 px-4 tracking-wide">
-        🚚 Envío gratis · Pago contra entrega · Respuesta inmediata por WhatsApp
+        {topbarTexto}
       </div>
 
       {/* ── Header ── */}
@@ -408,6 +374,7 @@ export default function ProductoDetalle() {
 
           {/* Info */}
           <div className="space-y-5">
+
             {/* Badge pills */}
             {badges.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -453,7 +420,7 @@ export default function ProductoDetalle() {
 
             <div className="h-px bg-gray-100" />
 
-            {/* Garantías */}
+            {/* Garantías — siempre visibles desde store_config */}
             <ul className="space-y-2.5">
               {garantias.map((g, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
@@ -505,157 +472,144 @@ export default function ProductoDetalle() {
       </section>
 
       {/* ══════════════════════════════════════════════════════ */}
-      {/* SECCIÓN 2 — STORYTELLING                             */}
+      {/* SECCIÓN 2 — STORYTELLING (siempre visible)           */}
       {/* ══════════════════════════════════════════════════════ */}
-      <div {...reveal(revealStory)}>
-        <section className="bg-[#0a0a0a] py-20 px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-snug">
-              {storyTitulo}
-            </p>
-            <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
-              {storyTexto}
-            </p>
-            <div className="inline-block w-12 h-0.5 bg-[#C1272D]" />
-          </div>
-        </section>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* SECCIÓN 3 — CARACTERÍSTICAS                          */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {caracteristicas.length > 0 && (
-        <div {...reveal(revealChars)}>
-          <section className="py-16 px-4 bg-white">
-            <div className="max-w-5xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
-                Por qué elegir este producto
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                {caracteristicas.map((c, i) => (
-                  <div
-                    key={i}
-                    className="p-5 rounded-2xl border border-gray-100 hover:border-[#C1272D]/20 hover:shadow-sm transition-all"
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  >
-                    <p className="font-bold text-gray-900 text-sm leading-snug mb-1">{c.titulo}</p>
-                    {c.sub && <p className="text-xs text-gray-500 leading-relaxed">{c.sub}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+      <section className="bg-[#0a0a0a] py-20 px-4">
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-snug">
+            {storyTitulo}
+          </p>
+          <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
+            {storyTexto}
+          </p>
+          <div className="inline-block w-12 h-0.5 bg-[#C1272D]" />
         </div>
-      )}
+      </section>
 
       {/* ══════════════════════════════════════════════════════ */}
-      {/* SECCIÓN 4 — VIDEOS                                   */}
+      {/* SECCIÓN 3 — CARACTERÍSTICAS (siempre visible)        */}
+      {/* ══════════════════════════════════════════════════════ */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
+            Por qué elegir este producto
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            {caracteristicas.map((c, i) => (
+              <div
+                key={i}
+                className="p-5 rounded-2xl border border-gray-100 hover:border-[#C1272D]/20 hover:shadow-sm transition-all"
+              >
+                <p className="font-bold text-gray-900 text-sm leading-snug mb-1">{c.titulo}</p>
+                {c.sub && <p className="text-xs text-gray-500 leading-relaxed">{c.sub}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* SECCIÓN 4 — VIDEOS (solo si hay datos)               */}
       {/* ══════════════════════════════════════════════════════ */}
       {productVideos.length > 0 && (
-        <div {...reveal(revealVideos)}>
-          <section className="bg-[#f5f5f5] py-16 px-4">
-            <div className="max-w-5xl mx-auto space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 text-center">
-                Ve el producto en acción
-              </h2>
-              <div
-                className={`grid gap-4 mx-auto ${
-                  productVideos.length === 1
-                    ? "grid-cols-1 max-w-[200px]"
-                    : productVideos.length === 2
-                    ? "grid-cols-2 max-w-sm"
-                    : "grid-cols-3 max-w-lg"
-                }`}
-              >
-                {productVideos.map((vid) => (
-                  <div
-                    key={vid.id}
-                    className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-black shadow-lg"
-                  >
-                    <video
-                      src={vid.video_url}
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                      preload="metadata"
-                      loop
-                    />
-                  </div>
-                ))}
-              </div>
+        <section className="bg-[#f5f5f5] py-16 px-4">
+          <div className="max-w-5xl mx-auto space-y-8">
+            <h2 className="text-2xl font-bold text-gray-900 text-center">
+              Ve el producto en acción
+            </h2>
+            <div
+              className={`grid gap-4 mx-auto ${
+                productVideos.length === 1
+                  ? "grid-cols-1 max-w-[200px]"
+                  : productVideos.length === 2
+                  ? "grid-cols-2 max-w-sm"
+                  : "grid-cols-3 max-w-lg"
+              }`}
+            >
+              {productVideos.map((vid) => (
+                <div
+                  key={vid.id}
+                  className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-black shadow-lg"
+                >
+                  <video
+                    src={vid.video_url}
+                    className="w-full h-full object-cover"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    loop
+                  />
+                </div>
+              ))}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       )}
 
       {/* ══════════════════════════════════════════════════════ */}
-      {/* SECCIÓN 5 — TESTIMONIOS                              */}
+      {/* SECCIÓN 5 — TESTIMONIOS (solo si hay datos)          */}
       {/* ══════════════════════════════════════════════════════ */}
       {testimonios.length > 0 && (
-        <div {...reveal(revealTestimonios)}>
-          <section className="py-16 px-4 bg-white">
-            <div className="max-w-5xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
-                Lo que dicen nuestros clientes
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {testimonios.map((t) => (
-                  <div key={t.id} className="p-5 rounded-2xl border border-gray-100 space-y-3">
-                    {t.calificacion != null && <Stars n={t.calificacion} />}
-                    <p className="text-gray-700 text-sm leading-relaxed">"{t.texto}"</p>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">{t.nombre}</p>
-                      {t.ciudad && <p className="text-xs text-gray-400">{t.ciudad}</p>}
-                    </div>
+        <section className="py-16 px-4 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
+              Lo que dicen nuestros clientes
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {testimonios.map((t) => (
+                <div key={t.id} className="p-5 rounded-2xl border border-gray-100 space-y-3">
+                  {t.calificacion != null && <Stars n={t.calificacion} />}
+                  <p className="text-gray-700 text-sm leading-relaxed">"{t.texto}"</p>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">{t.nombre}</p>
+                    {t.ciudad && <p className="text-xs text-gray-400">{t.ciudad}</p>}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       )}
 
       {/* ══════════════════════════════════════════════════════ */}
       {/* SECCIÓN 6 — RELACIONADOS                             */}
       {/* ══════════════════════════════════════════════════════ */}
       {related.length > 0 && (
-        <div {...reveal(revealRelated)}>
-          <section className="bg-[#f5f5f5] py-16 px-4">
-            <div className="max-w-5xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-8">
-                También te puede gustar
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {related.map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-transform shadow-sm"
-                  >
-                    <div className="aspect-square bg-gray-50 overflow-hidden">
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-8 h-8 text-gray-200" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 space-y-2">
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">{p.name}</p>
-                      <p className="font-bold text-[#C1272D]">{fmt(p.retail_price)}</p>
-                      <button
-                        onClick={() => { navigate(`/producto/${p.id}`); window.scrollTo(0, 0); }}
-                        className="w-full text-xs font-bold text-[#C1272D] border border-[#C1272D]/30 hover:bg-[#C1272D] hover:text-white py-1.5 rounded-lg transition-colors"
-                      >
-                        Ver
-                      </button>
-                    </div>
+        <section className="bg-[#f5f5f5] py-16 px-4">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-8">
+              También te puede gustar
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {related.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-transform shadow-sm"
+                >
+                  <div className="aspect-square bg-gray-50 overflow-hidden">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-8 h-8 text-gray-200" />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <div className="p-3 space-y-2">
+                    <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">{p.name}</p>
+                    <p className="font-bold text-[#C1272D]">{fmt(p.retail_price)}</p>
+                    <button
+                      onClick={() => { navigate(`/producto/${p.id}`); window.scrollTo(0, 0); }}
+                      className="w-full text-xs font-bold text-[#C1272D] border border-[#C1272D]/30 hover:bg-[#C1272D] hover:text-white py-1.5 rounded-lg transition-colors"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       )}
 
       {/* ── Footer ── */}
