@@ -26,6 +26,19 @@ export const BRAND_DEFAULTS = {
   story_texto:                  "Buscamos lo más innovador del mundo para que tú lo tengas primero en Colombia.",
   seccion_videos_activa:        "true",
   seccion_testimonios_activa:   "true",
+  // ── Página de producto ──────────────────────────────────────
+  garantia_1:       "Entrega en Bogotá en 24 horas",
+  garantia_2:       "Pago al recibir — sin riesgo",
+  garantia_3:       "Soporte directo por WhatsApp",
+  badge_1:          "🚚 Envío gratis",
+  badge_2:          "💳 Contra entrega",
+  badge_3:          "✓ Garantía GRC",
+  caracteristica_1: "🎯 Para ti||Diseñado pensando en tu comodidad",
+  caracteristica_2: "🌿 Material premium||De las mejores fábricas del mundo",
+  caracteristica_3: "⚡ Alta durabilidad||Hecho para durar años",
+  caracteristica_4: "📦 Empaque seguro||Llega en perfectas condiciones",
+  caracteristica_5: "💬 Soporte rápido||Respondemos en minutos",
+  caracteristica_6: "💰 Precio justo||El mejor valor del mercado",
 } as const;
 
 export type BrandKey = keyof typeof BRAND_DEFAULTS;

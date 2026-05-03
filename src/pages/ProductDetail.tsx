@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
@@ -11,10 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ArrowLeft, Edit2, Trash2, Package, TrendingUp, DollarSign, 
-  Clock, Image as ImageIcon, Sparkles, ShoppingCart, Send, 
-  ListTodo, Percent, Star, AlertTriangle, Wallet
+import {
+  ArrowLeft, Edit2, Trash2, Package, TrendingUp, DollarSign,
+  Clock, Image as ImageIcon, Sparkles, ShoppingCart, Send,
+  ListTodo, Percent, Star, AlertTriangle, Wallet,
+  Loader2, Globe, Video, MessageSquare, Shield, ToggleLeft, ToggleRight,
+  CheckCircle, X, Plus, Trash
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -27,6 +31,493 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+
+const db = supabase as any;
+
+/* ─── Página Pública Tab ─────────────────────────────────── */
+const STORE_KEYS = [
+  "garantia_1","garantia_2","garantia_3",
+  "badge_1","badge_2","badge_3",
+  "caracteristica_1","caracteristica_2","caracteristica_3",
+  "caracteristica_4","caracteristica_5","caracteristica_6",
+];
+
+const PaginaPublicaTab = ({ productId }: { productId: string }) => {
+  const qc = useQueryClient();
+  type SubTab = "garantias" | "badges" | "caracteristicas" | "videos" | "testimonios";
+  const [subTab, setSubTab] = useState<SubTab>("garantias");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  /* store_config values */
+  const [garantias, setGarantias] = useState(["","",""]);
+  const [badges, setBadges] = useState(["","",""]);
+  const [chars, setChars] = useState(
+    Array.from({length:6}, () => ({ titulo: "", sub: "" }))
+  );
+
+  const { data: configData, isLoading: configLoading } = useQuery({
+    queryKey: ["admin-store-config-pagina"],
+    queryFn: async () => {
+      const { data } = await db.from("store_config").select("clave,valor").in("clave", STORE_KEYS);
+      const map: Record<string,string> = {};
+      (data ?? []).forEach((r: any) => { map[r.clave] = r.valor; });
+      return map;
+    },
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (!configData) return;
+    setGarantias([
+      configData["garantia_1"] ?? "",
+      configData["garantia_2"] ?? "",
+      configData["garantia_3"] ?? "",
+    ]);
+    setBadges([
+      configData["badge_1"] ?? "",
+      configData["badge_2"] ?? "",
+      configData["badge_3"] ?? "",
+    ]);
+    setChars(Array.from({length:6}, (_,i) => {
+      const raw = configData[`caracteristica_${i+1}`] ?? "";
+      const [titulo, sub] = raw.split("||");
+      return { titulo: titulo?.trim() ?? "", sub: sub?.trim() ?? "" };
+    }));
+  }, [configData]);
+
+  const upsertConfig = (clave: string, valor: string) =>
+    db.from("store_config").upsert({ clave, valor }, { onConflict: "clave" });
+
+  const flash = (text: string) => { setMsg(text); setTimeout(() => setMsg(""), 2500); };
+
+  const saveGarantias = async () => {
+    setSaving(true);
+    await Promise.all(garantias.map((v, i) => upsertConfig(`garantia_${i+1}`, v)));
+    qc.invalidateQueries({ queryKey: ["store-brand-config"] });
+    setSaving(false); flash("Garantías guardadas");
+  };
+
+  const saveBadges = async () => {
+    setSaving(true);
+    await Promise.all(badges.map((v, i) => upsertConfig(`badge_${i+1}`, v)));
+    qc.invalidateQueries({ queryKey: ["store-brand-config"] });
+    setSaving(false); flash("Badges guardados");
+  };
+
+  const saveChars = async () => {
+    setSaving(true);
+    await Promise.all(chars.map((c, i) => upsertConfig(`caracteristica_${i+1}`, `${c.titulo}||${c.sub}`)));
+    qc.invalidateQueries({ queryKey: ["store-brand-config"] });
+    setSaving(false); flash("Características guardadas");
+  };
+
+  /* Videos */
+  const [videoSlots, setVideoSlots] = useState([
+    { id: null as string | null, video_url: "", activo: true },
+    { id: null as string | null, video_url: "", activo: true },
+    { id: null as string | null, video_url: "", activo: true },
+  ]);
+  const [videoInit, setVideoInit] = useState(false);
+
+  const { data: videosData, isLoading: videosLoading } = useQuery({
+    queryKey: ["admin-product-videos", productId],
+    queryFn: async () => {
+      const { data } = await db.from("product_videos")
+        .select("id, video_url, activo, orden")
+        .eq("product_id", productId)
+        .order("orden", { ascending: true });
+      return (data ?? []) as { id: string; video_url: string; activo: boolean; orden: number }[];
+    },
+  });
+
+  useEffect(() => {
+    if (videosData && !videoInit) {
+      setVideoSlots(Array.from({length:3}, (_,i) => ({
+        id: videosData[i]?.id ?? null,
+        video_url: videosData[i]?.video_url ?? "",
+        activo: videosData[i]?.activo ?? true,
+      })));
+      setVideoInit(true);
+    }
+  }, [videosData, videoInit]);
+
+  const saveVideos = async () => {
+    setSaving(true);
+    await db.from("product_videos").delete().eq("product_id", productId);
+    const toInsert = videoSlots
+      .filter(s => s.video_url.trim())
+      .map((s, i) => ({ product_id: productId, video_url: s.video_url.trim(), activo: s.activo, orden: i }));
+    if (toInsert.length > 0) await db.from("product_videos").insert(toInsert);
+    qc.invalidateQueries({ queryKey: ["producto-videos", productId] });
+    qc.invalidateQueries({ queryKey: ["producto-gallery-video", productId] });
+    setVideoInit(false);
+    setSaving(false); flash("Videos guardados");
+  };
+
+  /* Testimonios */
+  const [tForm, setTForm] = useState({ nombre: "", texto: "", calificacion: 5, ciudad: "" });
+  const [addingT, setAddingT] = useState(false);
+
+  const { data: testimoniosData = [], isLoading: tLoading } = useQuery({
+    queryKey: ["admin-product-testimonios", productId],
+    queryFn: async () => {
+      const { data } = await db.from("testimonios")
+        .select("id, nombre, texto, calificacion, ciudad, activo, created_at")
+        .eq("product_id", productId)
+        .order("created_at", { ascending: false });
+      return (data ?? []) as { id: string; nombre: string; texto: string; calificacion: number | null; ciudad: string | null; activo: boolean; created_at: string }[];
+    },
+  });
+
+  const addTestimonio = async () => {
+    if (!tForm.nombre.trim() || !tForm.texto.trim()) return;
+    setAddingT(true);
+    await db.from("testimonios").insert({
+      product_id: productId,
+      nombre: tForm.nombre.trim(),
+      texto: tForm.texto.trim(),
+      calificacion: tForm.calificacion,
+      ciudad: tForm.ciudad.trim() || null,
+      activo: true,
+    });
+    qc.invalidateQueries({ queryKey: ["admin-product-testimonios", productId] });
+    qc.invalidateQueries({ queryKey: ["producto-testimonios", productId] });
+    setTForm({ nombre: "", texto: "", calificacion: 5, ciudad: "" });
+    setAddingT(false); flash("Testimonio agregado");
+  };
+
+  const deleteTestimonio = async (tid: string) => {
+    await db.from("testimonios").delete().eq("id", tid);
+    qc.invalidateQueries({ queryKey: ["admin-product-testimonios", productId] });
+    qc.invalidateQueries({ queryKey: ["producto-testimonios", productId] });
+  };
+
+  const toggleTestimonio = async (tid: string, activo: boolean) => {
+    await db.from("testimonios").update({ activo }).eq("id", tid);
+    qc.invalidateQueries({ queryKey: ["admin-product-testimonios", productId] });
+    qc.invalidateQueries({ queryKey: ["producto-testimonios", productId] });
+  };
+
+  /* Shared save button */
+  const SaveBtn = ({ onClick }: { onClick: () => void }) => (
+    <div className="flex items-center gap-3 pt-1">
+      <Button onClick={onClick} disabled={saving} className="gap-2">
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+        Guardar
+      </Button>
+      {msg && <span className="text-sm text-green-600 font-medium">{msg}</span>}
+    </div>
+  );
+
+  const inputCls = "w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:border-primary bg-background";
+
+  const subTabs: { key: SubTab; label: string; icon: React.ReactNode }[] = [
+    { key: "garantias",      label: "Garantías",      icon: <Shield className="w-3.5 h-3.5" /> },
+    { key: "badges",         label: "Badges",          icon: <CheckCircle className="w-3.5 h-3.5" /> },
+    { key: "caracteristicas",label: "Características", icon: <Globe className="w-3.5 h-3.5" /> },
+    { key: "videos",         label: "Videos",          icon: <Video className="w-3.5 h-3.5" /> },
+    { key: "testimonios",    label: "Testimonios",     icon: <MessageSquare className="w-3.5 h-3.5" /> },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tab navigation */}
+      <div className="flex flex-wrap gap-2">
+        {subTabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              subTab === t.key
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.icon}{t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Garantías ── */}
+      {subTab === "garantias" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Garantías del producto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {configLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">Se muestran en la página pública debajo de la descripción.</p>
+                {garantias.map((g, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-primary w-4">{i+1}</span>
+                    <input
+                      type="text"
+                      value={g}
+                      onChange={e => setGarantias(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                      placeholder={`Garantía ${i+1}`}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+                <SaveBtn onClick={saveGarantias} />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Badges ── */}
+      {subTab === "badges" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" /> Badges / etiquetas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {configLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">Pills que aparecen arriba del nombre del producto. Puedes usar emojis.</p>
+                {badges.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-primary w-4">{i+1}</span>
+                    <input
+                      type="text"
+                      value={b}
+                      onChange={e => setBadges(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                      placeholder={`Badge ${i+1} (ej: 🚚 Envío gratis)`}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+                <SaveBtn onClick={saveBadges} />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Características ── */}
+      {subTab === "caracteristicas" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="w-4 h-4" /> Características del producto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {configLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">Cuadrícula 2×3 en la página pública. Puedes usar emojis en el título.</p>
+                {chars.map((c, i) => (
+                  <div key={i} className="p-3 bg-secondary rounded-lg space-y-2">
+                    <span className="text-xs font-bold text-muted-foreground">Característica {i+1}</span>
+                    <input
+                      type="text"
+                      value={c.titulo}
+                      onChange={e => setChars(prev => prev.map((v,j) => j===i ? {...v, titulo: e.target.value} : v))}
+                      placeholder="Título (ej: 🎯 Diseño ergonómico)"
+                      className={inputCls}
+                    />
+                    <input
+                      type="text"
+                      value={c.sub}
+                      onChange={e => setChars(prev => prev.map((v,j) => j===i ? {...v, sub: e.target.value} : v))}
+                      placeholder="Subtítulo (ej: Pensado para tu comodidad)"
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+                <SaveBtn onClick={saveChars} />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Videos ── */}
+      {subTab === "videos" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Video className="w-4 h-4" /> Videos del producto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Hasta 3 videos verticales (9:16). Pega la URL directa del video (.mp4, etc.).
+            </p>
+            {videosLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              videoSlots.map((slot, i) => (
+                <div key={i} className="flex items-center gap-2 p-3 bg-secondary rounded-xl">
+                  <span className="text-xs font-bold text-muted-foreground w-5 text-center flex-shrink-0">{i+1}</span>
+                  <input
+                    type="url"
+                    value={slot.video_url}
+                    onChange={e => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, video_url: e.target.value} : s))}
+                    placeholder="https://... (URL del video)"
+                    className={`${inputCls} flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, activo: !s.activo} : s))}
+                    title={slot.activo ? "Activo" : "Inactivo"}
+                  >
+                    {slot.activo
+                      ? <ToggleRight className="w-7 h-7 text-primary" />
+                      : <ToggleLeft className="w-7 h-7 text-muted-foreground" />
+                    }
+                  </button>
+                </div>
+              ))
+            )}
+            <SaveBtn onClick={saveVideos} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Testimonios ── */}
+      {subTab === "testimonios" && (
+        <div className="space-y-4">
+          {/* Add form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Agregar testimonio
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Nombre *</label>
+                  <input
+                    type="text"
+                    value={tForm.nombre}
+                    onChange={e => setTForm(f => ({...f, nombre: e.target.value}))}
+                    placeholder="María García"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    value={tForm.ciudad}
+                    onChange={e => setTForm(f => ({...f, ciudad: e.target.value}))}
+                    placeholder="Bogotá"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Calificación</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setTForm(f => ({...f, calificacion: n}))}
+                      className={`text-xl transition-transform hover:scale-110 ${n <= tForm.calificacion ? "opacity-100" : "opacity-30"}`}
+                    >
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Testimonio *</label>
+                <textarea
+                  value={tForm.texto}
+                  onChange={e => setTForm(f => ({...f, texto: e.target.value}))}
+                  rows={3}
+                  placeholder="Excelente producto, llegó rápido..."
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
+              <Button
+                onClick={addTestimonio}
+                disabled={addingT || !tForm.nombre.trim() || !tForm.texto.trim()}
+                size="sm"
+                className="gap-2"
+              >
+                {addingT && <Loader2 className="w-3 h-3 animate-spin" />}
+                Agregar
+              </Button>
+              {msg && <span className="text-sm text-green-600 font-medium">{msg}</span>}
+            </CardContent>
+          </Card>
+
+          {/* List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" /> Testimonios ({testimoniosData.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {tLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              ) : testimoniosData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin testimonios aún.</p>
+              ) : (
+                testimoniosData.map(t => (
+                  <div key={t.id} className="p-3 bg-secondary rounded-xl space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground">{t.nombre}</span>
+                          {t.ciudad && <span className="text-xs text-muted-foreground">{t.ciudad}</span>}
+                          {t.calificacion != null && (
+                            <span className="text-xs">{"⭐".repeat(t.calificacion)}</span>
+                          )}
+                          <Badge variant={t.activo ? "default" : "secondary"} className="text-xs">
+                            {t.activo ? "Visible" : "Oculto"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">"{t.texto}"</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => toggleTestimonio(t.id, !t.activo)}
+                          title={t.activo ? "Ocultar" : "Mostrar"}
+                          className="p-1 rounded hover:bg-background transition-colors"
+                        >
+                          {t.activo
+                            ? <ToggleRight className="w-5 h-5 text-primary" />
+                            : <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                          }
+                        </button>
+                        <button
+                          onClick={() => deleteTestimonio(t.id)}
+                          className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -195,11 +686,16 @@ const ProductDetail = () => {
 
             {/* Tabs */}
             <Tabs defaultValue="detalles" className="w-full">
-              <TabsList className="w-full grid grid-cols-4">
+              <TabsList className="w-full grid grid-cols-5">
                 <TabsTrigger value="detalles">Detalles</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
                 <TabsTrigger value="creativos">Creativos</TabsTrigger>
                 <TabsTrigger value="ventas">Ventas</TabsTrigger>
+                <TabsTrigger value="pagina-publica" className="flex items-center gap-1">
+                  <Globe className="w-3 h-3" />
+                  <span className="hidden sm:inline">Pública</span>
+                  <span className="sm:hidden">Web</span>
+                </TabsTrigger>
               </TabsList>
 
               {/* Detalles Tab */}
@@ -398,6 +894,11 @@ const ProductDetail = () => {
                   product={product} 
                   onCreateClick={() => navigate(`/creatives?productId=${id}`)}
                 />
+              </TabsContent>
+
+              {/* Página Pública Tab */}
+              <TabsContent value="pagina-publica" className="mt-6">
+                <PaginaPublicaTab productId={id!} />
               </TabsContent>
 
               {/* Ventas Tab */}
