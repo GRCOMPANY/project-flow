@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +18,7 @@ import {
   Clock, Image as ImageIcon, Sparkles, ShoppingCart, Send,
   ListTodo, Percent, Star, AlertTriangle, Wallet,
   Loader2, Globe, Video, MessageSquare, Shield, ToggleLeft, ToggleRight,
-  CheckCircle, X, Plus, Trash
+  CheckCircle, X, Plus, Trash, Upload, Link2
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -123,12 +123,61 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
   };
 
   /* Videos */
-  const [videoSlots, setVideoSlots] = useState([
-    { id: null as string | null, video_url: "", activo: true },
-    { id: null as string | null, video_url: "", activo: true },
-    { id: null as string | null, video_url: "", activo: true },
+  const [videoSlots, setVideoSlots] = useState<{
+    id: string | null;
+    video_url: string;
+    activo: boolean;
+    mode: "upload" | "url";
+    localPreview: string | null;
+    converting: boolean;
+    error: string | null;
+  }[]>([
+    { id: null, video_url: "", activo: true, mode: "upload", localPreview: null, converting: false, error: null },
+    { id: null, video_url: "", activo: true, mode: "upload", localPreview: null, converting: false, error: null },
+    { id: null, video_url: "", activo: true, mode: "upload", localPreview: null, converting: false, error: null },
   ]);
   const [videoInit, setVideoInit] = useState(false);
+  const videoFileRef0 = useRef<HTMLInputElement | null>(null);
+  const videoFileRef1 = useRef<HTMLInputElement | null>(null);
+  const videoFileRef2 = useRef<HTMLInputElement | null>(null);
+  const videoFileRefs = [videoFileRef0, videoFileRef1, videoFileRef2];
+
+  const videoToBase64 = (f: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("No se pudo leer el video"));
+      reader.readAsDataURL(f);
+    });
+
+  const handleVideoFileSelect = async (file: File, idx: number) => {
+    if (file.size > 50 * 1024 * 1024) {
+      setVideoSlots(prev => prev.map((s, j) => j === idx
+        ? { ...s, error: "El video es muy pesado. Máximo 50MB." }
+        : s
+      ));
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setVideoSlots(prev => prev.map((s, j) => j === idx
+      ? { ...s, localPreview: previewUrl, video_url: "", converting: true, error: null }
+      : s
+    ));
+    try {
+      const base64 = await videoToBase64(file);
+      URL.revokeObjectURL(previewUrl);
+      setVideoSlots(prev => prev.map((s, j) => j === idx
+        ? { ...s, video_url: base64, localPreview: null, converting: false }
+        : s
+      ));
+    } catch {
+      URL.revokeObjectURL(previewUrl);
+      setVideoSlots(prev => prev.map((s, j) => j === idx
+        ? { ...s, localPreview: null, converting: false, error: "Error al procesar el video. Intenta de nuevo." }
+        : s
+      ));
+    }
+  };
 
   const { data: videosData, isLoading: videosLoading } = useQuery({
     queryKey: ["admin-product-videos", productId],
@@ -143,11 +192,19 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
 
   useEffect(() => {
     if (videosData && !videoInit) {
-      setVideoSlots(Array.from({length:3}, (_,i) => ({
-        id: videosData[i]?.id ?? null,
-        video_url: videosData[i]?.video_url ?? "",
-        activo: videosData[i]?.activo ?? true,
-      })));
+      setVideoSlots(Array.from({length:3}, (_,i) => {
+        const url = videosData[i]?.video_url ?? "";
+        const mode: "upload" | "url" = url.startsWith("http") ? "url" : "upload";
+        return {
+          id: videosData[i]?.id ?? null,
+          video_url: url,
+          activo: videosData[i]?.activo ?? true,
+          mode,
+          localPreview: null,
+          converting: false,
+          error: null,
+        };
+      }));
       setVideoInit(true);
     }
   }, [videosData, videoInit]);
@@ -401,33 +458,121 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
               <Video className="w-4 h-4" /> Videos del producto
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Hasta 3 videos verticales (9:16). Pega la URL directa del video (.mp4, etc.).
+              Hasta 3 videos verticales (9:16). Sube un archivo o pega una URL externa.
             </p>
             {videosLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             ) : (
               videoSlots.map((slot, i) => (
-                <div key={i} className="flex items-center gap-2 p-3 bg-secondary rounded-xl">
-                  <span className="text-xs font-bold text-muted-foreground w-5 text-center flex-shrink-0">{i+1}</span>
-                  <input
-                    type="url"
-                    value={slot.video_url}
-                    onChange={e => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, video_url: e.target.value} : s))}
-                    placeholder="https://... (URL del video)"
-                    className={`${inputCls} flex-1`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, activo: !s.activo} : s))}
-                    title={slot.activo ? "Activo" : "Inactivo"}
-                  >
-                    {slot.activo
-                      ? <ToggleRight className="w-7 h-7 text-primary" />
-                      : <ToggleLeft className="w-7 h-7 text-muted-foreground" />
-                    }
-                  </button>
+                <div key={i} className="p-3 bg-secondary rounded-xl space-y-3">
+                  {/* Slot header: número + modos + toggle + eliminar */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-5 text-center flex-shrink-0">{i+1}</span>
+                    <div className="flex gap-1 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, mode: "upload", error: null} : s))}
+                        className={cn("flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-colors", slot.mode === "upload" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground")}
+                      >
+                        <Upload className="w-3 h-3" /> Subir video
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, mode: "url", error: null} : s))}
+                        className={cn("flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-colors", slot.mode === "url" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground")}
+                      >
+                        <Link2 className="w-3 h-3" /> URL externa
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, activo: !s.activo} : s))}
+                      title={slot.activo ? "Activo" : "Inactivo"}
+                    >
+                      {slot.activo
+                        ? <ToggleRight className="w-7 h-7 text-primary" />
+                        : <ToggleLeft className="w-7 h-7 text-muted-foreground" />
+                      }
+                    </button>
+                    {slot.video_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, video_url: "", localPreview: null, error: null} : s));
+                          const ref = videoFileRefs[i];
+                          if (ref?.current) ref.current.value = "";
+                        }}
+                        title="Eliminar video"
+                        className="text-destructive hover:opacity-70 transition-opacity"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Mensaje de error */}
+                  {slot.error && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {slot.error}
+                    </p>
+                  )}
+                  {/* Modo upload */}
+                  {slot.mode === "upload" && (
+                    <div className="space-y-2">
+                      <input
+                        ref={videoFileRefs[i]}
+                        type="file"
+                        accept=".mp4,.mov,.webm,.avi,video/mp4,video/quicktime,video/webm,video/x-msvideo"
+                        className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleVideoFileSelect(f, i); }}
+                      />
+                      {(slot.video_url || slot.localPreview) ? (
+                        <div className="space-y-2">
+                          <video
+                            src={slot.localPreview ?? slot.video_url}
+                            controls
+                            className="w-full max-h-48 rounded-lg bg-black"
+                            preload="metadata"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => videoFileRefs[i]?.current?.click()}
+                            disabled={slot.converting}
+                            className="flex items-center gap-1.5 text-xs text-primary hover:opacity-70 transition-opacity disabled:opacity-40"
+                          >
+                            {slot.converting
+                              ? <><Loader2 className="w-3 h-3 animate-spin" /> Procesando...</>
+                              : <><Upload className="w-3 h-3" /> Reemplazar video</>
+                            }
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => videoFileRefs[i]?.current?.click()}
+                          disabled={slot.converting}
+                          className="w-full flex flex-col items-center gap-2 py-6 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-40"
+                        >
+                          {slot.converting ? (
+                            <><Loader2 className="w-6 h-6 animate-spin" /><span className="text-xs">Procesando video...</span></>
+                          ) : (
+                            <><Upload className="w-6 h-6" /><span className="text-xs">Seleccionar video (.mp4, .mov, .webm, .avi)</span></>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {/* Modo URL */}
+                  {slot.mode === "url" && (
+                    <input
+                      type="url"
+                      value={slot.video_url.startsWith("data:") ? "" : slot.video_url}
+                      onChange={e => setVideoSlots(prev => prev.map((s,j) => j===i ? {...s, video_url: e.target.value} : s))}
+                      placeholder="https://... (URL del video)"
+                      className={inputCls}
+                    />
+                  )}
                 </div>
               ))
             )}
