@@ -577,6 +577,7 @@ function BannersTab() {
     subtitulo: "",
     texto_boton: "Ver productos",
     activo: true,
+    imagen_posicion: "center",
   });
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -685,7 +686,7 @@ function BannersTab() {
       }
 
       toast({ title: "Banner creado ✓" });
-      setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true });
+      setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true, imagen_posicion: "center" });
       setExternalUrl("");
       setPreview(null);
       setFile(null);
@@ -781,6 +782,22 @@ function BannersTab() {
               placeholder="Ver productos"
               className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
             />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Posición de imagen</label>
+            <select
+              value={form.imagen_posicion}
+              onChange={(e) => setForm((p) => ({ ...p, imagen_posicion: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+            >
+              <option value="center">Centro</option>
+              <option value="top">Arriba</option>
+              <option value="bottom">Abajo</option>
+              <option value="left">Izquierda</option>
+              <option value="right">Derecha</option>
+              <option value="center top">Centro arriba</option>
+              <option value="center bottom">Centro abajo</option>
+            </select>
           </div>
           <div className="flex items-end pb-0.5">
             <label className="flex items-center gap-3 cursor-pointer">

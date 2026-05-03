@@ -24,6 +24,7 @@ interface Product {
 interface Banner {
   id: string;
   imagen_url: string | null;
+  imagen_posicion: string | null;
   titulo: string | null;
   subtitulo: string | null;
   texto_boton: string | null;
@@ -72,6 +73,7 @@ const WASvg = ({ cls = "w-5 h-5" }: { cls?: string }) => (
 interface Slide {
   id: string;
   imagen_url: string | null;
+  imagen_posicion: string | null;
   titulo: string | null;
   subtitulo: string | null;
   texto_boton: string | null;
@@ -118,6 +120,7 @@ function HeroCarousel({
                 src={slide.imagen_url}
                 alt={slide.titulo ?? ""}
                 className="absolute inset-0 w-full h-full object-cover"
+                style={{ objectPosition: slide.imagen_posicion || "center" }}
                 loading={i === 0 ? "eager" : "lazy"}
               />
             )}
@@ -386,7 +389,7 @@ export default function TiendaPublica() {
     queryFn: async () => {
       const { data } = await db
         .from("banners")
-        .select("id, imagen_url, titulo, subtitulo, texto_boton, activo, orden")
+        .select("id, imagen_url, imagen_posicion, titulo, subtitulo, texto_boton, activo, orden")
         .eq("activo", true)
         .order("orden", { ascending: true });
       return (data ?? []) as Banner[];
