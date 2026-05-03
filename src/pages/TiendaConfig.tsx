@@ -625,20 +625,52 @@ function BannersTab() {
     }
     setUploading(true);
     try {
-      let imagen_url: string | null = null;
+      // PASO 1: INSERT sin imagen para aislar si el problema es tabla o storage
+      const orden = banners?.length ?? 0;
+      const insertPayload = { ...form, imagen_url: null, orden };
+      console.log("[banners] PASO 1 - INSERT sin imagen:", insertPayload);
+      const { data: inserted, error: insertError } = await db
+        .from("banners")
+        .insert(insertPayload)
+        .select("id")
+        .single();
+      if (insertError) {
+        console.error("[banners] PASO 1 FALLÓ - error en insert:", insertError);
+        throw insertError;
+      }
+      console.log("[banners] PASO 1 OK - banner creado con id:", inserted.id);
+
+      // PASO 2: upload de imagen y UPDATE solo si hay archivo seleccionado
       if (file) {
+        console.log("[banners] PASO 2 - upload imagen:", file.name, file.size, "bytes");
         const ext = file.name.split(".").pop();
         const path = `${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("banners")
           .upload(path, file, { upsert: false });
-        if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("banners").getPublicUrl(path);
-        imagen_url = urlData.publicUrl;
+        if (upErr) {
+          console.error("[banners] PASO 2 FALLÓ - error storage:", upErr);
+          toast({
+            title: "Banner guardado sin imagen",
+            description: `Upload falló: ${upErr.message}`,
+            variant: "destructive",
+          });
+        } else {
+          const { data: urlData } = supabase.storage.from("banners").getPublicUrl(path);
+          const imagen_url = urlData.publicUrl;
+          console.log("[banners] PASO 2 OK - imagen subida:", imagen_url);
+          const { error: updateError } = await db
+            .from("banners")
+            .update({ imagen_url })
+            .eq("id", inserted.id);
+          if (updateError) {
+            console.error("[banners] PASO 2 - UPDATE con imagen falló:", updateError);
+          } else {
+            console.log("[banners] PASO 2 OK - UPDATE con imagen_url completado");
+          }
+        }
       }
-      const orden = banners?.length ?? 0;
-      const { error } = await db.from("banners").insert({ ...form, imagen_url, orden });
-      if (error) throw error;
+
       toast({ title: "Banner creado ✓" });
       setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true });
       setPreview(null);
@@ -646,9 +678,16 @@ function BannersTab() {
       if (fileRef.current) fileRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["admin-banners"] });
     } catch (err: unknown) {
+      console.error("[banners] Error general al guardar:", err);
+      const sbErr = err as { code?: string; message?: string; hint?: string; details?: string };
+      const description = sbErr.code
+        ? [sbErr.code, sbErr.message, sbErr.hint].filter(Boolean).join(" - ")
+        : err instanceof Error
+        ? err.message
+        : "Intenta de nuevo";
       toast({
         title: "Error al guardar",
-        description: err instanceof Error ? err.message : "Intenta de nuevo",
+        description,
         variant: "destructive",
       });
     } finally {
