@@ -276,7 +276,7 @@ function ProductCard({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center justify-center w-full py-2 bg-[#C1272D] hover:bg-[#A01E22] text-white font-bold text-sm rounded-lg transition-colors opacity-0 group-hover:opacity-100 duration-200"
+          className="flex items-center justify-center w-full py-2 bg-[#C1272D] hover:bg-[#A01E22] text-white font-bold text-sm rounded-lg transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto duration-200"
         >
           Lo quiero
         </a>
