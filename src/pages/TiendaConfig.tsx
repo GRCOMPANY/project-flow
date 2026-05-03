@@ -577,12 +577,18 @@ function BannersTab() {
     subtitulo: "",
     texto_boton: "Ver productos",
     activo: true,
-    imagen_posicion: "center",
+    boton_link: "",
   });
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [externalUrl, setExternalUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [imgOffset, setImgOffset] = useState({ x: 50, y: 50 });
+  const [botonDestino, setBotonDestino] = useState<"whatsapp" | "link">("whatsapp");
+  const cropperRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startMousePos = useRef({ x: 0, y: 0 });
+  const startOffset = useRef({ x: 50, y: 50 });
 
   const { data: banners = [], isLoading } = useQuery<Banner[]>({
     queryKey: ["admin-banners"],
@@ -618,6 +624,44 @@ function BannersTab() {
     if (!f) return;
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    setImgOffset({ x: 50, y: 50 });
+  };
+
+  const handleCropMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    startMousePos.current = { x: e.clientX, y: e.clientY };
+    startOffset.current = { ...imgOffset };
+    e.preventDefault();
+  };
+
+  const handleCropMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !cropperRef.current) return;
+    const rect = cropperRef.current.getBoundingClientRect();
+    const dx = e.clientX - startMousePos.current.x;
+    const dy = e.clientY - startMousePos.current.y;
+    setImgOffset({
+      x: Math.max(0, Math.min(100, startOffset.current.x - (dx / rect.width) * 200)),
+      y: Math.max(0, Math.min(100, startOffset.current.y - (dy / rect.height) * 200)),
+    });
+  };
+
+  const handleCropTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    isDragging.current = true;
+    startMousePos.current = { x: t.clientX, y: t.clientY };
+    startOffset.current = { ...imgOffset };
+  };
+
+  const handleCropTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || !cropperRef.current) return;
+    const t = e.touches[0];
+    const rect = cropperRef.current.getBoundingClientRect();
+    const dx = t.clientX - startMousePos.current.x;
+    const dy = t.clientY - startMousePos.current.y;
+    setImgOffset({
+      x: Math.max(0, Math.min(100, startOffset.current.x - (dx / rect.width) * 200)),
+      y: Math.max(0, Math.min(100, startOffset.current.y - (dy / rect.height) * 200)),
+    });
   };
 
   const handleSubmit = async () => {
@@ -629,7 +673,13 @@ function BannersTab() {
     try {
       // PASO 1: INSERT sin imagen para aislar si el problema es tabla o storage
       const orden = banners?.length ?? 0;
-      const insertPayload = { ...form, imagen_url: null, orden };
+      const insertPayload = {
+        ...form,
+        imagen_url: null,
+        orden,
+        imagen_posicion: `${Math.round(imgOffset.x)}% ${Math.round(imgOffset.y)}%`,
+        boton_link: botonDestino === "whatsapp" ? "whatsapp" : (form.boton_link.trim() || "whatsapp"),
+      };
       console.log("[banners] PASO 1 - INSERT sin imagen:", insertPayload);
       const { data: inserted, error: insertError } = await db
         .from("banners")
@@ -686,7 +736,9 @@ function BannersTab() {
       }
 
       toast({ title: "Banner creado ✓" });
-      setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true, imagen_posicion: "center" });
+      setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true, boton_link: "" });
+      setImgOffset({ x: 50, y: 50 });
+      setBotonDestino("whatsapp");
       setExternalUrl("");
       setPreview(null);
       setFile(null);
@@ -717,26 +769,48 @@ function BannersTab() {
         <h3 className="font-bold text-foreground flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" /> Nuevo banner
         </h3>
-        <div
-          className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-          onClick={() => fileRef.current?.click()}
-        >
-          {(externalUrl.trim() || preview) ? (
-            <img
-              src={externalUrl.trim() || preview!}
-              alt="preview"
-              className="max-h-40 mx-auto rounded-xl object-contain"
-              onError={(e) => (e.currentTarget.style.display = "none")}
-            />
-          ) : (
+        {(externalUrl.trim() || preview) ? (
+          <div>
+            <div
+              ref={cropperRef}
+              onMouseDown={handleCropMouseDown}
+              onMouseMove={handleCropMouseMove}
+              onMouseUp={() => { isDragging.current = false; }}
+              onMouseLeave={() => { isDragging.current = false; }}
+              onTouchStart={handleCropTouchStart}
+              onTouchMove={handleCropTouchMove}
+              onTouchEnd={() => { isDragging.current = false; }}
+              className="relative w-full aspect-[16/5] overflow-hidden rounded-xl bg-muted cursor-grab active:cursor-grabbing select-none"
+            >
+              <img
+                src={externalUrl.trim() || preview!}
+                alt="preview"
+                className="absolute pointer-events-none"
+                style={{
+                  width: "150%",
+                  height: "150%",
+                  left: `${-imgOffset.x * 0.5}%`,
+                  top: `${-imgOffset.y * 0.5}%`,
+                }}
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">Arrastra la imagen para encuadrar</p>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          </div>
+        ) : (
+          <div
+            className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
               <Upload className="w-10 h-10 opacity-40" />
               <p className="text-sm font-medium">Haz clic para subir imagen</p>
               <p className="text-xs">PNG, JPG, WebP — recomendado 1400×500px</p>
             </div>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-        </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          </div>
+        )}
         <div>
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
             O pega una URL de imagen externa
@@ -783,22 +857,6 @@ function BannersTab() {
               className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
             />
           </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Posición de imagen</label>
-            <select
-              value={form.imagen_posicion}
-              onChange={(e) => setForm((p) => ({ ...p, imagen_posicion: e.target.value }))}
-              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-            >
-              <option value="center">Centro</option>
-              <option value="top">Arriba</option>
-              <option value="bottom">Abajo</option>
-              <option value="left">Izquierda</option>
-              <option value="right">Derecha</option>
-              <option value="center top">Centro arriba</option>
-              <option value="center bottom">Centro abajo</option>
-            </select>
-          </div>
           <div className="flex items-end pb-0.5">
             <label className="flex items-center gap-3 cursor-pointer">
               <button type="button" onClick={() => setForm((p) => ({ ...p, activo: !p.activo }))}>
@@ -809,6 +867,28 @@ function BannersTab() {
               <span className="text-sm font-medium text-foreground">{form.activo ? "Activo" : "Inactivo"}</span>
             </label>
           </div>
+        </div>
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Al hacer clic el botón va a:</label>
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="botonDestino" checked={botonDestino === "whatsapp"} onChange={() => setBotonDestino("whatsapp")} className="accent-primary" />
+              <span className="text-sm text-foreground">WhatsApp</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="botonDestino" checked={botonDestino === "link"} onChange={() => setBotonDestino("link")} className="accent-primary" />
+              <span className="text-sm text-foreground">Link personalizado</span>
+            </label>
+          </div>
+          {botonDestino === "link" && (
+            <input
+              type="text"
+              value={form.boton_link}
+              onChange={(e) => setForm((p) => ({ ...p, boton_link: e.target.value }))}
+              placeholder="/tienda, /producto/123, https://..."
+              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+          )}
         </div>
         <button
           onClick={handleSubmit}

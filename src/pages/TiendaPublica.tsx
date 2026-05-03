@@ -28,6 +28,7 @@ interface Banner {
   titulo: string | null;
   subtitulo: string | null;
   texto_boton: string | null;
+  boton_link: string | null;
   activo: boolean;
   orden: number;
 }
@@ -77,15 +78,28 @@ interface Slide {
   titulo: string | null;
   subtitulo: string | null;
   texto_boton: string | null;
+  boton_link: string | null;
 }
 
 function HeroCarousel({
   slides,
   waGenericUrl,
+  navigate,
 }: {
   slides: Slide[];
   waGenericUrl: string;
+  navigate: (to: string) => void;
 }) {
+  const handleButtonClick = (boton_link: string | null) => {
+    const link = (boton_link ?? "").trim();
+    if (!link || link === "whatsapp") {
+      window.open(waGenericUrl, "_blank");
+    } else if (link.startsWith("/")) {
+      navigate(link);
+    } else {
+      window.open(link, "_blank");
+    }
+  };
   const [current, setCurrent] = useState(0);
 
   /* Auto-advance every 4 s */
@@ -142,14 +156,12 @@ function HeroCarousel({
                   </p>
                 )}
                 {slide.texto_boton && (
-                  <a
-                    href={waGenericUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => handleButtonClick(slide.boton_link)}
                     className="inline-block bg-white text-[#C1272D] font-black text-sm px-7 py-3 rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
                   >
                     {slide.texto_boton}
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
@@ -389,7 +401,7 @@ export default function TiendaPublica() {
     queryFn: async () => {
       const { data } = await db
         .from("banners")
-        .select("id, imagen_url, imagen_posicion, titulo, subtitulo, texto_boton, activo, orden")
+        .select("id, imagen_url, imagen_posicion, titulo, subtitulo, texto_boton, boton_link, activo, orden")
         .eq("activo", true)
         .order("orden", { ascending: true });
       return (data ?? []) as Banner[];
@@ -526,7 +538,7 @@ export default function TiendaPublica() {
         </header>
 
         {/* ══ HERO CAROUSEL ══ */}
-        <HeroCarousel slides={slides} waGenericUrl={waGenericUrl} />
+        <HeroCarousel slides={slides} waGenericUrl={waGenericUrl} navigate={navigate} />
 
         {/* ══ CATEGORY BAR ══ */}
         <nav className="bg-white border-b border-gray-100 sticky top-16 z-40">
