@@ -580,6 +580,7 @@ function BannersTab() {
   });
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [externalUrl, setExternalUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const { data: banners = [], isLoading } = useQuery<Banner[]>({
@@ -640,8 +641,20 @@ function BannersTab() {
       }
       console.log("[banners] PASO 1 OK - banner creado con id:", inserted.id);
 
-      // PASO 2: upload de imagen y UPDATE solo si hay archivo seleccionado
-      if (file) {
+      // PASO 2: determinar imagen_url — URL externa tiene prioridad sobre archivo
+      const urlTrimmed = externalUrl.trim();
+      if (urlTrimmed) {
+        console.log("[banners] PASO 2 - usando URL externa:", urlTrimmed);
+        const { error: updateError } = await db
+          .from("banners")
+          .update({ imagen_url: urlTrimmed })
+          .eq("id", inserted.id);
+        if (updateError) {
+          console.error("[banners] PASO 2 - UPDATE con URL externa falló:", updateError);
+        } else {
+          console.log("[banners] PASO 2 OK - imagen_url actualizada con URL externa");
+        }
+      } else if (file) {
         console.log("[banners] PASO 2 - upload imagen:", file.name, file.size, "bytes");
         const ext = file.name.split(".").pop();
         const path = `${crypto.randomUUID()}.${ext}`;
@@ -673,6 +686,7 @@ function BannersTab() {
 
       toast({ title: "Banner creado ✓" });
       setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true });
+      setExternalUrl("");
       setPreview(null);
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -706,8 +720,13 @@ function BannersTab() {
           className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
           onClick={() => fileRef.current?.click()}
         >
-          {preview ? (
-            <img src={preview} alt="preview" className="max-h-40 mx-auto rounded-xl object-contain" />
+          {(externalUrl.trim() || preview) ? (
+            <img
+              src={externalUrl.trim() || preview!}
+              alt="preview"
+              className="max-h-40 mx-auto rounded-xl object-contain"
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
           ) : (
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
               <Upload className="w-10 h-10 opacity-40" />
@@ -716,6 +735,21 @@ function BannersTab() {
             </div>
           )}
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+            O pega una URL de imagen externa
+          </label>
+          <input
+            type="url"
+            value={externalUrl}
+            onChange={(e) => setExternalUrl(e.target.value)}
+            placeholder="https://ejemplo.com/imagen.jpg"
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+          />
+          {externalUrl.trim() && (
+            <p className="text-xs text-primary mt-1">✓ Se usará esta URL (prioridad sobre archivo subido)</p>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
