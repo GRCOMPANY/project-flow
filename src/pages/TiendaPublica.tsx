@@ -101,7 +101,7 @@ function HeroCarousel({
   const next = () => setCurrent((c) => (c + 1) % slides.length);
 
   return (
-    <div className="relative w-full h-[280px] sm:h-[420px] lg:h-[500px] overflow-hidden select-none bg-[#C1272D]">
+    <div className="relative w-full h-[280px] md:h-[500px] overflow-hidden select-none bg-[#C1272D]">
       {/* Track */}
       <div
         className="flex h-full transition-transform duration-500 ease-out will-change-transform"
