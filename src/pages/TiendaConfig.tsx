@@ -19,6 +19,8 @@ interface Banner {
   subtitulo: string | null;
   texto_boton: string | null;
   imagen_url: string | null;
+  imagen_posicion: string | null;
+  boton_link: string | null;
   activo: boolean;
   orden: number;
   created_at: string;
@@ -585,6 +587,7 @@ function BannersTab() {
   const [uploading, setUploading] = useState(false);
   const [imgOffset, setImgOffset] = useState({ x: 50, y: 50 });
   const [botonDestino, setBotonDestino] = useState<"whatsapp" | "link">("whatsapp");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const cropperRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startMousePos = useRef({ x: 0, y: 0 });
@@ -664,6 +667,57 @@ function BannersTab() {
     });
   };
 
+  const fileToBase64 = (f: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(f);
+      img.onload = () => {
+        const maxW = 1400;
+        const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
+        const w = Math.round(img.naturalWidth * scale);
+        const h = Math.round(img.naturalHeight * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo cargar la imagen")); };
+      img.src = url;
+    });
+
+  const resetForm = () => {
+    setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true, boton_link: "" });
+    setImgOffset({ x: 50, y: 50 });
+    setBotonDestino("whatsapp");
+    setExternalUrl("");
+    setPreview(null);
+    setFile(null);
+    setEditingId(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleEdit = (b: Banner) => {
+    setEditingId(b.id);
+    setForm({
+      titulo: b.titulo ?? "",
+      subtitulo: b.subtitulo ?? "",
+      texto_boton: b.texto_boton ?? "",
+      activo: b.activo,
+      boton_link: b.boton_link && b.boton_link !== "whatsapp" ? b.boton_link : "",
+    });
+    const link = b.boton_link ?? "";
+    setBotonDestino(!link || link === "whatsapp" ? "whatsapp" : "link");
+    setPreview(b.imagen_url);
+    setExternalUrl("");
+    setFile(null);
+    if (fileRef.current) fileRef.current.value = "";
+    const m = b.imagen_posicion?.match(/(\d+(?:\.\d+)?)%\s*(\d+(?:\.\d+)?)%/);
+    setImgOffset(m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 50, y: 50 });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSubmit = async () => {
     if (!form.titulo.trim()) {
       toast({ title: "El título es requerido", variant: "destructive" });
@@ -671,92 +725,45 @@ function BannersTab() {
     }
     setUploading(true);
     try {
-      // PASO 1: INSERT sin imagen para aislar si el problema es tabla o storage
-      const orden = banners?.length ?? 0;
-      const insertPayload = {
+      const commonFields = {
         ...form,
-        imagen_url: null,
-        orden,
         imagen_posicion: `${Math.round(imgOffset.x)}% ${Math.round(imgOffset.y)}%`,
         boton_link: botonDestino === "whatsapp" ? "whatsapp" : (form.boton_link.trim() || "whatsapp"),
       };
-      console.log("[banners] PASO 1 - INSERT sin imagen:", insertPayload);
-      const { data: inserted, error: insertError } = await db
-        .from("banners")
-        .insert(insertPayload)
-        .select("id")
-        .single();
-      if (insertError) {
-        console.error("[banners] PASO 1 FALLÓ - error en insert:", insertError);
-        throw insertError;
-      }
-      console.log("[banners] PASO 1 OK - banner creado con id:", inserted.id);
 
-      // PASO 2: determinar imagen_url — URL externa tiene prioridad sobre archivo
+      // URL externa tiene prioridad; si hay archivo lo convierte a base64 (max 1400px)
+      let newImageUrl: string | undefined;
       const urlTrimmed = externalUrl.trim();
       if (urlTrimmed) {
-        console.log("[banners] PASO 2 - usando URL externa:", urlTrimmed);
-        const { error: updateError } = await db
-          .from("banners")
-          .update({ imagen_url: urlTrimmed })
-          .eq("id", inserted.id);
-        if (updateError) {
-          console.error("[banners] PASO 2 - UPDATE con URL externa falló:", updateError);
-        } else {
-          console.log("[banners] PASO 2 OK - imagen_url actualizada con URL externa");
-        }
+        newImageUrl = urlTrimmed;
       } else if (file) {
-        console.log("[banners] PASO 2 - upload imagen:", file.name, file.size, "bytes");
-        const ext = file.name.split(".").pop();
-        const path = `${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("banners")
-          .upload(path, file, { upsert: false });
-        if (upErr) {
-          console.error("[banners] PASO 2 FALLÓ - error storage:", upErr);
-          toast({
-            title: "Banner guardado sin imagen",
-            description: `Upload falló: ${upErr.message}`,
-            variant: "destructive",
-          });
-        } else {
-          const { data: urlData } = supabase.storage.from("banners").getPublicUrl(path);
-          const imagen_url = urlData.publicUrl;
-          console.log("[banners] PASO 2 OK - imagen subida:", imagen_url);
-          const { error: updateError } = await db
-            .from("banners")
-            .update({ imagen_url })
-            .eq("id", inserted.id);
-          if (updateError) {
-            console.error("[banners] PASO 2 - UPDATE con imagen falló:", updateError);
-          } else {
-            console.log("[banners] PASO 2 OK - UPDATE con imagen_url completado");
-          }
-        }
+        newImageUrl = await fileToBase64(file);
       }
 
-      toast({ title: "Banner creado ✓" });
-      setForm({ titulo: "", subtitulo: "", texto_boton: "Ver productos", activo: true, boton_link: "" });
-      setImgOffset({ x: 50, y: 50 });
-      setBotonDestino("whatsapp");
-      setExternalUrl("");
-      setPreview(null);
-      setFile(null);
-      if (fileRef.current) fileRef.current.value = "";
+      if (editingId) {
+        const payload: Record<string, unknown> = { ...commonFields };
+        if (newImageUrl !== undefined) payload.imagen_url = newImageUrl;
+        const { error } = await db.from("banners").update(payload).eq("id", editingId);
+        if (error) throw error;
+        toast({ title: "Banner actualizado ✓" });
+      } else {
+        const { error } = await db.from("banners").insert({
+          ...commonFields,
+          imagen_url: newImageUrl ?? null,
+          orden: banners.length,
+        });
+        if (error) throw error;
+        toast({ title: "Banner creado ✓" });
+      }
+
+      resetForm();
       qc.invalidateQueries({ queryKey: ["admin-banners"] });
     } catch (err: unknown) {
-      console.error("[banners] Error general al guardar:", err);
-      const sbErr = err as { code?: string; message?: string; hint?: string; details?: string };
+      const sbErr = err as { code?: string; message?: string; hint?: string };
       const description = sbErr.code
         ? [sbErr.code, sbErr.message, sbErr.hint].filter(Boolean).join(" - ")
-        : err instanceof Error
-        ? err.message
-        : "Intenta de nuevo";
-      toast({
-        title: "Error al guardar",
-        description,
-        variant: "destructive",
-      });
+        : err instanceof Error ? err.message : "Intenta de nuevo";
+      toast({ title: "Error al guardar", description, variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -766,9 +773,20 @@ function BannersTab() {
     <div className="space-y-8">
       {/* Formulario nuevo banner */}
       <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
-        <h3 className="font-bold text-foreground flex items-center gap-2">
-          <Plus className="w-4 h-4 text-primary" /> Nuevo banner
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-foreground flex items-center gap-2">
+            <Plus className="w-4 h-4 text-primary" />
+            {editingId ? "Editar banner" : "Nuevo banner"}
+          </h3>
+          {editingId && (
+            <button
+              onClick={resetForm}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </button>
+          )}
+        </div>
         {(externalUrl.trim() || preview) ? (
           <div>
             <div
@@ -896,7 +914,7 @@ function BannersTab() {
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50"
         >
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Guardar banner
+          {editingId ? "Actualizar banner" : "Guardar banner"}
         </button>
       </div>
 
@@ -949,6 +967,13 @@ function BannersTab() {
                     {b.activo
                       ? <ToggleRight className="w-6 h-6 text-primary" />
                       : <ToggleLeft className="w-6 h-6 text-muted-foreground" />}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(b)}
+                    className="w-8 h-8 rounded-lg hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                    title="Editar banner"
+                  >
+                    <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteMut.mutate(b.id)}
