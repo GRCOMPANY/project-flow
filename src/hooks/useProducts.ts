@@ -17,9 +17,10 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   const fetchProducts = async () => {
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from("products")
@@ -29,6 +30,7 @@ export function useProducts() {
         supplier:suppliers(*)
       `,
       )
+      .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -113,8 +115,8 @@ export function useProducts() {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [isAdmin]);
+    if (!companyLoading) fetchProducts();
+  }, [isAdmin, companyId, companyLoading]);
 
   const addProduct = async (
     product: Omit<

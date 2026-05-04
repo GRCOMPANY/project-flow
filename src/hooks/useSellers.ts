@@ -15,7 +15,7 @@ export function useSellers() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   // Fetch reseller stats from sales
   const getResellerStats = useCallback(async (resellerId: string) => {
@@ -54,10 +54,12 @@ export function useSellers() {
   }, []);
 
   const fetchSellers = async () => {
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('sellers')
       .select('*')
+      .eq('company_id', companyId)
       .order('name', { ascending: true });
 
     if (error) {
@@ -91,8 +93,8 @@ export function useSellers() {
   };
 
   useEffect(() => {
-    fetchSellers();
-  }, []);
+    if (!companyLoading) fetchSellers();
+  }, [companyId, companyLoading]);
 
   const addSeller = async (seller: Omit<Seller, 'id' | 'createdAt' | 'updatedAt' | 'totalPurchased' | 'totalPaid' | 'pendingBalance' | 'lastSaleDate' | 'salesCount'>) => {
     const { data, error } = await supabase

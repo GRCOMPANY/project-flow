@@ -39,6 +39,7 @@ const App = () => (
             <Route path="/registro" element={<Registro />} />
             <Route path="/catalogo" element={<CatalogoPublico />} />
             <Route path="/tienda" element={<TiendaPublica />} />
+            <Route path="/tienda/:slug" element={<TiendaPublica />} />
             <Route path="/producto/:id" element={<ProductoDetalle />} />
             <Route path="/" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />

@@ -8,9 +8,10 @@ export function useCreatives() {
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   const fetchCreatives = async () => {
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('creatives')
@@ -18,6 +19,7 @@ export function useCreatives() {
         *,
         product:products(*)
       `)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -122,8 +124,8 @@ export function useCreatives() {
   };
 
   useEffect(() => {
-    fetchCreatives();
-  }, []);
+    if (!companyLoading) fetchCreatives();
+  }, [companyId, companyLoading]);
 
   const addCreative = async (creative: Omit<Creative, 'id' | 'createdAt' | 'updatedAt' | 'product'>) => {
     const insertData: Record<string, unknown> = {

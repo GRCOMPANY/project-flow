@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStoreConfig } from "@/hooks/useStoreConfig";
@@ -353,6 +353,7 @@ function FeaturedRow({
 ══════════════════════════════════════ */
 export default function TiendaPublica() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
@@ -361,9 +362,36 @@ export default function TiendaPublica() {
     storeSlogan,
     logoUrl,
     instagram,
-    waGenericUrl,
-    waUrl,
+    waNumber,
   } = useStoreConfig();
+
+  // ── Slug company lookup ──
+  const { data: slugCompany, isLoading: slugLoading } = useQuery({
+    queryKey: ["tienda-slug-company", slug],
+    queryFn: async () => {
+      const { data } = await db
+        .from("companies")
+        .select("id, name, wa_number, logo_url, color_primario")
+        .eq("slug", slug)
+        .eq("activo", true)
+        .maybeSingle();
+      return (data as { id: string; name: string; wa_number: string | null; logo_url: string | null; color_primario: string | null } | null) ?? null;
+    },
+    enabled: !!slug,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Effective brand: slug company overrides GRC defaults when present
+  const effectiveName  = slug && slugCompany ? slugCompany.name : storeName;
+  const effectiveWaNum = slug && slugCompany?.wa_number ? slugCompany.wa_number : waNumber;
+  const effectiveLogo  = slug && slugCompany?.logo_url  ? slugCompany.logo_url  : logoUrl;
+
+  const effectiveWaUrl = (msg: string) =>
+    `https://wa.me/${effectiveWaNum}?text=${encodeURIComponent(msg)}`;
+
+  const effectiveWaGenericUrl = effectiveWaUrl(
+    `Hola ${effectiveName} 👋 Quiero ver los productos disponibles`
+  );
 
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Todos");
@@ -380,38 +408,47 @@ export default function TiendaPublica() {
   /* ── Queries ── */
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["tienda-products"],
+    queryKey: ["tienda-products", slug ?? "default", slugCompany?.id ?? null],
+    enabled: !slug || !slugLoading,
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (slug && !slugCompany) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase
         .from("products_seller_view")
         .select(
           "id, name, description, category, image_url, retail_price, wholesale_price, is_featured, status, created_at"
         )
         .eq("status", "activo")
         .order("created_at", { ascending: false });
+      if (slug && slugCompany) query = query.eq("company_id", slugCompany.id);
+      const { data, error } = await query;
       if (error) throw error;
-      // Filter out rows with null id (view artefact)
       return ((data ?? []) as Product[]).filter((p) => p.id != null);
     },
     staleTime: 2 * 60 * 1000,
   });
 
   const { data: banners = [] } = useQuery({
-    queryKey: ["tienda-banners"],
+    queryKey: ["tienda-banners", slug ?? "default", slugCompany?.id ?? null],
+    enabled: !slug || !slugLoading,
     queryFn: async () => {
-      const { data } = await db
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = db
         .from("banners")
         .select("id, imagen_url, imagen_posicion, titulo, subtitulo, texto_boton, boton_link, activo, orden")
         .eq("activo", true)
         .order("orden", { ascending: true });
+      if (slug && slugCompany) query = query.eq("company_id", slugCompany.id);
+      const { data } = await query;
       return (data ?? []) as Banner[];
     },
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: cats = DEFAULT_CATS } = useQuery({
-    queryKey: ["tienda-cats"],
+    queryKey: ["tienda-cats", slug ?? "default"],
     queryFn: async () => {
+      if (slug) return DEFAULT_CATS;
       const { data } = await db
         .from("store_config")
         .select("valor")
@@ -437,7 +474,7 @@ export default function TiendaPublica() {
           {
             id: "default",
             imagen_url: null,
-            titulo: storeName,
+            titulo: effectiveName,
             subtitulo: storeSlogan || null,
             texto_boton: "Ver productos",
           },
@@ -445,8 +482,8 @@ export default function TiendaPublica() {
 
   // Build a WA href per product
   const makeWaHref = (p: Product): string =>
-    waUrl(
-      `Hola ${storeName} 👋 Quiero el producto "${p.name ?? ""}". ¿Está disponible?\n\nDirección de entrega: ___\nPago: Contra entrega`
+    effectiveWaUrl(
+      `Hola ${effectiveName} 👋 Quiero el producto "${p.name ?? ""}". ¿Está disponible?\n\nDirección de entrega: ___\nPago: Contra entrega`
     );
 
   // Filter products by search text and active category
@@ -464,6 +501,25 @@ export default function TiendaPublica() {
 
   const scrollToCatalog = () =>
     catalogRef.current?.scrollIntoView({ behavior: "smooth" });
+
+  // 404 for unknown slugs
+  if (slug && !slugLoading && slugCompany === null) {
+    return (
+      <div className="min-h-screen bg-[#F8F8F8] flex flex-col items-center justify-center px-4 text-center">
+        <Package className="w-16 h-16 text-gray-200 mb-4" />
+        <h1 className="text-2xl font-black text-[#111] mb-2">Tienda no encontrada</h1>
+        <p className="text-gray-400 text-sm mb-6">
+          La tienda <strong>{slug}</strong> no existe o no está disponible.
+        </p>
+        <a
+          href="/tienda"
+          className="bg-[#C1272D] text-white font-bold px-6 py-2.5 rounded-full text-sm hover:bg-[#A01E22] transition-colors"
+        >
+          Ver tienda principal
+        </a>
+      </div>
+    );
+  }
 
   /* ── Render ── */
   return (
@@ -490,22 +546,22 @@ export default function TiendaPublica() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-5">
             {/* Logo + name */}
             <a
-              href="/tienda"
+              href={slug ? `/tienda/${slug}` : "/tienda"}
               className="flex items-center gap-2.5 shrink-0 group"
             >
-              {logoUrl ? (
+              {effectiveLogo ? (
                 <img
-                  src={logoUrl}
-                  alt={storeName}
+                  src={effectiveLogo}
+                  alt={effectiveName}
                   className="h-8 object-contain"
                 />
               ) : (
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm bg-[#C1272D]">
-                  {storeName.charAt(0)}
+                  {effectiveName.charAt(0)}
                 </div>
               )}
               <span className="font-black text-[#111] text-sm hidden sm:block tracking-tight group-hover:text-[#C1272D] transition-colors">
-                {storeName}
+                {effectiveName}
               </span>
             </a>
 
@@ -526,7 +582,7 @@ export default function TiendaPublica() {
 
             {/* WhatsApp button */}
             <a
-              href={waGenericUrl}
+              href={effectiveWaGenericUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 flex items-center gap-2 bg-[#25D366] text-white font-bold text-sm px-4 py-2 rounded-full hover:bg-[#1fba59] transition-colors shadow-sm"
@@ -538,7 +594,7 @@ export default function TiendaPublica() {
         </header>
 
         {/* ══ HERO CAROUSEL ══ */}
-        <HeroCarousel slides={slides} waGenericUrl={waGenericUrl} navigate={navigate} />
+        <HeroCarousel slides={slides} waGenericUrl={effectiveWaGenericUrl} navigate={navigate} />
 
         {/* ══ CATEGORY BAR ══ */}
         <nav className="bg-white border-b border-gray-100 sticky top-16 z-40">
@@ -652,15 +708,15 @@ export default function TiendaPublica() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               {/* Brand */}
               <div className="flex items-center gap-3">
-                {logoUrl ? (
-                  <img src={logoUrl} alt={storeName} className="h-8 object-contain" />
+                {effectiveLogo ? (
+                  <img src={effectiveLogo} alt={effectiveName} className="h-8 object-contain" />
                 ) : (
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm bg-[#C1272D]">
-                    {storeName.charAt(0)}
+                    {effectiveName.charAt(0)}
                   </div>
                 )}
                 <div>
-                  <p className="font-black text-sm">{storeName}</p>
+                  <p className="font-black text-sm">{effectiveName}</p>
                   {storeSlogan && (
                     <p className="text-gray-400 text-xs mt-0.5">{storeSlogan}</p>
                   )}
@@ -681,7 +737,7 @@ export default function TiendaPublica() {
                   </a>
                 )}
                 <a
-                  href={waGenericUrl}
+                  href={effectiveWaGenericUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
@@ -694,7 +750,7 @@ export default function TiendaPublica() {
 
             <div className="mt-8 pt-6 border-t border-white/10 text-center">
               <p className="text-gray-500 text-xs">
-                © {new Date().getFullYear()} {storeName} · Todos los derechos reservados
+                © {new Date().getFullYear()} {effectiveName} · Todos los derechos reservados
               </p>
             </div>
           </div>
@@ -702,7 +758,7 @@ export default function TiendaPublica() {
 
         {/* ══ FLOATING WA BUTTON ══ */}
         <a
-          href={waGenericUrl}
+          href={effectiveWaGenericUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Chatear por WhatsApp"

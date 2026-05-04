@@ -55,9 +55,10 @@ export function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   const fetchSales = async () => {
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from("sales")
@@ -68,6 +69,7 @@ export function useSales() {
         seller:sellers(*)
       `,
       )
+      .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
 
     if (error) {
@@ -182,8 +184,8 @@ export function useSales() {
   };
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    if (!companyLoading) fetchSales();
+  }, [companyId, companyLoading]);
 
   const addSale = async (sale: SaleInput) => {
     // Validación obligatoria: tipo de venta
@@ -421,9 +423,11 @@ export function useSales() {
   };
 
   const recalculateAllSales = async (): Promise<{ updated: number; errors: number }> => {
+    if (!companyId) return { updated: 0, errors: 0 };
     const { data: allSales, error: fetchError } = await supabase
       .from("sales")
       .select("id, sale_type, quantity, unit_price, cost_at_sale, reseller_price, final_price, sale_source, my_percentage, partner_percentage, product_id")
+      .eq("company_id", companyId)
       .order("sale_date", { ascending: false });
 
     if (fetchError || !allSales) {
