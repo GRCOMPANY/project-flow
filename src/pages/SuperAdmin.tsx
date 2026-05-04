@@ -5,7 +5,7 @@ import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Building2, Crown, ToggleRight, ToggleLeft, Calendar, Phone } from 'lucide-react';
+import { Loader2, Building2, Crown, ToggleRight, ToggleLeft, Calendar, Phone, Copy, Check, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 const db = supabase as any;
@@ -13,6 +13,7 @@ const db = supabase as any;
 type Company = {
   id: string;
   name: string;
+  slug: string | null;
   plan: string;
   activo: boolean;
   is_grc: boolean;
@@ -29,18 +30,28 @@ const PLAN_COLORS: Record<string, string> = {
 export default function SuperAdmin() {
   const qc = useQueryClient();
   const [toggling, setToggling] = useState<string | null>(null);
+  const [copied, setCopied]   = useState<string | null>(null);
 
   const { data: companies = [], isLoading } = useQuery<Company[]>({
     queryKey: ['superadmin-companies'],
     queryFn: async () => {
       const { data, error } = await db
         .from('companies')
-        .select('id, name, plan, activo, is_grc, wa_number, created_at')
+        .select('id, name, slug, plan, activo, is_grc, wa_number, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
+
+  const copyLink = (company: Company) => {
+    if (!company.slug) return;
+    const url = `${window.location.origin}/tienda/${company.slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(company.id);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
 
   const toggleActivo = async (company: Company) => {
     setToggling(company.id);
@@ -135,7 +146,7 @@ export default function SuperAdmin() {
                           {company.activo ? 'activa' : 'inactiva'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {new Date(company.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -147,6 +158,30 @@ export default function SuperAdmin() {
                           </span>
                         )}
                       </div>
+                      {company.slug && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <a
+                            href={`/tienda/${company.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline flex items-center gap-1 truncate max-w-[180px]"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            /tienda/{company.slug}
+                          </a>
+                          <button
+                            onClick={() => copyLink(company)}
+                            className="flex-shrink-0 p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title="Copiar link"
+                          >
+                            {copied === company.id
+                              ? <Check className="w-3.5 h-3.5 text-green-600" />
+                              : <Copy className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Toggle — no se puede desactivar GRC */}

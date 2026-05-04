@@ -23,18 +23,17 @@ export function useCompany() {
         .from('company_users')
         .select('company_id')
         .eq('user_id', user.id)
-        .eq('status', 'active')
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (cu) {
+      if (cu?.company_id) {
         setCompanyId(cu.company_id);
         const { data: co } = await db
           .from('companies')
           .select('is_grc')
           .eq('id', cu.company_id)
-          .single();
-        setIsGRC(co?.is_grc ?? false);
+          .maybeSingle();
+        setIsGRC(co?.is_grc === true);
       }
       setLoading(false);
     };
