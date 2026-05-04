@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,12 +33,6 @@ interface Banner {
   orden: number;
 }
 
-interface Categoria {
-  key: string;
-  icon: string;
-  label: string;
-}
-
 /* ══════════════════════════════════════
    HELPERS
 ══════════════════════════════════════ */
@@ -50,14 +44,6 @@ const isNewProduct = (created_at: string | null): boolean => {
   return new Date(created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 };
 
-const DEFAULT_CATS: Categoria[] = [
-  { key: "Todos",        icon: "⚡", label: "Todo" },
-  { key: "Cocina",       icon: "🍳", label: "Cocina" },
-  { key: "Hogar",        icon: "🏠", label: "Hogar" },
-  { key: "Tecnología",   icon: "💡", label: "Tecnología" },
-  { key: "Organización", icon: "📦", label: "Organización" },
-  { key: "General",      icon: "🔥", label: "General" },
-];
 
 /* ══════════════════════════════════════
    WA SVG
@@ -445,24 +431,13 @@ export default function TiendaPublica() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: cats = DEFAULT_CATS } = useQuery({
-    queryKey: ["tienda-cats", slug ?? "default"],
-    queryFn: async () => {
-      if (slug) return DEFAULT_CATS;
-      const { data } = await db
-        .from("store_config")
-        .select("valor")
-        .eq("clave", "categorias")
-        .maybeSingle();
-      if (!data?.valor) return DEFAULT_CATS;
-      try {
-        return JSON.parse(data.valor) as Categoria[];
-      } catch {
-        return DEFAULT_CATS;
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  // Derive categories dynamically from loaded products
+  const cats = useMemo(() => {
+    const unique = [...new Set(
+      products.map(p => p.category).filter((c): c is string => !!c)
+    )].sort();
+    return ["Todos", ...unique];
+  }, [products]);
 
   /* ── Derived ── */
 
@@ -600,21 +575,20 @@ export default function TiendaPublica() {
         <nav className="bg-white border-b border-gray-100 sticky top-16 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex gap-1 overflow-x-auto hide-scroll py-3">
-              {cats.map((c) => (
+              {cats.map((cat) => (
                 <button
-                  key={c.key}
+                  key={cat}
                   onClick={() => {
-                    setActiveCat(c.key);
+                    setActiveCat(cat);
                     scrollToCatalog();
                   }}
-                  className={`shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
-                    activeCat === c.key
+                  className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                    activeCat === cat
                       ? "bg-[#C1272D] text-white shadow-sm"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
-                  <span>{c.icon}</span>
-                  {c.label}
+                  {cat}
                 </button>
               ))}
             </div>

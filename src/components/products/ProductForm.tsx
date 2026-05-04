@@ -31,18 +31,10 @@ interface ProductFormProps {
   onUploadImage: (file: File) => Promise<string | null>;
   checkSkuAvailable?: (sku: string, excludeId?: string) => Promise<boolean>;
   initialData?: Product;
+  existingCategories?: string[];
 }
 
-const CATEGORIES = [
-  'Electrónica',
-  'Accesorios',
-  'Hogar',
-  'Moda',
-  'Belleza',
-  'Deportes',
-  'Tecnología',
-  'Otro',
-];
+const NEW_CAT_SENTINEL = "__nueva__";
 
 const CHANNELS: { value: ProductChannel; label: string }[] = [
   { value: 'whatsapp', label: 'WhatsApp' },
@@ -70,15 +62,17 @@ export function ProductForm({
   onUploadImage,
   checkSkuAvailable,
   initialData,
+  existingCategories = [],
 }: ProductFormProps) {
   const { isAdmin } = useAuth();
   const { suppliers } = useSuppliers();
-  
+
   // Form state
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [skuValid, setSkuValid] = useState<boolean | null>(null);
   const [category, setCategory] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
   const [status, setStatus] = useState<ProductStatus>('activo');
   
   // Prices
@@ -114,7 +108,9 @@ export function ProductForm({
     if (initialData) {
       setName(initialData.name);
       setSku(initialData.sku || '');
-      setCategory(initialData.category || '');
+      const cat = initialData.category || '';
+      setCategory(cat);
+      setShowNewCat(!!cat && !existingCategories.includes(cat));
       setStatus(initialData.status);
       setCostPrice(initialData.costPrice || initialData.supplierPrice || 0);
       setWholesalePrice(initialData.wholesalePrice || 0);
@@ -140,6 +136,7 @@ export function ProductForm({
     setSku('');
     setSkuValid(null);
     setCategory('');
+    setShowNewCat(false);
     setStatus('activo');
     setCostPrice(0);
     setWholesalePrice(0);
@@ -406,16 +403,41 @@ export function ProductForm({
               
               <div>
                 <Label htmlFor="category">Categoría</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select
+                  value={showNewCat ? NEW_CAT_SENTINEL : (category || "__none__")}
+                  onValueChange={(val) => {
+                    if (val === NEW_CAT_SENTINEL) {
+                      setShowNewCat(true);
+                      setCategory('');
+                    } else if (val === '__none__') {
+                      setShowNewCat(false);
+                      setCategory('');
+                    } else {
+                      setShowNewCat(false);
+                      setCategory(val);
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((cat) => (
+                    <SelectItem value="__none__">Sin categoría</SelectItem>
+                    {existingCategories.map((cat) => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
+                    <SelectItem value={NEW_CAT_SENTINEL}>✏️ Nueva categoría...</SelectItem>
                   </SelectContent>
                 </Select>
+                {showNewCat && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Nombre de la nueva categoría"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    autoFocus
+                  />
+                )}
               </div>
               
               <div>

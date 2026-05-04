@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -718,7 +718,12 @@ const ProductDetail = () => {
   const { products, loading: productsLoading, updateProduct, deleteProduct, uploadProductImage, checkSkuAvailable } = useProducts();
   const { sales } = useSales();
   const { creatives } = useCreatives();
-  
+
+  const existingCategories = useMemo(() =>
+    [...new Set(products.map(p => p.category).filter(Boolean) as string[])].sort(),
+    [products]
+  );
+
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -1271,6 +1276,7 @@ const ProductDetail = () => {
         onUploadImage={uploadProductImage}
         checkSkuAvailable={checkSkuAvailable}
         initialData={product}
+        existingCategories={existingCategories}
       />
 
       {/* Delete Confirmation */}

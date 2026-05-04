@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CommandCenterNav } from "@/components/command-center/CommandCenterNav";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Store, Image as ImageIcon, Layout, Tag, Star,
+  Store, Image as ImageIcon, Layout, Star,
   Plus, Trash2, Upload, Save, ToggleLeft, ToggleRight,
   Loader2, GripVertical, Pencil, X, Check, Palette,
   AlignLeft, Settings2
@@ -29,12 +29,6 @@ interface Banner {
 interface StoreConfigRow {
   clave: string;
   valor: string | null;
-}
-
-interface Categoria {
-  key: string;
-  icon: string;
-  label: string;
 }
 
 interface Testimonio {
@@ -64,18 +58,6 @@ const setConfigBatch = async (entries: Record<string, string>) => {
   const rows = Object.entries(entries).map(([clave, valor]) => ({ clave, valor }));
   await db.from("store_config").upsert(rows, { onConflict: "clave" });
 };
-
-/* ──────────────────────────────────────
-   DEFAULT CATEGORIES
-────────────────────────────────────── */
-const DEFAULT_CATS: Categoria[] = [
-  { key: "Todos",        icon: "⚡", label: "Todo el catálogo" },
-  { key: "Cocina",       icon: "🍳", label: "Cocina inteligente" },
-  { key: "Hogar",        icon: "🏠", label: "Hogar del futuro" },
-  { key: "Tecnología",   icon: "💡", label: "Tech viral" },
-  { key: "Organización", icon: "📦", label: "Organización pro" },
-  { key: "General",      icon: "🔥", label: "Productos virales" },
-];
 
 /* ══════════════════════════════════════
    TAB: MARCA
@@ -1169,195 +1151,9 @@ function TestimoniosTab() {
 }
 
 /* ══════════════════════════════════════
-   TAB: CATEGORÍAS
-══════════════════════════════════════ */
-function CategoriasTab() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [newCat, setNewCat] = useState<Categoria>({ key: "", icon: "🔥", label: "" });
-  const [saving, setSaving] = useState(false);
-
-  const { data: cats = DEFAULT_CATS, isLoading } = useQuery<Categoria[]>({
-    queryKey: ["store-config-cats"],
-    queryFn: async () => {
-      const val = await getConfig("categorias");
-      if (!val) return DEFAULT_CATS;
-      try { return JSON.parse(val) as Categoria[]; } catch { return DEFAULT_CATS; }
-    },
-  });
-
-  const saveCats = async (updated: Categoria[]) => {
-    setSaving(true);
-    try {
-      await setConfig("categorias", JSON.stringify(updated));
-      toast({ title: "Categorías actualizadas ✓" });
-      qc.invalidateQueries({ queryKey: ["store-config-cats"] });
-    } catch {
-      toast({ title: "Error al guardar", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addCat = async () => {
-    if (!newCat.key.trim() || !newCat.label.trim()) {
-      toast({ title: "Nombre e icono requeridos", variant: "destructive" });
-      return;
-    }
-    await saveCats([...cats, newCat]);
-    setNewCat({ key: "", icon: "🔥", label: "" });
-  };
-
-  const deleteCat = async (idx: number) => saveCats(cats.filter((_, i) => i !== idx));
-
-  const [editBuf, setEditBuf] = useState<Partial<Categoria>>({});
-
-  const updateCat = async (idx: number, partial: Partial<Categoria>) => {
-    const updated = cats.map((c, i) => (i === idx ? { ...c, ...partial } : c));
-    await saveCats(updated);
-    setEditingIdx(null);
-  };
-
-  if (isLoading) {
-    return <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="bg-card rounded-2xl border border-border p-6">
-        <h3 className="font-bold text-foreground mb-5 flex items-center gap-2">
-          <Tag className="w-4 h-4 text-primary" /> Categorías actuales
-        </h3>
-        <div className="space-y-2">
-          {cats.map((cat, idx) => (
-            <div key={`${cat.key}-${idx}`} className="flex items-center gap-3 p-3 bg-background rounded-xl border border-border">
-              {editingIdx === idx ? (
-                <>
-                  <input
-                    type="text"
-                    value={editBuf.icon ?? cat.icon}
-                    onChange={(e) => setEditBuf((p) => ({ ...p, icon: e.target.value }))}
-                    className="w-14 px-2 py-1.5 bg-muted border border-border rounded-lg text-center text-base focus:outline-none focus:border-primary"
-                    placeholder="🔥"
-                  />
-                  <input
-                    type="text"
-                    value={editBuf.key ?? cat.key}
-                    onChange={(e) => setEditBuf((p) => ({ ...p, key: e.target.value }))}
-                    placeholder="Clave (ej: Cocina)"
-                    className="w-28 px-2 py-1.5 bg-muted border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-                  />
-                  <input
-                    type="text"
-                    value={editBuf.label ?? cat.label}
-                    onChange={(e) => setEditBuf((p) => ({ ...p, label: e.target.value }))}
-                    placeholder="Etiqueta visible"
-                    className="flex-1 px-2 py-1.5 bg-muted border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-                  />
-                  <button
-                    onClick={() => updateCat(idx, editBuf)}
-                    disabled={saving}
-                    className="w-7 h-7 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setEditingIdx(null)}
-                    className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="text-xl w-8 text-center flex-shrink-0">{cat.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground">{cat.label}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">key: {cat.key}</p>
-                  </div>
-                  <button
-                    onClick={() => { setEditingIdx(idx); setEditBuf({}); }}
-                    className="w-7 h-7 rounded-lg hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => deleteCat(idx)}
-                    disabled={saving}
-                    className="w-7 h-7 rounded-lg hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Agregar nueva */}
-      <div className="bg-card rounded-2xl border border-border p-6">
-        <h3 className="font-bold text-foreground mb-5 flex items-center gap-2">
-          <Plus className="w-4 h-4 text-primary" /> Nueva categoría
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Icono emoji</label>
-            <input
-              type="text"
-              value={newCat.icon}
-              onChange={(e) => setNewCat((p) => ({ ...p, icon: e.target.value }))}
-              placeholder="🔥"
-              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-base text-center focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Clave interna</label>
-            <input
-              type="text"
-              value={newCat.key}
-              onChange={(e) => setNewCat((p) => ({ ...p, key: e.target.value }))}
-              placeholder="Cocina"
-              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Etiqueta visible</label>
-            <input
-              type="text"
-              value={newCat.label}
-              onChange={(e) => setNewCat((p) => ({ ...p, label: e.target.value }))}
-              placeholder="Cocina inteligente"
-              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-        </div>
-        <button
-          onClick={addCat}
-          disabled={saving}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Agregar categoría
-        </button>
-      </div>
-
-      <button
-        onClick={() => saveCats(DEFAULT_CATS)}
-        disabled={saving}
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
-      >
-        Restaurar categorías por defecto
-      </button>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════
    PAGE PRINCIPAL
 ══════════════════════════════════════ */
-type Tab = "marca" | "hero" | "secciones" | "banners" | "testimonios" | "categorias";
+type Tab = "marca" | "hero" | "secciones" | "banners" | "testimonios";
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "marca",       label: "Marca",       icon: Palette },
@@ -1365,7 +1161,6 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
   { id: "secciones",   label: "Secciones",   icon: Settings2 },
   { id: "banners",     label: "Banners",     icon: ImageIcon },
   { id: "testimonios", label: "Testimonios", icon: Star },
-  { id: "categorias",  label: "Categorías",  icon: Tag },
 ];
 
 export default function TiendaConfig() {
@@ -1422,7 +1217,6 @@ export default function TiendaConfig() {
         {tab === "secciones"   && <SeccionesTab />}
         {tab === "banners"     && <BannersTab />}
         {tab === "testimonios" && <TestimoniosTab />}
-        {tab === "categorias"  && <CategoriasTab />}
       </div>
     </div>
   );

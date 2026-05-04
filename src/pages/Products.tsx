@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Package, Filter, TrendingUp, Pause, AlertTriangle, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +28,12 @@ const Products = () => {
   const { creatives, loading: creativesLoading } = useCreatives();
   
   const smartProducts = useSmartCatalog({ products, sales, creatives });
-  
+
+  const existingCategories = useMemo(() =>
+    [...new Set(products.map(p => p.category).filter(Boolean) as string[])].sort(),
+    [products]
+  );
+
   const [formOpen, setFormOpen] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -272,6 +277,7 @@ const Products = () => {
         onSubmit={addProduct}
         onUploadImage={uploadProductImage}
         checkSkuAvailable={checkSkuAvailable}
+        existingCategories={existingCategories}
       />
     </div>
   );
