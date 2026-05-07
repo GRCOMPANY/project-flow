@@ -1,8 +1,7 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   LogOut,
   Package,
@@ -12,7 +11,9 @@ import {
   Image,
   Zap,
   ListTodo,
-  Store
+  Store,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,90 +36,185 @@ const NAV_ITEMS: NavItem[] = [
 export function CommandCenterNav() {
   const { profile, role, isAdmin, signOut } = useAuth();
   const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+  const getInitials = (name: string) =>
+    name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <nav className="border-b border-border/50 bg-background/95 backdrop-blur-md sticky top-0 z-50">
-      <div className="container max-w-7xl mx-auto px-4">
-        <div className="h-16 flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-9 h-9 rounded-xl grc-gradient flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
-              <Zap className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div className="hidden sm:block">
-              <span className="text-lg font-bold text-foreground tracking-tight">GRC</span>
-              <span className="text-xs text-muted-foreground ml-1.5 font-medium">AI OS</span>
-            </div>
-          </Link>
-          
-          {/* Navigation */}
-          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar mx-4 py-1">
-            {visibleItems.map(({ path, label, icon: Icon }) => {
-              const isActive = location.pathname === path;
-              return (
-                <Link
-                  key={path}
-                  to={path}
-                  className={`
-                    relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                    whitespace-nowrap transition-all duration-200
-                    ${isActive
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden md:inline">{label}</span>
-                  
-                  {/* Active indicator */}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+    <>
+      <nav style={{ background: '#111111', borderBottom: '1px solid #1f1f1f', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 16px' }}>
+          <div style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
-          {/* User */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <Avatar className="h-9 w-9 ring-2 ring-border/50 shadow-sm">
+            {/* Logo */}
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', flexShrink: 0 }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: '#C1272D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap style={{ width: '16px', height: '16px', color: 'white' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '17px', fontWeight: 700, color: 'white', letterSpacing: '-0.3px' }}>GRC</span>
+                <span style={{ fontSize: '11px', color: '#666', fontWeight: 500 }}>AI OS</span>
+              </div>
+            </Link>
+
+            {/* Desktop nav links */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', overflow: 'hidden' }} className="hidden md:flex">
+              {visibleItems.map(({ path, label, icon: Icon }) => {
+                const isActive = location.pathname === path;
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? '#C1272D' : '#aaa',
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                      transition: 'color 0.15s, background 0.15s',
+                      background: isActive ? 'rgba(193,39,45,0.08)' : 'transparent',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={e => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.color = '#C1272D';
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(193,39,45,0.06)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.color = '#aaa';
+                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{label}</span>
+                    {isActive && (
+                      <span style={{ position: 'absolute', bottom: 0, left: '14px', right: '14px', height: '2px', background: '#C1272D', borderRadius: '2px' }} />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Right side */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+
+              {/* User info — desktop */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Avatar style={{ height: '34px', width: '34px' }}>
+                  <AvatarImage src={profile?.avatarUrl} />
+                  <AvatarFallback style={{ background: '#C1272D', color: 'white', fontSize: '12px', fontWeight: 700 }}>
+                    {profile ? getInitials(profile.fullName) : '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden xl:block">
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: 'white', lineHeight: 1, marginBottom: '4px' }}>
+                    {profile?.fullName?.split(' ')[0]}
+                  </p>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: role === 'admin' ? '#C1272D' : '#888', background: role === 'admin' ? 'rgba(193,39,45,0.12)' : 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>
+                    {role === 'admin' ? '👑 Admin' : '👤 Colaborador'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Logout — desktop */}
+              <button
+                onClick={signOut}
+                title="Cerrar sesión"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#C1272D')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                className="hidden md:flex"
+              >
+                <LogOut style={{ width: '17px', height: '17px' }} />
+              </button>
+
+              {/* Hamburger — mobile */}
+              <button
+                onClick={() => setMobileOpen(o => !o)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                className="md:hidden"
+              >
+                {mobileOpen
+                  ? <X style={{ width: '22px', height: '22px' }} />
+                  : <Menu style={{ width: '22px', height: '22px' }} />
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div
+          style={{ background: '#111111', borderBottom: '1px solid #1f1f1f', position: 'sticky', top: '64px', zIndex: 49 }}
+          className="md:hidden"
+        >
+          {/* User row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1f1f1f' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Avatar style={{ height: '36px', width: '36px' }}>
                 <AvatarImage src={profile?.avatarUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                <AvatarFallback style={{ background: '#C1272D', color: 'white', fontSize: '13px', fontWeight: 700 }}>
                   {profile ? getInitials(profile.fullName) : '?'}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden xl:block">
-                <p className="text-sm font-semibold text-foreground leading-none mb-1">
-                  {profile?.fullName?.split(' ')[0]}
-                </p>
-                <Badge 
-                  variant={isAdmin ? 'default' : 'secondary'} 
-                  className="text-[10px] h-4 px-1.5 font-medium"
-                >
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'white', margin: 0 }}>{profile?.fullName}</p>
+                <span style={{ fontSize: '11px', color: role === 'admin' ? '#C1272D' : '#888' }}>
                   {role === 'admin' ? '👑 Admin' : '👤 Colaborador'}
-                </Badge>
+                </span>
               </div>
             </div>
-            
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={signOut} 
-              className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 h-9 w-9"
+            <button
+              onClick={signOut}
+              style={{ background: 'none', border: '1px solid #2a2a2a', cursor: 'pointer', color: '#888', padding: '7px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
             >
-              <LogOut className="w-4 h-4" />
-            </Button>
+              <LogOut style={{ width: '14px', height: '14px' }} />
+              Salir
+            </button>
           </div>
+
+          {/* Links */}
+          {visibleItems.map(({ path, label, icon: Icon }) => {
+            const isActive = location.pathname === path;
+            return (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '16px 20px',
+                  textDecoration: 'none',
+                  color: isActive ? '#C1272D' : '#ccc',
+                  fontWeight: isActive ? 600 : 400,
+                  fontSize: '15px',
+                  borderLeft: isActive ? '3px solid #C1272D' : '3px solid transparent',
+                  background: isActive ? 'rgba(193,39,45,0.06)' : 'transparent',
+                  transition: 'background 0.15s',
+                }}
+              >
+                <Icon className="w-5 h-5" style={{ flexShrink: 0 }} />
+                {label}
+              </Link>
+            );
+          })}
         </div>
-      </div>
-    </nav>
+      )}
+    </>
   );
 }
