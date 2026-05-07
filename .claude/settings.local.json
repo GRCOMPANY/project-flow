@@ -5,7 +5,10 @@
       "Bash(npm run:*)",
       "Bash(wc -l /c/Users/Usuario/project-flow/src/pages/*.tsx)",
       "Bash(head -20 /c/Users/Usuario/project-flow/src/pages/*.tsx)",
-      "Bash(grep -E \"^==>|function|export default|//|^import\")"
+      "Bash(grep -E \"^==>|function|export default|//|^import\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
