@@ -9,6 +9,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import CommandCenter from "./pages/CommandCenter";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/LandingPage";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
 import Creatives from "./pages/Creatives";
@@ -35,6 +36,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/registro" element={<Registro />} />
             <Route path="/catalogo" element={<CatalogoPublico />} />
