@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   LogOut,
@@ -37,6 +38,11 @@ export function CommandCenterNav() {
   const { profile, role, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { newOrderCount, markAsSeen } = useRealtimeOrders();
+
+  useEffect(() => {
+    if (location.pathname === '/sales') markAsSeen();
+  }, [location.pathname, markAsSeen]);
 
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -64,6 +70,7 @@ export function CommandCenterNav() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px', overflow: 'hidden' }} className="hidden md:flex">
               {visibleItems.map(({ path, label, icon: Icon }) => {
                 const isActive = location.pathname === path;
+                const showBadge = path === '/sales' && newOrderCount > 0;
                 return (
                   <Link
                     key={path}
@@ -96,7 +103,14 @@ export function CommandCenterNav() {
                       }
                     }}
                   >
-                    <Icon className="w-4 h-4" />
+                    <span style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <Icon className="w-4 h-4" />
+                      {showBadge && (
+                        <span style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#C1272D', color: 'white', borderRadius: '999px', fontSize: '9px', fontWeight: 700, minWidth: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid #111' }}>
+                          {newOrderCount > 9 ? '9+' : newOrderCount}
+                        </span>
+                      )}
+                    </span>
                     <span>{label}</span>
                     {isActive && (
                       <span style={{ position: 'absolute', bottom: 0, left: '14px', right: '14px', height: '2px', background: '#C1272D', borderRadius: '2px' }} />
@@ -185,6 +199,7 @@ export function CommandCenterNav() {
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {visibleItems.map(({ path, label, icon: Icon }, idx) => {
               const isActive = location.pathname === path;
+              const showBadge = path === '/sales' && newOrderCount > 0;
               return (
                 <Link
                   key={path}
@@ -205,7 +220,14 @@ export function CommandCenterNav() {
                     borderBottom: idx < visibleItems.length - 1 ? '1px solid #1a1a1a' : 'none',
                   }}
                 >
-                  <Icon className="w-5 h-5" style={{ flexShrink: 0 }} />
+                  <span style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <Icon className="w-5 h-5" />
+                    {showBadge && (
+                      <span style={{ position: 'absolute', top: '-5px', right: '-7px', background: '#C1272D', color: 'white', borderRadius: '999px', fontSize: '9px', fontWeight: 700, minWidth: '15px', height: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid #111' }}>
+                        {newOrderCount > 9 ? '9+' : newOrderCount}
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </Link>
               );

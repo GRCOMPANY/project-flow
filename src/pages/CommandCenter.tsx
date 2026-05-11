@@ -5,6 +5,8 @@ import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartCatalog } from '@/hooks/useSmartCatalog';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useToast } from '@/hooks/use-toast';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { HeroFinancialCard } from '@/components/command-center/HeroFinancialCard';
 import { AIRadarPanel, generateRadarAlerts } from '@/components/command-center/AIRadarPanel';
@@ -12,6 +14,7 @@ import { MetricsDashboard } from '@/components/command-center/MetricsDashboard';
 import { ProductSpotlight, identifyKeyProducts } from '@/components/command-center/ProductSpotlight';
 import { AIInsightBanner, generateDailyInsight } from '@/components/command-center/AIInsightBanner';
 import { QuickActionsBar, generateSmartActions } from '@/components/command-center/QuickActionsBar';
+import { ToastAction } from '@/components/ui/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Activity } from 'lucide-react';
 
@@ -21,10 +24,27 @@ function daysSince(dateStr: string): number {
 
 export default function CommandCenter() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { profile } = useAuth();
   const { products, loading: productsLoading } = useProducts();
   const { sales, loading: salesLoading } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
+
+  useRealtimeOrders((order) => {
+    const clientName = order.client_name ?? 'Cliente';
+    const productName = order.product_name ?? 'Producto';
+    const total = order.total_amount ?? 0;
+    toast({
+      title: `🛍 ¡Nuevo pedido desde la tienda!`,
+      description: `${clientName} pidió ${productName} — $${total.toLocaleString('es-CO')}`,
+      duration: 8000,
+      action: (
+        <ToastAction altText="Ver pedido" onClick={() => navigate('/sales')}>
+          Ver pedido
+        </ToastAction>
+      ),
+    });
+  });
 
   const loading = productsLoading || salesLoading || creativesLoading;
 
