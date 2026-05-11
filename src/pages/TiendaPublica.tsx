@@ -202,11 +202,11 @@ function HeroCarousel({
 function ProductCard({
   p,
   onDetail,
-  waHref,
+  onOrder,
 }: {
   p: Product;
   onDetail: () => void;
-  waHref: string;
+  onOrder: () => void;
 }) {
   const isNew = isNewProduct(p.created_at);
 
@@ -257,15 +257,12 @@ function ProductCard({
 
       {/* "Lo quiero" — always in DOM for consistent height; visible on hover */}
       <div className="px-3 pb-3">
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+        <button
+          onClick={(e) => { e.stopPropagation(); onOrder(); }}
           className="flex items-center justify-center w-full py-2 bg-[#C1272D] hover:bg-[#A01E22] text-white font-bold text-sm rounded-lg transition-colors opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto duration-200"
         >
-          Lo quiero
-        </a>
+          Hacer pedido
+        </button>
       </div>
     </article>
   );
@@ -277,11 +274,11 @@ function ProductCard({
 function FeaturedRow({
   products,
   onDetail,
-  makeWaHref,
+  onOrder,
 }: {
   products: Product[];
   onDetail: (id: string) => void;
-  makeWaHref: (p: Product) => string;
+  onOrder: (p: Product) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -305,7 +302,7 @@ function FeaturedRow({
             <ProductCard
               p={p}
               onDetail={() => onDetail(p.id)}
-              waHref={makeWaHref(p)}
+              onOrder={() => onOrder(p)}
             />
           </div>
         ))}
@@ -330,6 +327,159 @@ function FeaturedRow({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   ORDER MODAL
+══════════════════════════════════════ */
+interface TiendaOrderModalProps {
+  product: Product;
+  companyId: string | null;
+  waNumber: string;
+  storeName: string;
+  onClose: () => void;
+}
+
+function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: TiendaOrderModalProps) {
+  const dbModal = supabase as any;
+  const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [direccion, setDireccion] = useState("");
+  const [notas, setNotas] = useState("");
+  const [qty, setQty] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const unitPrice = product.retail_price ?? 0;
+  const total = unitPrice * qty;
+  const fmtCOP = (v: number) => `$${v.toLocaleString("es-CO")}`;
+  const inputCls = "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#C1272D] transition-colors bg-white";
+
+  const handleConfirm = async () => {
+    if (!nombre.trim() || !telefono.trim() || !direccion.trim()) return;
+    setLoading(true);
+
+    const notesFull = [`Dirección: ${direccion.trim()}`, notas.trim()].filter(Boolean).join("\n");
+
+    try {
+      if (companyId) {
+        await dbModal.from("sales").insert({
+          company_id: companyId,
+          product_id: product.id,
+          client_name: nombre.trim(),
+          client_phone: telefono.trim(),
+          quantity: qty,
+          unit_price: unitPrice,
+          total_amount: total,
+          sales_channel: "tienda_publica",
+          operational_status: "nuevo",
+          payment_status: "pendiente",
+          order_status: "pendiente",
+          sale_type: "directa",
+          sale_source: "digital",
+          sale_date: new Date().toISOString().split("T")[0],
+          notes: notesFull,
+          cost_at_sale: 0,
+          margin_at_sale: 0,
+          margin_percent_at_sale: 0,
+          my_percentage: 100,
+          partner_percentage: 0,
+          my_profit_amount: 0,
+          partner_profit_amount: 0,
+        });
+      }
+    } catch (_) { /* INSERT falló — WA abre igual */ }
+
+    const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(total)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+
+    setLoading(false);
+    setDone(true);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        {/* Handle mobile */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        {done ? (
+          <div className="p-8 text-center">
+            <div className="text-5xl mb-4">🎉</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">¡Pedido recibido!</h3>
+            <p className="text-gray-500 text-sm mb-6">Te contactaremos pronto para confirmar tu entrega.</p>
+            <button onClick={onClose} className="w-full py-3 bg-[#C1272D] text-white font-bold rounded-xl hover:opacity-90 transition-opacity">
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <div className="p-5 sm:p-6">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Hacer pedido</h3>
+                <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{product.name}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors flex-shrink-0 ml-3"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Resumen + cantidad */}
+            <div className="bg-gray-50 rounded-xl p-3 mb-5 flex items-center justify-between gap-3">
+              <span className="text-sm text-gray-600 flex-1 line-clamp-1">{product.name}</span>
+              <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 text-lg font-bold transition-colors">−</button>
+                <span className="w-8 text-center text-sm font-bold text-gray-900">{qty}</span>
+                <button onClick={() => setQty((q) => q + 1)} className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 text-lg font-bold transition-colors">+</button>
+              </div>
+              <span className="font-bold text-[#C1272D] flex-shrink-0">{fmtCOP(total)}</span>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nombre completo *</label>
+                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre completo" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Teléfono *</label>
+                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="3XX XXX XXXX" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Dirección de entrega *</label>
+                <input type="text" value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle, número, barrio, ciudad" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notas (opcional)</label>
+                <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Instrucciones, color, talla..." rows={2} className={`${inputCls} resize-none`} />
+              </div>
+            </div>
+
+            <button
+              onClick={handleConfirm}
+              disabled={loading || !nombre.trim() || !telefono.trim() || !direccion.trim()}
+              className="mt-6 w-full flex items-center justify-center gap-2.5 py-4 bg-[#C1272D] text-white font-bold text-base rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading
+                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                : <><WASvg /> Confirmar pedido</>
+              }
+            </button>
+            <p className="text-center text-xs text-gray-400 mt-3">
+              Se abrirá WhatsApp para confirmar con {storeName}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -367,6 +517,17 @@ export default function TiendaPublica() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Default company cuando no hay slug (tienda principal GRC)
+  const { data: defaultCompany } = useQuery({
+    queryKey: ["tienda-default-company"],
+    queryFn: async () => {
+      const { data } = await db.from("companies").select("id, wa_number").eq("is_grc", true).maybeSingle();
+      return (data as { id: string; wa_number: string | null } | null) ?? null;
+    },
+    enabled: !slug,
+    staleTime: 10 * 60 * 1000,
+  });
+
   // Effective brand: slug company overrides GRC defaults when present
   const effectiveName  = slug && slugCompany ? slugCompany.name : storeName;
   const effectiveWaNum = slug && slugCompany?.wa_number ? slugCompany.wa_number : waNumber;
@@ -379,9 +540,12 @@ export default function TiendaPublica() {
     `Hola ${effectiveName} 👋 Quiero ver los productos disponibles`
   );
 
+  const effectiveCompanyId = slugCompany?.id ?? defaultCompany?.id ?? null;
+
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Todos");
   const [scrolled, setScrolled] = useState(false);
+  const [orderProduct, setOrderProduct] = useState<Product | null>(null);
   const catalogRef = useRef<HTMLElement>(null);
 
   /* Sticky header shadow */
@@ -607,7 +771,7 @@ export default function TiendaPublica() {
               <FeaturedRow
                 products={featured}
                 onDetail={(id) => navigate(`/producto/${id}`)}
-                makeWaHref={makeWaHref}
+                onOrder={(p) => setOrderProduct(p)}
               />
             </section>
           )}
@@ -668,7 +832,7 @@ export default function TiendaPublica() {
                     key={p.id}
                     p={p}
                     onDetail={() => navigate(`/producto/${p.id}`)}
-                    waHref={makeWaHref(p)}
+                    onOrder={() => setOrderProduct(p)}
                   />
                 ))}
               </div>
@@ -742,6 +906,16 @@ export default function TiendaPublica() {
         </a>
 
       </div>
+
+      {orderProduct && (
+        <TiendaOrderModal
+          product={orderProduct}
+          companyId={effectiveCompanyId}
+          waNumber={effectiveWaNum}
+          storeName={effectiveName}
+          onClose={() => setOrderProduct(null)}
+        />
+      )}
     </>
   );
 }
