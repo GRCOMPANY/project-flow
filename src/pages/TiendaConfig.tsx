@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CommandCenterNav } from "@/components/command-center/CommandCenterNav";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/hooks/useCompany";
 import {
   Store, Image as ImageIcon, Layout, Star,
   Plus, Trash2, Upload, Save, ToggleLeft, ToggleRight,
@@ -1165,6 +1166,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
 
 export default function TiendaConfig() {
   const [tab, setTab] = useState<Tab>("marca");
+  const { slug } = useCompany();
 
   return (
     <div className="min-h-screen bg-background">
@@ -1184,10 +1186,14 @@ export default function TiendaConfig() {
             </p>
           </div>
           <a
-            href="/tienda"
+            href={slug ? `https://mindful-project-tasks.vercel.app/tienda/${slug}` : undefined}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto text-xs text-primary hover:text-primary/80 font-medium transition-colors flex items-center gap-1"
+            onClick={!slug ? (e) => e.preventDefault() : undefined}
+            className={`ml-auto text-xs font-medium transition-colors flex items-center gap-1 ${
+              slug ? 'text-primary hover:text-primary/80' : 'text-muted-foreground cursor-not-allowed'
+            }`}
+            title={!slug ? 'Empresa sin slug configurado' : undefined}
           >
             Ver tienda →
           </a>
