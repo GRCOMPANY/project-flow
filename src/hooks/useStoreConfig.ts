@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 export const BRAND_DEFAULTS = {
   // ── Identidad de marca ──────────────────────────────────────
@@ -50,13 +51,16 @@ export type BrandKey = keyof typeof BRAND_DEFAULTS;
  */
 export function useStoreConfig() {
   const db = supabase as any;
+  const { companyId } = useCompany();
 
   const { data = {} } = useQuery({
-    queryKey: ["store-brand-config"],
+    queryKey: ["store-brand-config", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await db
         .from("store_config")
         .select("clave, valor")
+        .eq("company_id", companyId)
         .in("clave", Object.keys(BRAND_DEFAULTS));
       const map: Record<string, string> = {};
       (data ?? []).forEach((row: { clave: string; valor: string }) => {

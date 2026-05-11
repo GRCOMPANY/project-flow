@@ -46,18 +46,18 @@ interface Testimonio {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-const getConfig = async (clave: string): Promise<string | null> => {
-  const { data } = await db.from("store_config").select("valor").eq("clave", clave).maybeSingle();
+const getConfig = async (clave: string, companyId: string): Promise<string | null> => {
+  const { data } = await db.from("store_config").select("valor").eq("company_id", companyId).eq("clave", clave).maybeSingle();
   return data?.valor ?? null;
 };
 
-const setConfig = async (clave: string, valor: string) => {
-  await db.from("store_config").upsert({ clave, valor }, { onConflict: "clave" });
+const setConfig = async (clave: string, valor: string, companyId: string) => {
+  await db.from("store_config").upsert({ company_id: companyId, clave, valor }, { onConflict: "company_id,clave" });
 };
 
-const setConfigBatch = async (entries: Record<string, string>) => {
-  const rows = Object.entries(entries).map(([clave, valor]) => ({ clave, valor }));
-  await db.from("store_config").upsert(rows, { onConflict: "clave" });
+const setConfigBatch = async (entries: Record<string, string>, companyId: string) => {
+  const rows = Object.entries(entries).map(([clave, valor]) => ({ company_id: companyId, clave, valor }));
+  await db.from("store_config").upsert(rows, { onConflict: "company_id,clave" });
 };
 
 /* ══════════════════════════════════════
@@ -80,15 +80,18 @@ const MARCA_DEFAULTS: Record<string, string> = {
 function MarcaTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   const [saving, setSaving] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>({});
 
   const { data: config, isLoading } = useQuery<Record<string, string>>({
-    queryKey: ["store-config-marca"],
+    queryKey: ["store-config-marca", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await db
         .from("store_config")
         .select("clave,valor")
+        .eq("company_id", companyId)
         .in("clave", [...MARCA_KEYS]);
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: StoreConfigRow) => { if (r.valor) map[r.clave] = r.valor; });
@@ -103,7 +106,7 @@ function MarcaTab() {
     setSaving(true);
     try {
       const merged = { ...MARCA_DEFAULTS, ...config, ...fields };
-      await setConfigBatch(merged);
+      await setConfigBatch(merged, companyId!);
       toast({ title: "Marca actualizada ✓" });
       qc.invalidateQueries({ queryKey: ["store-config-marca"] });
       qc.invalidateQueries({ queryKey: ["store-brand-config"] });
@@ -207,6 +210,7 @@ function MarcaTab() {
 ══════════════════════════════════════ */
 function HeroTab() {
   const { toast } = useToast();
+  const { companyId } = useCompany();
   const [saving, setSaving] = useState(false);
 
   const DEFAULTS = {
@@ -219,11 +223,13 @@ function HeroTab() {
   };
 
   const { data: config, isLoading } = useQuery<Record<string, string>>({
-    queryKey: ["store-config-hero"],
+    queryKey: ["store-config-hero", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data } = await db
         .from("store_config")
         .select("clave,valor")
+        .eq("company_id", companyId)
         .in("clave", Object.keys(DEFAULTS));
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: StoreConfigRow) => { if (r.valor) map[r.clave] = r.valor; });
@@ -239,7 +245,7 @@ function HeroTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setConfigBatch({ ...DEFAULTS, ...config, ...fields });
+      await setConfigBatch({ ...DEFAULTS, ...config, ...fields }, companyId!);
       toast({ title: "Hero actualizado ✓" });
     } catch {
       toast({ title: "Error al guardar", variant: "destructive" });
@@ -399,13 +405,15 @@ const SECCIONES_DEFAULTS: Record<string, string> = {
 function SeccionesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { companyId } = useCompany();
 
   const allKeys = Object.keys(SECCIONES_DEFAULTS);
 
   const { data: config = {}, isLoading } = useQuery<Record<string, string>>({
-    queryKey: ["store-config-secciones"],
+    queryKey: ["store-config-secciones", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data } = await db.from("store_config").select("clave,valor").in("clave", allKeys);
+      const { data } = await db.from("store_config").select("clave,valor").eq("company_id", companyId).in("clave", allKeys);
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: StoreConfigRow) => { if (r.valor !== null) map[r.clave] = r.valor!; });
       return map;
@@ -423,7 +431,7 @@ function SeccionesTab() {
     const next = isActive(key) ? "false" : "true";
     set(key, next);
     try {
-      await setConfig(key, next);
+      await setConfig(key, next, companyId!);
       qc.invalidateQueries({ queryKey: ["store-config-secciones"] });
       qc.invalidateQueries({ queryKey: ["tienda-hero-config"] });
     } catch {
@@ -444,7 +452,7 @@ function SeccionesTab() {
         }
       }
       toSave["productos_limite"] = get("productos_limite");
-      await setConfigBatch(toSave);
+      await setConfigBatch(toSave, companyId!);
       toast({ title: "Secciones guardadas ✓" });
       qc.invalidateQueries({ queryKey: ["store-config-secciones"] });
       qc.invalidateQueries({ queryKey: ["tienda-hero-config"] });
@@ -555,6 +563,7 @@ function SeccionesTab() {
 function BannersTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -577,11 +586,13 @@ function BannersTab() {
   const startOffset = useRef({ x: 50, y: 50 });
 
   const { data: banners = [], isLoading } = useQuery<Banner[]>({
-    queryKey: ["admin-banners"],
+    queryKey: ["admin-banners", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await db
         .from("banners")
         .select("*")
+        .eq("company_id", companyId)
         .order("orden", { ascending: true });
       if (error) throw error;
       return data ?? [];
@@ -732,6 +743,7 @@ function BannersTab() {
       } else {
         const { error } = await db.from("banners").insert({
           ...commonFields,
+          company_id: companyId,
           imagen_url: newImageUrl ?? null,
           orden: banners.length,
         });
@@ -981,15 +993,18 @@ function BannersTab() {
 function TestimoniosTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   const [form, setForm] = useState({ nombre: "", texto: "", calificacion: 5 });
   const [saving, setSaving] = useState(false);
 
   const { data: testimonios = [], isLoading } = useQuery<Testimonio[]>({
-    queryKey: ["admin-testimonios"],
+    queryKey: ["admin-testimonios", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await db
         .from("testimonios")
         .select("id, nombre, texto, calificacion, created_at")
+        .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -1017,6 +1032,7 @@ function TestimoniosTab() {
     setSaving(true);
     try {
       const { error } = await db.from("testimonios").insert({
+        company_id: companyId,
         nombre: form.nombre.trim(),
         texto: form.texto.trim(),
         calificacion: form.calificacion,
