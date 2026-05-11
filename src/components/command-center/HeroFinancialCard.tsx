@@ -91,7 +91,7 @@ export function HeroFinancialCard({
   return (
     <div
       className={cn(
-        'hero-financial-card hero-glass relative overflow-hidden rounded-2xl border p-8 md:p-10',
+        'hero-financial-card hero-glass relative overflow-hidden rounded-2xl border p-5 md:p-8 lg:p-10',
         'bg-gradient-to-br transition-all duration-300',
         config.bgGradient,
         config.borderClass,
@@ -104,7 +104,7 @@ export function HeroFinancialCard({
       </div>
 
       {/* Two column layout */}
-      <div className="relative grid md:grid-cols-[1fr,320px] gap-8 md:gap-12">
+      <div className="relative grid md:grid-cols-[1fr,320px] gap-6 md:gap-12">
         {/* Left: Financial Data */}
         <div className="space-y-8">
           {/* Label */}
@@ -121,7 +121,7 @@ export function HeroFinancialCard({
 
           {/* Hero Number */}
           <div className="space-y-3">
-            <h2 className="hero-financial-number text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground">
+            <h2 className="hero-financial-number text-3xl md:text-5xl lg:text-7xl font-bold tracking-tight text-foreground">
               ${montoEnRiesgo.toLocaleString()}
             </h2>
             <div className="flex flex-wrap items-center gap-3">

@@ -91,7 +91,7 @@ function MetricCard({ data }: { data: SparklineData }) {
       : 'comparison-badge-stable';
 
   return (
-    <div className="metric-card-premium p-6 rounded-2xl">
+    <div className="metric-card-premium p-4 md:p-6 rounded-2xl">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground">
@@ -105,7 +105,7 @@ function MetricCard({ data }: { data: SparklineData }) {
       
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-2.5">
-          <p className="text-3xl md:text-4xl font-bold text-primary tracking-tight" style={{ fontFeatureSettings: "'tnum'" }}>
+          <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary tracking-tight" style={{ fontFeatureSettings: "'tnum'" }}>
             {data.currentValue}
           </p>
           <div className="flex flex-col gap-1">
@@ -121,7 +121,9 @@ function MetricCard({ data }: { data: SparklineData }) {
           </div>
         </div>
         
-        <AreaSparkline values={data.values} trend={data.trend} />
+        <div className="hidden sm:block shrink-0">
+          <AreaSparkline values={data.values} trend={data.trend} />
+        </div>
       </div>
     </div>
   );
@@ -282,7 +284,7 @@ export function MetricsDashboard({ sales, className }: MetricsDashboardProps) {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
         <MetricCard data={metricsData.salesData} />
         <MetricCard data={metricsData.profitData} />
         <MetricCard data={metricsData.marginData} />

@@ -119,10 +119,10 @@ export function AIRadarPanel({ alerts, className }: AIRadarPanelProps) {
               
               {/* Icon */}
               <div className={cn(
-                "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                "w-8 h-8 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0",
                 styles.icon
               )}>
-                <alert.icon className="w-5 h-5" />
+                <alert.icon className="w-4 h-4 md:w-5 md:h-5" />
               </div>
               
               {/* Content */}

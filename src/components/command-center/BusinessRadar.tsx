@@ -83,10 +83,10 @@ export function BusinessRadar({ alerts, className }: BusinessRadarProps) {
             style={{ animationDelay: `${index * 0.05}s` }}
           >
             <div className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+              "w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0",
               getIconBg(alert.severity)
             )}>
-              <alert.icon className="w-4 h-4" />
+              <alert.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
             </div>
             
             <div className="flex-1 min-w-0">
