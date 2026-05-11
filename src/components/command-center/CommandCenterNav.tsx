@@ -109,8 +109,8 @@ export function CommandCenterNav() {
             {/* Right side */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
 
-              {/* User info — desktop */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* User info + logout — desktop only */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="hidden md:flex">
                 <Avatar style={{ height: '34px', width: '34px' }}>
                   <AvatarImage src={profile?.avatarUrl} />
                   <AvatarFallback style={{ background: '#C1272D', color: 'white', fontSize: '12px', fontWeight: 700 }}>
@@ -125,53 +125,104 @@ export function CommandCenterNav() {
                     {role === 'admin' ? '👑 Admin' : '👤 Colaborador'}
                   </span>
                 </div>
+                <button
+                  onClick={signOut}
+                  title="Cerrar sesión"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#C1272D')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                >
+                  <LogOut style={{ width: '17px', height: '17px' }} />
+                </button>
               </div>
 
-              {/* Logout — desktop */}
-              <button
-                onClick={signOut}
-                title="Cerrar sesión"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#C1272D')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
-                className="hidden md:flex"
-              >
-                <LogOut style={{ width: '17px', height: '17px' }} />
-              </button>
-
-              {/* Hamburger — mobile */}
+              {/* Hamburger — mobile only */}
               <button
                 onClick={() => setMobileOpen(o => !o)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 className="md:hidden"
               >
-                {mobileOpen
-                  ? <X style={{ width: '22px', height: '22px' }} />
-                  : <Menu style={{ width: '22px', height: '22px' }} />
-                }
+                <Menu style={{ width: '24px', height: '24px' }} />
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile fullscreen overlay */}
       {mobileOpen && (
         <div
-          style={{ background: '#111111', borderBottom: '1px solid #1f1f1f', position: 'sticky', top: '64px', zIndex: 49 }}
           className="md:hidden"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#111111',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
-          {/* User row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1f1f1f' }}>
+          {/* Top bar: logo + close */}
+          <div style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid #1f1f1f', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Avatar style={{ height: '36px', width: '36px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: '#C1272D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap style={{ width: '16px', height: '16px', color: 'white' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '17px', fontWeight: 700, color: 'white', letterSpacing: '-0.3px' }}>GRC</span>
+                <span style={{ fontSize: '11px', color: '#666', fontWeight: 500 }}>AI OS</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setMobileOpen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+          </div>
+
+          {/* Nav links */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {visibleItems.map(({ path, label, icon: Icon }, idx) => {
+              const isActive = location.pathname === path;
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    height: '48px',
+                    padding: '0 20px',
+                    textDecoration: 'none',
+                    color: isActive ? '#C1272D' : '#ccc',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '16px',
+                    borderLeft: isActive ? '3px solid #C1272D' : '3px solid transparent',
+                    background: isActive ? 'rgba(193,39,45,0.06)' : 'transparent',
+                    borderBottom: idx < visibleItems.length - 1 ? '1px solid #1a1a1a' : 'none',
+                  }}
+                >
+                  <Icon className="w-5 h-5" style={{ flexShrink: 0 }} />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* User + logout at bottom */}
+          <div style={{ borderTop: '1px solid #1f1f1f', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Avatar style={{ height: '38px', width: '38px' }}>
                 <AvatarImage src={profile?.avatarUrl} />
                 <AvatarFallback style={{ background: '#C1272D', color: 'white', fontSize: '13px', fontWeight: 700 }}>
                   {profile ? getInitials(profile.fullName) : '?'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: 'white', margin: 0 }}>{profile?.fullName}</p>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'white', margin: 0, lineHeight: 1.2 }}>{profile?.fullName}</p>
                 <span style={{ fontSize: '11px', color: role === 'admin' ? '#C1272D' : '#888' }}>
                   {role === 'admin' ? '👑 Admin' : '👤 Colaborador'}
                 </span>
@@ -179,40 +230,12 @@ export function CommandCenterNav() {
             </div>
             <button
               onClick={signOut}
-              style={{ background: 'none', border: '1px solid #2a2a2a', cursor: 'pointer', color: '#888', padding: '7px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+              style={{ background: 'none', border: '1px solid #2a2a2a', cursor: 'pointer', color: '#888', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
             >
               <LogOut style={{ width: '14px', height: '14px' }} />
               Salir
             </button>
           </div>
-
-          {/* Links */}
-          {visibleItems.map(({ path, label, icon: Icon }) => {
-            const isActive = location.pathname === path;
-            return (
-              <Link
-                key={path}
-                to={path}
-                onClick={() => setMobileOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '16px 20px',
-                  textDecoration: 'none',
-                  color: isActive ? '#C1272D' : '#ccc',
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: '15px',
-                  borderLeft: isActive ? '3px solid #C1272D' : '3px solid transparent',
-                  background: isActive ? 'rgba(193,39,45,0.06)' : 'transparent',
-                  transition: 'background 0.15s',
-                }}
-              >
-                <Icon className="w-5 h-5" style={{ flexShrink: 0 }} />
-                {label}
-              </Link>
-            );
-          })}
         </div>
       )}
     </>

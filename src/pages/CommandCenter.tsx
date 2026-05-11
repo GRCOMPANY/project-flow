@@ -136,14 +136,14 @@ export default function CommandCenter() {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
-        <div className="container max-w-7xl mx-auto px-4 py-10">
-          <div className="space-y-14">
+        <div className="container max-w-7xl mx-auto px-4 py-6 md:py-10">
+          <div className="space-y-8 md:space-y-14">
             <div className="space-y-2">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-10 w-72" />
             </div>
             <Skeleton className="h-56 w-full rounded-2xl" />
-            <div className="grid lg:grid-cols-2 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
               <Skeleton className="h-64 rounded-2xl" />
               <Skeleton className="h-64 rounded-2xl" />
             </div>
@@ -158,7 +158,7 @@ export default function CommandCenter() {
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
 
-      <div className="container max-w-7xl mx-auto px-4 py-10 space-y-14">
+      <div className="container max-w-7xl mx-auto px-4 py-6 md:py-10 space-y-8 md:space-y-14">
         {/* Premium Header */}
         <header className="animate-fade-up">
           <div className="flex items-center justify-between">
@@ -174,7 +174,7 @@ export default function CommandCenter() {
                   Actualizado ahora
                 </span>
               </div>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-['Playfair_Display'] font-bold text-foreground tracking-tight">
+              <h1 className="text-2xl md:text-4xl lg:text-5xl font-['Playfair_Display'] font-bold text-foreground tracking-tight">
                 {getGreeting()}, {profile?.fullName?.split(' ')[0]}
               </h1>
             </div>
@@ -196,7 +196,7 @@ export default function CommandCenter() {
         </section>
 
         {/* Two Column Layout for Radar + Metrics */}
-        <div className="grid lg:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
           {radarAlerts.length > 0 && (
             <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
               <AIRadarPanel alerts={radarAlerts} />
