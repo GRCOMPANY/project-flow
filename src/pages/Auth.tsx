@@ -111,7 +111,7 @@ export default function Auth() {
     <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* ── LEFT PANEL ── */}
-      <div style={{ background: '#0f0f0f', borderRight: '1px solid #1f1f1f', width: '50%', minHeight: '100vh', padding: '48px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="hidden lg:flex">
+      <div style={{ background: '#0f0f0f', borderRight: '1px solid #1f1f1f', width: '50%', minHeight: '100vh', padding: '48px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} className="hidden md:flex">
 
         {/* Logo */}
         <button
@@ -166,13 +166,13 @@ export default function Auth() {
       </div>
 
       {/* ── RIGHT PANEL ── */}
-      <div style={{ flex: 1, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 32px' }}>
+      <div style={{ flex: 1, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="px-5 py-10 sm:px-8 md:px-10">
 
         {/* Mobile logo */}
         <button
           onClick={() => navigate('/landing')}
           style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '32px' }}
-          className="lg:hidden"
+          className="md:hidden"
         >
           <div style={{ background: '#C1272D', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: 'white', fontWeight: 800, fontSize: '14px' }}>G</span>
@@ -206,8 +206,9 @@ export default function Auth() {
                   color: activeTab === tab ? '#111' : '#888',
                   border: 'none',
                   borderRadius: '9px',
-                  padding: '9px 16px',
-                  fontSize: '14px',
+                  padding: '10px 16px',
+                  minHeight: '44px',
+                  fontSize: '15px',
                   fontWeight: activeTab === tab ? 600 : 400,
                   cursor: 'pointer',
                   boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
@@ -233,7 +234,7 @@ export default function Auth() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="tu@empresa.com"
-                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '14px' }}
+                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '16px' }}
                   required
                 />
               </div>
@@ -248,7 +249,7 @@ export default function Auth() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ borderColor: '#e5e7eb', paddingRight: '40px', fontSize: '14px' }}
+                    style={{ borderColor: '#e5e7eb', paddingRight: '40px', fontSize: '16px' }}
                     required
                   />
                   <button
@@ -263,7 +264,7 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                style={{ background: isSubmitting ? '#ccc' : '#C1272D', color: 'white', border: 'none', borderRadius: '12px', padding: '13px', fontSize: '15px', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', fontFamily: "'DM Sans', sans-serif" }}
+                style={{ background: isSubmitting ? '#ccc' : '#C1272D', color: 'white', border: 'none', borderRadius: '12px', padding: '14px', minHeight: '48px', fontSize: '16px', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', fontFamily: "'DM Sans', sans-serif" }}
               >
                 {isSubmitting ? 'Ingresando...' : 'Ingresar'}
               </button>
@@ -293,7 +294,7 @@ export default function Auth() {
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Juan Pérez"
-                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '14px' }}
+                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '16px' }}
                   required
                 />
               </div>
@@ -307,7 +308,7 @@ export default function Auth() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="tu@empresa.com"
-                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '14px' }}
+                  style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '16px' }}
                   required
                 />
               </div>
@@ -322,7 +323,7 @@ export default function Auth() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    style={{ borderColor: '#e5e7eb', paddingRight: '40px', fontSize: '14px' }}
+                    style={{ borderColor: '#e5e7eb', paddingRight: '40px', fontSize: '16px' }}
                     required
                   />
                   <button
@@ -349,7 +350,8 @@ export default function Auth() {
                         border: role === r.value ? '2px solid #C1272D' : '2px solid #e5e7eb',
                         background: role === r.value ? 'rgba(193,39,45,0.04)' : 'white',
                         borderRadius: '10px',
-                        padding: '10px 12px',
+                        padding: '12px',
+                        minHeight: '52px',
                         textAlign: 'left',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
@@ -365,7 +367,7 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                style={{ background: isSubmitting ? '#ccc' : '#C1272D', color: 'white', border: 'none', borderRadius: '12px', padding: '13px', fontSize: '15px', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', fontFamily: "'DM Sans', sans-serif" }}
+                style={{ background: isSubmitting ? '#ccc' : '#C1272D', color: 'white', border: 'none', borderRadius: '12px', padding: '14px', minHeight: '48px', fontSize: '16px', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', fontFamily: "'DM Sans', sans-serif" }}
               >
                 {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta gratis'}
               </button>
