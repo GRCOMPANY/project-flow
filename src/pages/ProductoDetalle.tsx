@@ -320,7 +320,7 @@ function OrderModal({ productId, productName, unitPrice, quantity, companyId, wa
 export default function ProductoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { storeName, storeSlogan, logoUrl, instagram, waGenericUrl, waUrl, get } =
+  const { storeName, storeSlogan, logoUrl, instagram, waGenericUrl, waUrl, waNumber, get } =
     useStoreConfig();
 
   const [qty, setQty] = useState(1);
