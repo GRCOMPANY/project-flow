@@ -177,7 +177,7 @@ const MidBanner = ({ waHref }: { waHref: string }) => (
 /* ── Main ── */
 export default function CatalogoPublico() {
   const navigate = useNavigate();
-  const { waNumber, storeName, logoUrl, waGenericUrl, waUrl } = useStoreConfig();
+  const { waNumber, waConfigured, storeName, logoUrl, waGenericUrl, waUrl } = useStoreConfig();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -464,7 +464,10 @@ export default function CatalogoPublico() {
             )}
             <span className="font-black text-white text-lg">{storeName}</span>
           </div>
-          <p className="text-gray-500 text-sm mb-1">📍 Bogotá, Colombia · 📲 +57 322 642 1110</p>
+          {waConfigured
+            ? <p className="text-gray-500 text-sm mb-1">📍 Bogotá, Colombia · 📲 +{waNumber}</p>
+            : <p className="text-yellow-500 text-sm mb-1">⚠️ Configura tu número en Configuración de Tienda</p>
+          }
           <p className="text-gray-600 text-sm italic mb-6">Somos tu proveedor, tú eres el vendedor</p>
           <a
             href={waGenericUrl}

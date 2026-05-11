@@ -7,6 +7,7 @@ import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartCatalog, ProductPriority } from '@/hooks/useSmartCatalog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/hooks/useCompany';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductForm } from '@/components/products/ProductForm';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
@@ -22,6 +23,7 @@ type FilterType = 'all' | ProductPriority | 'sin_creativos' | 'destacados';
 const Products = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { slug: companySlug } = useCompany();
   const { toast } = useToast();
   const { products, loading: productsLoading, addProduct, uploadProductImage, checkSkuAvailable } = useProducts();
   const { sales, loading: salesLoading } = useSales();
@@ -118,7 +120,13 @@ const Products = () => {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={() => window.open("https://mindful-project-tasks.lovable.app/tienda", "_blank")}
+                onClick={() => {
+                  if (!companySlug) {
+                    toast({ title: "Empresa sin slug configurado", description: "Contacta al administrador para configurar el slug de la empresa.", variant: "destructive" });
+                    return;
+                  }
+                  window.open(`https://mindful-project-tasks.vercel.app/tienda/${companySlug}`, "_blank");
+                }}
               >
                 🛍️ Ver tienda
               </Button>
@@ -126,7 +134,7 @@ const Products = () => {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={() => window.open("https://mindful-project-tasks.lovable.app/catalogo", "_blank")}
+                onClick={() => window.open("https://mindful-project-tasks.vercel.app/catalogo", "_blank")}
               >
                 📦 Ver catálogo mayorista
               </Button>

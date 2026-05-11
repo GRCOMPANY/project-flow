@@ -8,6 +8,7 @@ export function useCompany() {
   const { user } = useAuth();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [isGRC, setIsGRC] = useState(false);
+  const [slug, setSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,10 +31,11 @@ export function useCompany() {
         setCompanyId(cu.company_id);
         const { data: co } = await db
           .from('companies')
-          .select('is_grc')
+          .select('is_grc, slug')
           .eq('id', cu.company_id)
           .maybeSingle();
         setIsGRC(co?.is_grc === true);
+        setSlug(co?.slug ?? null);
       }
       setLoading(false);
     };
@@ -41,5 +43,5 @@ export function useCompany() {
     fetchCompany();
   }, [user]);
 
-  return { companyId, isGRC, loading };
+  return { companyId, isGRC, slug, loading };
 }

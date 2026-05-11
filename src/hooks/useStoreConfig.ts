@@ -74,6 +74,7 @@ export function useStoreConfig() {
   const isActive = (key: BrandKey): boolean => get(key) !== "false";
 
   const waNumber      = get("wa_number");
+  const waConfigured  = !!(data as Record<string, string>)['wa_number'];
   const storeName     = get("store_name");
   const storeSlogan   = get("store_slogan");
   const logoUrl       = get("store_logo_url");
@@ -89,6 +90,7 @@ export function useStoreConfig() {
 
   return {
     waNumber,
+    waConfigured,
     storeName,
     storeSlogan,
     logoUrl,
