@@ -1,9 +1,12 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CommandCenterNav } from "@/components/command-center/CommandCenterNav";
+import { OnboardingSectionHeader } from "@/components/onboarding/OnboardingSectionHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useCompany } from "@/hooks/useCompany";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import {
   Store, Image as ImageIcon, Layout, Star,
   Plus, Trash2, Upload, Save, ToggleLeft, ToggleRight,
@@ -78,11 +81,14 @@ const MARCA_DEFAULTS: Record<string, string> = {
 };
 
 function MarcaTab() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { setupOn, nextKey, markStep } = useOnboarding();
   const [saving, setSaving] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>({});
+  const isOnboardingStep = setupOn && nextKey === 'tienda';
 
   const { data: config, isLoading } = useQuery<Record<string, string>>({
     queryKey: ["store-config-marca", companyId],
@@ -103,14 +109,25 @@ function MarcaTab() {
   const set = (key: string, val: string) => setFields((p) => ({ ...p, [key]: val }));
 
   const handleSave = async () => {
+    const storeName = fields["store_name"] ?? config?.["store_name"] ?? "";
+    const waNumber  = fields["wa_number"]  ?? config?.["wa_number"]  ?? "";
+    if (isOnboardingStep && (!storeName.trim() || !waNumber.trim())) {
+      toast({ title: "Nombre de tienda y WhatsApp son requeridos", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const merged = { ...MARCA_DEFAULTS, ...config, ...fields };
       await setConfigBatch(merged, companyId!);
-      toast({ title: "Marca actualizada ✓" });
       qc.invalidateQueries({ queryKey: ["store-config-marca"] });
       qc.invalidateQueries({ queryKey: ["store-brand-config"] });
       qc.invalidateQueries({ queryKey: ["tienda-hero-config"] });
+      if (isOnboardingStep) {
+        markStep('tienda');
+        navigate('/', { state: { lastSaved: 'tienda' } });
+      } else {
+        toast({ title: "Marca actualizada ✓" });
+      }
     } catch {
       toast({ title: "Error al guardar", variant: "destructive" });
     } finally {
@@ -193,14 +210,24 @@ function MarcaTab() {
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm px-8 py-3 rounded-xl transition-colors disabled:opacity-50"
-      >
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Guardar identidad de marca
-      </button>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm px-8 py-3 rounded-xl transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {isOnboardingStep ? 'Guardar y volver al Centro' : 'Guardar identidad de marca'}
+        </button>
+        {isOnboardingStep && (
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 border border-border text-muted-foreground font-medium text-sm px-8 py-3 rounded-xl transition-colors hover:border-foreground"
+          >
+            Después
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1183,14 +1210,17 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
 export default function TiendaConfig() {
   const [tab, setTab] = useState<Tab>("marca");
   const { slug } = useCompany();
+  const { setupOn } = useOnboarding();
 
   return (
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
 
       <div className="container max-w-5xl mx-auto px-4 py-8">
+        <OnboardingSectionHeader paso={2} label="Configurar tu tienda" />
+
         {/* Page header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className={`flex items-center gap-4 mb-8 ${setupOn ? 'mt-0' : ''}`}>
           <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Store className="w-5 h-5 text-primary" />
           </div>

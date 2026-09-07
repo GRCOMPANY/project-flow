@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OnboardingProgressBar } from '@/components/onboarding/OnboardingProgressBar';
 import {
   LogOut,
   Package,
@@ -34,11 +36,20 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/tienda-config', label: 'Tienda', icon: Store, adminOnly: true },
 ];
 
+// Nav items whose step should show a dot during onboarding
+const ONBOARDING_DOT_ROUTES: Record<string, 'tienda' | 'producto' | 'tarea' | 'link'> = {
+  '/tienda-config': 'tienda',
+  '/products':      'producto',
+  '/tasks':         'tarea',
+  '/sales':         'link',
+};
+
 export function CommandCenterNav() {
   const { profile, role, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { newOrderCount, markAsSeen } = useRealtimeOrders();
+  const { steps, setupOn } = useOnboarding();
 
   useEffect(() => {
     if (location.pathname === '/sales') markAsSeen();
@@ -71,6 +82,8 @@ export function CommandCenterNav() {
               {visibleItems.map(({ path, label, icon: Icon }) => {
                 const isActive = location.pathname === path;
                 const showBadge = path === '/sales' && newOrderCount > 0;
+                const stepKey = ONBOARDING_DOT_ROUTES[path];
+                const showOnboardingDot = setupOn && stepKey && !steps[stepKey];
                 return (
                   <Link
                     key={path}
@@ -109,6 +122,9 @@ export function CommandCenterNav() {
                         <span style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#C1272D', color: 'white', borderRadius: '999px', fontSize: '9px', fontWeight: 700, minWidth: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '1.5px solid #111' }}>
                           {newOrderCount > 9 ? '9+' : newOrderCount}
                         </span>
+                      )}
+                      {showOnboardingDot && !showBadge && (
+                        <span style={{ position: 'absolute', top: '3px', right: '-7px', width: '7px', height: '7px', borderRadius: '9999px', background: '#DC2626' }} />
                       )}
                     </span>
                     <span>{label}</span>
@@ -162,6 +178,8 @@ export function CommandCenterNav() {
           </div>
         </div>
       </nav>
+
+      <OnboardingProgressBar />
 
       {/* Mobile fullscreen overlay */}
       {mobileOpen && (

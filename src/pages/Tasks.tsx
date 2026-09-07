@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
+import { OnboardingSectionHeader } from '@/components/onboarding/OnboardingSectionHeader';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskFilters } from '@/components/tasks/TaskFilters';
 import { TaskForm } from '@/components/tasks/TaskForm';
@@ -21,12 +24,16 @@ import { TaskType, Priority, TaskSource, TaskStatus, OperationalTask } from '@/t
 import { cn } from '@/lib/utils';
 
 export default function Tasks() {
-  const { 
-    tasks, 
-    activeTasks, 
-    todayTasks, 
-    stats, 
-    loading, 
+  const navigate = useNavigate();
+  const { setupOn, nextKey, markStep } = useOnboarding();
+  const isOnboardingStep = setupOn && nextKey === 'tarea';
+
+  const {
+    tasks,
+    activeTasks,
+    todayTasks,
+    stats,
+    loading,
     syncing,
     createTask,
     resolveTask,
@@ -35,6 +42,15 @@ export default function Tasks() {
     completeWithOutcome,
     syncNow,
   } = useTasks();
+
+  const handleCreateTask: typeof createTask = async (data) => {
+    const result = await createTask(data);
+    if (result && isOnboardingStep) {
+      markStep('tarea');
+      navigate('/', { state: { lastSaved: 'tarea' } });
+    }
+    return result;
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [closeModalTask, setCloseModalTask] = useState<OperationalTask | null>(null);
@@ -122,8 +138,10 @@ export default function Tasks() {
   return (
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
-      
+
       <div className="container max-w-6xl mx-auto px-4 py-8">
+        <OnboardingSectionHeader paso={4} label="Crear tu primera tarea" />
+
         {/* Header */}
         <header className="mb-8 animate-fade-up">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -329,7 +347,7 @@ export default function Tasks() {
       <TaskForm
         open={showForm}
         onOpenChange={setShowForm}
-        onSubmit={createTask}
+        onSubmit={handleCreateTask}
       />
 
       {/* Task Close Modal */}

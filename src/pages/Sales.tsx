@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSales, OPERATIONAL_STATUS_LABELS } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
@@ -6,8 +7,11 @@ import { useSellers } from '@/hooks/useSellers';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { Sale, SalesChannel, OrderStatus, PaymentStatus, OperationalStatus, SaleType, SaleSource } from '@/types';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
+import { OnboardingSectionHeader } from '@/components/onboarding/OnboardingSectionHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -112,12 +116,16 @@ const OPERATIONAL_STATUS_OPTIONS: { value: OperationalStatus; label: string; ico
 ];
 
 export default function Sales() {
+  const navigate = useNavigate();
   const { sales, loading, addSale, updateSale, deleteSale, updateOperationalStatus, recalculateAllSales } = useSales();
   const { products } = useProducts();
   const { sellers } = useSellers();
   const { creatives } = useCreatives();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const { slug } = useCompany();
+  const { setupOn, nextKey, markStep } = useOnboarding();
+  const isOnboardingStep = setupOn && nextKey === 'link';
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -394,6 +402,11 @@ export default function Sales() {
       await updateSale(editingSale.id, saleData);
     } else {
       await addSale(saleData);
+      if (isOnboardingStep) {
+        markStep('link');
+        navigate('/', { state: { lastSaved: 'link' } });
+        return;
+      }
     }
 
     setShowForm(false);
@@ -427,11 +440,70 @@ export default function Sales() {
     );
   }
 
+  const handleShareLink = () => {
+    const url = slug ? `https://mindful-project-tasks.vercel.app/tienda/${slug}` : window.location.origin + '/tienda';
+    navigator.clipboard.writeText(url).catch(() => {});
+    if (isOnboardingStep) {
+      markStep('link');
+      navigate('/', { state: { lastSaved: 'link' } });
+    } else {
+      toast({ title: 'Link copiado ✓' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
-      
+
       <main className="container mx-auto px-4 py-6 max-w-6xl">
+        <OnboardingSectionHeader paso={5} label="Compartir el link y registrar tu primera venta" />
+
+        {/* Onboarding: share link banner */}
+        {isOnboardingStep && (
+          <div style={{
+            background: '#FAFAFA',
+            border: '1px solid #E5E5E5',
+            borderRadius: '12px',
+            padding: '20px 24px',
+            marginBottom: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#6B7280', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                TU LINK PÚBLICO
+              </p>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#111111', wordBreak: 'break-all' }}>
+                {slug ? `mindful-project-tasks.vercel.app/tienda/${slug}` : 'Sin slug — configura tu tienda primero'}
+              </span>
+            </div>
+            <button
+              onClick={handleShareLink}
+              disabled={!slug}
+              style={{
+                height: '48px',
+                padding: '0 24px',
+                borderRadius: '8px',
+                background: '#DC2626',
+                color: '#fff',
+                fontSize: '15px',
+                fontWeight: 700,
+                border: 'none',
+                cursor: slug ? 'pointer' : 'not-allowed',
+                opacity: slug ? 1 : 0.5,
+                transition: 'background 120ms',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => slug && (e.currentTarget.style.background = '#B91C1C')}
+              onMouseLeave={e => slug && (e.currentTarget.style.background = '#DC2626')}
+            >
+              Compartir por WhatsApp
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

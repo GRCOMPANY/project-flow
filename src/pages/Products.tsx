@@ -8,9 +8,11 @@ import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartCatalog, ProductPriority } from '@/hooks/useSmartCatalog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/hooks/useCompany';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductForm } from '@/components/products/ProductForm';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
+import { OnboardingSectionHeader } from '@/components/onboarding/OnboardingSectionHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +27,19 @@ const Products = () => {
   const { isAdmin } = useAuth();
   const { slug: companySlug } = useCompany();
   const { toast } = useToast();
+  const { setupOn, nextKey, markStep } = useOnboarding();
   const { products, loading: productsLoading, addProduct, uploadProductImage, checkSkuAvailable } = useProducts();
+
+  const isOnboardingStep = setupOn && nextKey === 'producto';
+
+  const handleAddProduct: typeof addProduct = async (data) => {
+    const result = await addProduct(data);
+    if (isOnboardingStep) {
+      markStep('producto');
+      navigate('/', { state: { lastSaved: 'producto' } });
+    }
+    return result;
+  };
   const { sales, loading: salesLoading } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
   
@@ -107,6 +121,8 @@ const Products = () => {
       <CommandCenterNav />
 
       <div className="container max-w-6xl mx-auto px-4 py-8">
+        <OnboardingSectionHeader paso={3} label="Subir tu primer producto" />
+
         {/* Header */}
         <header className="mb-6 animate-fade-up">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -282,7 +298,7 @@ const Products = () => {
       <ProductForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        onSubmit={addProduct}
+        onSubmit={handleAddProduct}
         onUploadImage={uploadProductImage}
         checkSkuAvailable={checkSkuAvailable}
         existingCategories={existingCategories}

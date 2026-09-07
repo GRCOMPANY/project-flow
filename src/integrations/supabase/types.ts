@@ -21,6 +21,7 @@ export type Database = {
           is_grc: boolean
           linked_to_grc: boolean
           name: string
+          onboarding: Json | null
           owner_user_id: string
           plan: string
           updated_at: string
@@ -31,6 +32,7 @@ export type Database = {
           is_grc?: boolean
           linked_to_grc?: boolean
           name: string
+          onboarding?: Json | null
           owner_user_id: string
           plan?: string
           updated_at?: string
@@ -41,6 +43,7 @@ export type Database = {
           is_grc?: boolean
           linked_to_grc?: boolean
           name?: string
+          onboarding?: Json | null
           owner_user_id?: string
           plan?: string
           updated_at?: string

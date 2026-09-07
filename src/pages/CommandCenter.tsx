@@ -1,13 +1,18 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
 import { useSmartCatalog } from '@/hooks/useSmartCatalog';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useOnboarding, NonEmpresaKey } from '@/hooks/useOnboarding';
 import { useToast } from '@/hooks/use-toast';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
+import { OnboardingHiddenStrip } from '@/components/onboarding/OnboardingHiddenStrip';
+import { OnboardingCelebration } from '@/components/onboarding/OnboardingCelebration';
+import { OnboardingConfirmStrip } from '@/components/onboarding/OnboardingConfirmStrip';
 import { HeroFinancialCard } from '@/components/command-center/HeroFinancialCard';
 import { AIRadarPanel, generateRadarAlerts } from '@/components/command-center/AIRadarPanel';
 import { MetricsDashboard } from '@/components/command-center/MetricsDashboard';
@@ -24,8 +29,15 @@ function daysSince(dateStr: string): number {
 
 export default function CommandCenter() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { setupOn, isDismissed, isCompleted, nextKey, loading: onboardingLoading } = useOnboarding();
+
+  const lastSaved = (location.state as { lastSaved?: NonEmpresaKey } | null)?.lastSaved ?? null;
+  const [confirmDismissed, setConfirmDismissed] = useState(false);
+
+  const showConfirm = !!lastSaved && !confirmDismissed && setupOn;
   const { products, loading: productsLoading } = useProducts();
   const { sales, loading: salesLoading } = useSales();
   const { creatives, loading: creativesLoading } = useCreatives();
@@ -152,7 +164,7 @@ export default function CommandCenter() {
     return 'Buenas noches';
   };
 
-  if (loading) {
+  if (loading || onboardingLoading) {
     return (
       <div className="min-h-screen bg-background">
         <CommandCenterNav />
@@ -174,6 +186,115 @@ export default function CommandCenter() {
     );
   }
 
+  // ── PUESTA EN MARCHA MODE ────────────────────────────────────────
+  if (setupOn || isCompleted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <CommandCenterNav />
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 16px 48px', display: 'flex', flexDirection: 'column', gap: '44px' }}>
+
+          {/* Onboarding header */}
+          <header>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{
+                display: 'inline-block',
+                width: '10px',
+                height: '10px',
+                borderRadius: '9999px',
+                background: '#DC2626',
+                animation: 'pulseDot 2s ease-in-out infinite',
+              }} />
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', letterSpacing: '0.15em', fontFamily: 'ui-monospace, monospace' }}>
+                PUESTA EN MARCHA
+              </span>
+              <span style={{ fontSize: '12px', color: '#6B7280' }}>•</span>
+              <span style={{ fontSize: '12px', color: '#6B7280' }}>Día 1 de tu empresa</span>
+            </div>
+            <h1 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontWeight: 700,
+              fontSize: 'clamp(28px, 5vw, 48px)',
+              color: '#111111',
+              letterSpacing: '-0.02em',
+            }}>
+              Bienvenido, {profile?.fullName?.split(' ')[0]}
+            </h1>
+          </header>
+
+          {/* Checklist block */}
+          <section>
+            {isCompleted ? (
+              <OnboardingCelebration onClose={() => {}} />
+            ) : isDismissed ? (
+              <>
+                {showConfirm && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <OnboardingConfirmStrip
+                      savedKey={lastSaved!}
+                      nextKey={nextKey}
+                      onDismiss={() => {
+                        setConfirmDismissed(true);
+                        navigate('/', { replace: true, state: {} });
+                      }}
+                    />
+                  </div>
+                )}
+                <OnboardingHiddenStrip />
+              </>
+            ) : (
+              <>
+                {showConfirm && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <OnboardingConfirmStrip
+                      savedKey={lastSaved!}
+                      nextKey={nextKey}
+                      onDismiss={() => {
+                        setConfirmDismissed(true);
+                        navigate('/', { replace: true, state: {} });
+                      }}
+                    />
+                  </div>
+                )}
+                <OnboardingChecklist companyName={profile?.fullName?.split(' ')[0]} />
+              </>
+            )}
+          </section>
+
+          {/* Blocked metrics */}
+          <section style={{ opacity: 0.55 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Activity style={{ width: '18px', height: '18px', color: '#9CA3AF' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#111111', letterSpacing: '0.05em' }}>MÉTRICAS DEL MES</p>
+                <p style={{ fontSize: '12px', color: '#6B7280' }}>Se activan con tu primera venta</p>
+              </div>
+              <div style={{ flex: 1, height: '1px', background: '#E5E5E5', marginLeft: '8px' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+              {['Ventas del mes', 'Margen promedio', 'Pendiente cobro'].map(label => (
+                <div key={label} style={{ border: '1px dashed #E5E5E5', borderRadius: '16px', padding: '24px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: '#F5F5F5', marginBottom: '12px' }} />
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', letterSpacing: '0.08em', marginBottom: '8px' }}>{label.toUpperCase()}</p>
+                  <p style={{ fontSize: '36px', fontWeight: 700, color: '#9CA3AF', fontFeatureSettings: "'tnum'" }}>—</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <style>{`
+          @keyframes pulseDot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ── NORMAL DASHBOARD MODE ────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
       <CommandCenterNav />
@@ -223,8 +344,8 @@ export default function CommandCenter() {
             </section>
           )}
 
-          <section 
-            className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`} 
+          <section
+            className={`animate-fade-up ${radarAlerts.length === 0 ? 'lg:col-span-2' : ''}`}
             style={{ animationDelay: '0.15s' }}
           >
             <MetricsDashboard sales={sales} />
