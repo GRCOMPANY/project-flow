@@ -84,6 +84,7 @@ export default function Registro() {
     });
 
     if (rpcError) {
+      console.error('[Registro] register_company RPC error:', rpcError);
       toast.error('Tu cuenta fue creada pero hubo un error al crear la empresa. Contacta soporte.');
       setSubmitting(false);
       return;
