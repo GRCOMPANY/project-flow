@@ -37,6 +37,8 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<Role>('admin');
+  const [companyName, setCompanyName] = useState('');
+  const [waNumber, setWaNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -85,8 +87,16 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs(true)) return;
+    if (role === 'admin') {
+      if (!companyName.trim()) { toast.error('El nombre de la empresa es requerido'); return; }
+      if (!waNumber.trim())    { toast.error('El WhatsApp es requerido'); return; }
+    }
     setIsSubmitting(true);
-    const { error } = await signUp(email, password, fullName, role);
+    const { error } = await signUp(
+      email, password, fullName, role,
+      role === 'admin' ? companyName.trim() : undefined,
+      role === 'admin' ? waNumber.trim()    : undefined,
+    );
     setIsSubmitting(false);
     if (error) {
       if (error.message.includes('User already registered')) {
@@ -364,6 +374,36 @@ export default function Auth() {
                   ))}
                 </div>
               </div>
+              {role === 'admin' && (
+                <>
+                  <div>
+                    <Label htmlFor="register-company" style={{ color: '#374151', fontWeight: 500, fontSize: '13px' }}>
+                      Nombre de la empresa
+                    </Label>
+                    <Input
+                      id="register-company"
+                      type="text"
+                      value={companyName}
+                      onChange={e => setCompanyName(e.target.value)}
+                      placeholder="Mi Empresa S.A.S."
+                      style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '16px' }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="register-wa" style={{ color: '#374151', fontWeight: 500, fontSize: '13px' }}>
+                      WhatsApp (con código de país)
+                    </Label>
+                    <Input
+                      id="register-wa"
+                      type="tel"
+                      value={waNumber}
+                      onChange={e => setWaNumber(e.target.value)}
+                      placeholder="573001234567"
+                      style={{ marginTop: '6px', borderColor: '#e5e7eb', fontSize: '16px' }}
+                    />
+                  </div>
+                </>
+              )}
               <button
                 type="submit"
                 disabled={isSubmitting}

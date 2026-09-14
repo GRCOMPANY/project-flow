@@ -50,12 +50,17 @@ export default function Registro() {
 
     setSubmitting(true);
 
-    // 1 — Crear usuario en Supabase Auth
+    // 1 — Crear usuario en Supabase Auth (el trigger handle_new_user crea la empresa)
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        data: { full_name: nombre.trim(), role: 'admin' },
+        data: {
+          full_name:    nombre.trim(),
+          role:         'admin',
+          company_name: empresa.trim(),
+          wa_number:    whatsapp.trim(),
+        },
       },
     });
 
@@ -72,20 +77,6 @@ export default function Registro() {
     // 2 — Sin sesión = confirmación de email pendiente
     if (!data.session) {
       setPendingConfirm(true);
-      setSubmitting(false);
-      return;
-    }
-
-    // 3 — Crear empresa vía RPC (SECURITY DEFINER)
-    const { error: rpcError } = await (supabase as any).rpc('register_company', {
-      p_user_id:   data.user!.id,
-      p_name:      empresa.trim(),
-      p_wa_number: whatsapp.trim(),
-    });
-
-    if (rpcError) {
-      console.error('[Registro] register_company RPC error:', rpcError);
-      toast.error('Tu cuenta fue creada pero hubo un error al crear la empresa. Contacta soporte.');
       setSubmitting(false);
       return;
     }
@@ -115,7 +106,7 @@ export default function Registro() {
             <h2 className="text-2xl font-bold text-foreground mb-2">Confirma tu email</h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
               Te enviamos un enlace de confirmación a <strong>{form.email}</strong>.
-              Cuando confirmes, inicia sesión y tu empresa quedará lista.
+              Tu empresa ya fue creada. Confirma tu email e inicia sesión para empezar.
             </p>
           </div>
           <Button variant="outline" onClick={() => navigate('/auth')} className="w-full">

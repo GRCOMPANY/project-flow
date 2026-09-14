@@ -105,7 +105,7 @@ async function fetchAndReconcile(companyId: string): Promise<RawOnboarding | nul
 }
 
 export function useOnboarding() {
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -164,7 +164,7 @@ export function useOnboarding() {
     setupOn,
     isDismissed,
     isCompleted,
-    loading: isLoading,
+    loading: isLoading || companyLoading,
     markStep,
     dismiss,
     show,

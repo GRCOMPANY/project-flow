@@ -10,7 +10,7 @@ interface AuthContextType {
   role: Role | null;
   isAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: Role) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, role: Role, companyName?: string, waNumber?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -88,9 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, selectedRole: Role) => {
+  const signUp = async (email: string, password: string, fullName: string, selectedRole: Role, companyName?: string, waNumber?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -98,7 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          role: selectedRole,
+          role:      selectedRole,
+          ...(companyName ? { company_name: companyName } : {}),
+          ...(waNumber    ? { wa_number:    waNumber    } : {}),
         },
       },
     });
