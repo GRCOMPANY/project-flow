@@ -95,10 +95,13 @@ async function fetchAndReconcile(companyId: string): Promise<RawOnboarding | nul
   };
 
   if (changed) {
-    // Fire-and-forget background write — no await to unblock UI
-    db.from('companies')
+    // Debe esperarse: los query builders de supabase-js son thenables y no
+    // emiten la peticion HTTP si nadie los consume.
+    const { error } = await db
+      .from('companies')
       .update({ onboarding: reconciled })
       .eq('id', companyId);
+    if (error) console.error('onboarding: fallo al reconciliar', error);
   }
 
   return reconciled;
@@ -116,19 +119,28 @@ export function useOnboarding() {
   });
 
   const writeOptimistic = useCallback(
-    (next: RawOnboarding) => {
+    async (next: RawOnboarding) => {
+      const prev = qc.getQueryData<RawOnboarding | null>(['onboarding', companyId]);
       qc.setQueryData(['onboarding', companyId], next);
-      db.from('companies').update({ onboarding: next }).eq('id', companyId);
+      const { error } = await db
+        .from('companies')
+        .update({ onboarding: next })
+        .eq('id', companyId);
+      if (error) {
+        // Revertir el optimismo si el write no llego a la base
+        console.error('onboarding: fallo al guardar el paso', error);
+        qc.setQueryData(['onboarding', companyId], prev);
+      }
     },
     [companyId, qc],
   );
 
   const markStep = useCallback(
-    (key: NonEmpresaKey) => {
+    async (key: NonEmpresaKey) => {
       if (!data) return;
       const newSteps = { ...data.steps, [key]: true };
       const count = Object.values(newSteps).filter(Boolean).length;
-      writeOptimistic({
+      await writeOptimistic({
         steps: newSteps,
         completedAt: count === 5 ? new Date().toISOString() : data.completedAt,
         dismissed: data.dismissed,
@@ -137,14 +149,14 @@ export function useOnboarding() {
     [data, writeOptimistic],
   );
 
-  const dismiss = useCallback(() => {
+  const dismiss = useCallback(async () => {
     if (!data) return;
-    writeOptimistic({ ...data, dismissed: true });
+    await writeOptimistic({ ...data, dismissed: true });
   }, [data, writeOptimistic]);
 
-  const show = useCallback(() => {
+  const show = useCallback(async () => {
     if (!data) return;
-    writeOptimistic({ ...data, dismissed: false });
+    await writeOptimistic({ ...data, dismissed: false });
   }, [data, writeOptimistic]);
 
   const steps = data?.steps ?? DEFAULT_STEPS;

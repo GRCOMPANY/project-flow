@@ -46,7 +46,7 @@ export default function Tasks() {
   const handleCreateTask: typeof createTask = async (data) => {
     const result = await createTask(data);
     if (result && isOnboardingStep) {
-      markStep('tarea');
+      await markStep('tarea');
       navigate('/', { state: { lastSaved: 'tarea' } });
     }
     return result;

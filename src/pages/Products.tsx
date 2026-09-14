@@ -34,8 +34,8 @@ const Products = () => {
 
   const handleAddProduct: typeof addProduct = async (data) => {
     const result = await addProduct(data);
-    if (isOnboardingStep) {
-      markStep('producto');
+    if (result && isOnboardingStep) {
+      await markStep('producto');
       navigate('/', { state: { lastSaved: 'producto' } });
     }
     return result;

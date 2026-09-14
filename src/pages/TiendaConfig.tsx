@@ -71,13 +71,15 @@ const MARCA_KEYS = [
   "store_instagram", "store_logo_url", "color_primario",
 ] as const;
 
+// Neutros: la identidad de cada empresa vive en store_config, no en el codigo.
+// color_primario conserva un valor porque <input type="color"> lo exige.
 const MARCA_DEFAULTS: Record<string, string> = {
-  store_name:      "GRC IMPORTACIONES",
-  store_slogan:    "Lo mejor del mundo",
-  wa_number:       "573226421110",
-  store_instagram: "@grc.importaciones",
+  store_name:      "",
+  store_slogan:    "",
+  wa_number:       "",
+  store_instagram: "",
   store_logo_url:  "",
-  color_primario:  "#C1272D",
+  color_primario:  "#1A1A1A",
 };
 
 function MarcaTab() {
@@ -109,21 +111,31 @@ function MarcaTab() {
   const set = (key: string, val: string) => setFields((p) => ({ ...p, [key]: val }));
 
   const handleSave = async () => {
-    const storeName = fields["store_name"] ?? config?.["store_name"] ?? "";
-    const waNumber  = fields["wa_number"]  ?? config?.["wa_number"]  ?? "";
+    // Validar exactamente lo mismo que pinta el input (get), no otra cadena.
+    const storeName = get("store_name");
+    const waNumber  = get("wa_number");
     if (isOnboardingStep && (!storeName.trim() || !waNumber.trim())) {
       toast({ title: "Nombre de tienda y WhatsApp son requeridos", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      const merged = { ...MARCA_DEFAULTS, ...config, ...fields };
-      await setConfigBatch(merged, companyId!);
+      // Guardar solo lo que la empresa configuro. Un campo tocado se guarda
+      // aunque quede vacio (permite borrar); los defaults nunca se vuelcan.
+      const merged: Record<string, string> = {};
+      for (const key of MARCA_KEYS) {
+        const touched = key in fields;
+        const value = (touched ? fields[key] : (config?.[key] ?? "")).trim();
+        if (touched || value) merged[key] = value;
+      }
+      if (Object.keys(merged).length > 0) {
+        await setConfigBatch(merged, companyId!);
+      }
       qc.invalidateQueries({ queryKey: ["store-config-marca"] });
       qc.invalidateQueries({ queryKey: ["store-brand-config"] });
       qc.invalidateQueries({ queryKey: ["tienda-hero-config"] });
       if (isOnboardingStep) {
-        markStep('tienda');
+        await markStep('tienda');
         navigate('/', { state: { lastSaved: 'tienda' } });
       } else {
         toast({ title: "Marca actualizada ✓" });
@@ -140,12 +152,12 @@ function MarcaTab() {
   }
 
   const FIELD_DEFS = [
-    { key: "store_name",      label: "Nombre de la tienda",   placeholder: "GRC IMPORTACIONES",          type: "text" },
-    { key: "store_slogan",    label: "Slogan",                 placeholder: "Lo mejor del mundo",         type: "text" },
-    { key: "wa_number",       label: "Número WhatsApp",        placeholder: "573226421110",               type: "text", hint: "Con código de país, sin + ni espacios" },
-    { key: "store_instagram", label: "Instagram",              placeholder: "@grc.importaciones",         type: "text" },
+    { key: "store_name",      label: "Nombre de la tienda",   placeholder: "Ej: Mi Tienda",              type: "text", required: true },
+    { key: "store_slogan",    label: "Slogan",                 placeholder: "Ej: Calidad que se nota",    type: "text" },
+    { key: "wa_number",       label: "Número WhatsApp",        placeholder: "Ej: 573001234567",           type: "text", hint: "Con código de país, sin + ni espacios", required: true },
+    { key: "store_instagram", label: "Instagram",              placeholder: "Ej: @mitienda",              type: "text" },
     { key: "store_logo_url",  label: "URL del logo",           placeholder: "https://…/logo.png",         type: "url",  hint: "Déjalo vacío para usar la inicial del nombre" },
-    { key: "color_primario",  label: "Color primario",         placeholder: "#C1272D",                    type: "color" },
+    { key: "color_primario",  label: "Color primario",         placeholder: "#1A1A1A",                    type: "color" },
   ];
 
   return (
@@ -154,17 +166,17 @@ function MarcaTab() {
       <div className="rounded-2xl p-6 border border-border bg-card flex items-center gap-4 flex-wrap">
         <div
           className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0"
-          style={{ background: get("color_primario") || "#C1272D" }}
+          style={{ background: get("color_primario") || "#1A1A1A" }}
         >
           {get("store_logo_url") ? (
             <img src={get("store_logo_url")} alt="" className="w-full h-full object-contain rounded-xl" />
           ) : (
-            (get("store_name") || "G").charAt(0)
+            (get("store_name") || "?").charAt(0)
           )}
         </div>
         <div>
           <p className="font-black text-foreground text-base leading-none">{get("store_name") || "Nombre de tienda"}</p>
-          <p className="text-xs font-bold uppercase tracking-widest mt-0.5" style={{ color: get("color_primario") || "#C1272D" }}>
+          <p className="text-xs font-bold uppercase tracking-widest mt-0.5" style={{ color: get("color_primario") || "#1A1A1A" }}>
             {get("store_slogan") || "Slogan"}
           </p>
         </div>
@@ -178,12 +190,13 @@ function MarcaTab() {
             <div key={f.key}>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
                 {f.label}
+                {f.required && <span className="text-destructive ml-1">*</span>}
               </label>
               {f.type === "color" ? (
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
-                    value={get(f.key) || "#C1272D"}
+                    value={get(f.key) || "#1A1A1A"}
                     onChange={(e) => set(f.key, e.target.value)}
                     className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-background p-0.5"
                   />
@@ -240,13 +253,14 @@ function HeroTab() {
   const { companyId } = useCompany();
   const [saving, setSaving] = useState(false);
 
+  // Neutros: el copy del hero es de cada empresa, se edita abajo.
   const DEFAULTS = {
-    hero_titulo_1: "Lo mejor del mundo,",
-    hero_titulo_2: "primero en Colombia.",
-    hero_badge: "Lo más viral en Colombia 2026",
-    hero_subtexto: "Productos innovadores que transforman tu hogar. Los descubrimos antes que todos.",
-    hero_boton_1: "Descubrir productos",
-    hero_boton_2: "Hablar con George",
+    hero_titulo_1: "",
+    hero_titulo_2: "",
+    hero_badge: "",
+    hero_subtexto: "",
+    hero_boton_1: "",
+    hero_boton_2: "",
   };
 
   const { data: config, isLoading } = useQuery<Record<string, string>>({
@@ -272,7 +286,15 @@ function HeroTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setConfigBatch({ ...DEFAULTS, ...config, ...fields }, companyId!);
+      const toSave: Record<string, string> = {};
+      for (const key of Object.keys(DEFAULTS)) {
+        const touched = key in fields;
+        const value = (touched ? fields[key] : (config?.[key] ?? "")).trim();
+        if (touched || value) toSave[key] = value;
+      }
+      if (Object.keys(toSave).length > 0) {
+        await setConfigBatch(toSave, companyId!);
+      }
       toast({ title: "Hero actualizado ✓" });
     } catch {
       toast({ title: "Error al guardar", variant: "destructive" });
@@ -289,22 +311,22 @@ function HeroTab() {
     {
       title: "Títulos del hero",
       fields: [
-        { key: "hero_titulo_1", label: "Línea 1", placeholder: "Lo mejor del mundo," },
-        { key: "hero_titulo_2", label: "Línea 2 (roja)", placeholder: "primero en Colombia." },
+        { key: "hero_titulo_1", label: "Línea 1", placeholder: "Ej: Lo mejor para tu casa," },
+        { key: "hero_titulo_2", label: "Línea 2 (roja)", placeholder: "Ej: al mejor precio." },
       ],
     },
     {
       title: "Badge y subtexto",
       fields: [
-        { key: "hero_badge",    label: "Texto del badge superior", placeholder: "Lo más viral en Colombia 2026" },
-        { key: "hero_subtexto", label: "Subtexto / descripción",   placeholder: "Productos innovadores..." },
+        { key: "hero_badge",    label: "Texto del badge superior", placeholder: "Ej: Novedades de la temporada" },
+        { key: "hero_subtexto", label: "Subtexto / descripción",   placeholder: "Ej: Describe en una línea qué vendes" },
       ],
     },
     {
       title: "Botones",
       fields: [
-        { key: "hero_boton_1", label: "Botón principal (rojo)", placeholder: "Descubrir productos" },
-        { key: "hero_boton_2", label: "Botón secundario",       placeholder: "Hablar con George" },
+        { key: "hero_boton_1", label: "Botón principal (rojo)", placeholder: "Ej: Ver productos" },
+        { key: "hero_boton_2", label: "Botón secundario",       placeholder: "Ej: Hablar por WhatsApp" },
       ],
     },
   ];
@@ -382,7 +404,7 @@ const SECCIONES: SeccionDef[] = [
     label: "Barra de anuncio",
     desc: "Franja roja superior con texto y cuenta regresiva",
     fields: [
-      { key: "topbar_texto", label: "Texto del anuncio", placeholder: "Lo mejor del mundo, primero en Colombia · Envío gratis a Bogotá" },
+      { key: "topbar_texto", label: "Texto del anuncio", placeholder: "Ej: Envío gratis esta semana" },
     ],
   },
   {
@@ -400,8 +422,8 @@ const SECCIONES: SeccionDef[] = [
     label: "Storytelling",
     desc: "Bloque de historia de marca con frase y texto",
     fields: [
-      { key: "story_titulo", label: "Frase principal",  placeholder: '"En GRC no vendemos productos comunes."' },
-      { key: "story_texto",  label: "Texto secundario", placeholder: "Buscamos lo más innovador del mundo..." },
+      { key: "story_titulo", label: "Frase principal",  placeholder: "Ej: la frase que define tu marca" },
+      { key: "story_texto",  label: "Texto secundario", placeholder: "Ej: dos líneas sobre por qué existes" },
     ],
   },
   {
@@ -416,14 +438,15 @@ const SECCIONES: SeccionDef[] = [
   },
 ];
 
+// Los flags de visibilidad conservan default; el copy es de cada empresa.
 const SECCIONES_DEFAULTS: Record<string, string> = {
   seccion_topbar_activa:       "true",
-  topbar_texto:                "Lo mejor del mundo, primero en Colombia · Envío gratis a Bogotá",
+  topbar_texto:                "",
   seccion_hero_activa:         "true",
   seccion_trust_activa:        "true",
   seccion_storytelling_activa: "true",
-  story_titulo:                '"En GRC no vendemos productos comunes."',
-  story_texto:                 "Buscamos lo más innovador del mundo para que tú lo tengas primero en Colombia.",
+  story_titulo:                "",
+  story_texto:                 "",
   seccion_videos_activa:       "true",
   seccion_testimonios_activa:  "true",
   productos_limite:            "8",
@@ -473,13 +496,18 @@ function SeccionesTab() {
     setSaving(true);
     try {
       const toSave: Record<string, string> = {};
+      const collect = (key: string) => {
+        const touched = key in fields;
+        const value = (touched ? fields[key] : (config[key] ?? "")).trim();
+        if (touched || value) toSave[key] = value;
+      };
       for (const sec of SECCIONES) {
-        for (const f of sec.fields ?? []) {
-          toSave[f.key] = get(f.key);
-        }
+        for (const f of sec.fields ?? []) collect(f.key);
       }
-      toSave["productos_limite"] = get("productos_limite");
-      await setConfigBatch(toSave, companyId!);
+      collect("productos_limite");
+      if (Object.keys(toSave).length > 0) {
+        await setConfigBatch(toSave, companyId!);
+      }
       toast({ title: "Secciones guardadas ✓" });
       qc.invalidateQueries({ queryKey: ["store-config-secciones"] });
       qc.invalidateQueries({ queryKey: ["tienda-hero-config"] });

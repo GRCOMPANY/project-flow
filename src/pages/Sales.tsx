@@ -401,9 +401,9 @@ export default function Sales() {
     if (editingSale) {
       await updateSale(editingSale.id, saleData);
     } else {
-      await addSale(saleData);
-      if (isOnboardingStep) {
-        markStep('link');
+      const created = await addSale(saleData);
+      if (created && isOnboardingStep) {
+        await markStep('link');
         navigate('/', { state: { lastSaved: 'link' } });
         return;
       }
@@ -440,11 +440,11 @@ export default function Sales() {
     );
   }
 
-  const handleShareLink = () => {
+  const handleShareLink = async () => {
     const url = slug ? `https://mindful-project-tasks.vercel.app/tienda/${slug}` : window.location.origin + '/tienda';
     navigator.clipboard.writeText(url).catch(() => {});
     if (isOnboardingStep) {
-      markStep('link');
+      await markStep('link');
       navigate('/', { state: { lastSaved: 'link' } });
     } else {
       toast({ title: 'Link copiado ✓' });

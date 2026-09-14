@@ -1,6 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
+import { useOnboarding, type NonEmpresaKey } from '@/hooks/useOnboarding';
+
+// Etiqueta de cada paso; se muestran solo los realmente completados.
+const STEP_LABELS: { key: NonEmpresaKey; label: string }[] = [
+  { key: 'tienda',   label: 'Tienda configurada' },
+  { key: 'producto', label: 'Primer producto publicado' },
+  { key: 'tarea',    label: 'Primera tarea creada' },
+  { key: 'link',     label: 'Radar IA encendido' },
+];
 
 interface Props {
   onClose: () => void;
@@ -9,6 +18,8 @@ interface Props {
 export function OnboardingCelebration({ onClose }: Props) {
   const navigate = useNavigate();
   const { slug } = useCompany();
+  const { steps } = useOnboarding();
+  const completedLabels = STEP_LABELS.filter(s => steps[s.key]).map(s => s.label);
   const storeUrl = slug
     ? `grc.app/tienda/${slug}`
     : 'grc.app/tienda/mi-tienda';
@@ -146,11 +157,7 @@ export function OnboardingCelebration({ onClose }: Props) {
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {[
-            'Tienda configurada',
-            '1 producto publicado',
-            'Radar IA encendido',
-          ].map(line => (
+          {completedLabels.map(line => (
             <div key={line} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ color: '#DC2626', fontSize: '14px', fontWeight: 700 }}>✓</span>
               <span style={{ fontSize: '14px', color: '#A3A3A3' }}>{line}</span>
