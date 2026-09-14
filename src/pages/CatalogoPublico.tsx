@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStoreConfig } from "@/hooks/useStoreConfig";
 import { Search, Package, Plus, Minus, TrendingUp, Users, Star, ChevronRight, CheckCircle2 } from "lucide-react";
 
+// products_seller_view y companies no estan en los tipos generados (types.ts desactualizado)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 const WA_ICON = (
   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current flex-shrink-0">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
@@ -34,13 +38,14 @@ const profitPct = (p: CatalogProduct) => {
 
 /* ── CatalogCard ── */
 const CatalogCard = ({
-  product, qty, onQty, onWA, onDetail,
+  product, qty, onQty, onWA, onDetail, waReady,
 }: {
   product: CatalogProduct;
   qty: number;
   onQty: (v: number) => void;
   onWA: () => void;
   onDetail: () => void;
+  waReady: boolean;
 }) => {
   const gain = profitAmt(product);
   const pct = profitPct(product);
@@ -139,14 +144,16 @@ const CatalogCard = ({
         </div>
 
         {/* CTA */}
-        <button
-          onClick={onWA}
-          className="w-full flex items-center justify-center gap-2 font-bold text-sm py-3.5 rounded-2xl text-white transition-all hover:shadow-lg hover:scale-[1.01]"
-          style={{ background: "#25D366" }}
-        >
-          {WA_ICON}
-          Pedir {qty} {qty === 1 ? "unidad" : "unidades"}
-        </button>
+        {waReady && (
+          <button
+            onClick={onWA}
+            className="w-full flex items-center justify-center gap-2 font-bold text-sm py-3.5 rounded-2xl text-white transition-all hover:shadow-lg hover:scale-[1.01]"
+            style={{ background: "#25D366" }}
+          >
+            {WA_ICON}
+            Pedir {qty} {qty === 1 ? "unidad" : "unidades"}
+          </button>
+        )}
       </div>
     </article>
   );
@@ -169,7 +176,7 @@ const MidBanner = ({ waHref }: { waHref: string }) => (
       className="flex-shrink-0 flex items-center gap-2 bg-[#C1272D] text-white font-bold text-sm px-6 py-3.5 rounded-2xl hover:bg-[#B71C1C] transition-colors shadow-sm"
     >
       {WA_ICON}
-      Hablar con George
+      Hablar por WhatsApp
     </a>
   </div>
 );
@@ -182,18 +189,38 @@ export default function CatalogoPublico() {
   const [category, setCategory] = useState("Todos");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ["catalogo-publico"],
+  // El catalogo es publico y no lleva slug: la empresa se resuelve por el flag is_grc.
+  // Si no hay empresa resuelta no se muestran productos de nadie.
+  const { data: storeCompany, isLoading: companyLoading } = useQuery({
+    queryKey: ["catalogo-company"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await db
+        .from("companies")
+        .select("id")
+        .eq("is_grc", true)
+        .eq("activo", true)
+        .maybeSingle();
+      return (data as { id: string } | null) ?? null;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ["catalogo-publico", storeCompany?.id ?? null],
+    enabled: !!storeCompany?.id,
+    queryFn: async () => {
+      const { data, error } = await db
         .from("products_seller_view")
         .select("id, name, image_url, images, wholesale_price, retail_price, category, description")
         .eq("status", "activo")
+        .eq("company_id", storeCompany!.id)
         .order("name");
       if (error) throw error;
       return data as CatalogProduct[];
     },
   });
+
+  const isLoading = companyLoading || productsLoading;
 
   const filtered =
     products?.filter((p) => {
@@ -207,6 +234,7 @@ export default function CatalogoPublico() {
     setQuantities((prev) => ({ ...prev, [id]: Math.max(1, Math.min(50, v)) }));
 
   const openWA = (name: string, qty: number, price: number | null) => {
+    if (!waConfigured) return;
     const total = price != null ? qty * price : 0;
     const msg = `Hola ${storeName}, quiero pedir ${qty} unidades de ${name}. Total: $${total.toLocaleString("es-CO")}`;
     window.open(waUrl(msg), "_blank");
@@ -259,15 +287,17 @@ export default function CatalogoPublico() {
               <p className="text-gray-400 text-xs">{storeName}</p>
             </div>
           </div>
-          <a
-            href={waGenericUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors shadow-sm"
-          >
-            {WA_ICON}
-            <span className="hidden sm:inline">Hablar con George</span>
-          </a>
+          {waConfigured && (
+            <a
+              href={waGenericUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors shadow-sm"
+            >
+              {WA_ICON}
+              <span className="hidden sm:inline">Hablar por WhatsApp</span>
+            </a>
+          )}
         </div>
       </header>
 
@@ -301,15 +331,17 @@ export default function CatalogoPublico() {
                 </div>
               ))}
             </div>
-            <a
-              href={waUrl(`Hola ${storeName}, quiero empezar a revender sus productos. ¿Cómo funciona?`)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-[#C1272D]/25"
-            >
-              {WA_ICON}
-              Comenzar a revender
-            </a>
+            {waConfigured && (
+              <a
+                href={waUrl(`Hola ${storeName}, quiero empezar a revender sus productos. ¿Cómo funciona?`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#C1272D] hover:bg-[#B71C1C] text-white font-bold text-base px-8 py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-[#C1272D]/25"
+              >
+                {WA_ICON}
+                Comenzar a revender
+              </a>
+            )}
           </div>
 
           {/* How to make money */}
@@ -405,13 +437,14 @@ export default function CatalogoPublico() {
                 const qty = getQty(p.id);
                 return (
                   <React.Fragment key={p.id}>
-                    {index === 3 && <MidBanner waHref={waGenericUrl} />}
+                    {index === 3 && waConfigured && <MidBanner waHref={waGenericUrl} />}
                     <CatalogCard
                       product={p}
                       qty={qty}
                       onQty={(v) => setQty(p.id, v)}
                       onWA={() => openWA(p.name, qty, p.wholesale_price)}
                       onDetail={() => navigate(`/producto/${p.id}`)}
+                      waReady={waConfigured}
                     />
                   </React.Fragment>
                 );
@@ -469,16 +502,18 @@ export default function CatalogoPublico() {
             : <p className="text-yellow-500 text-sm mb-1">⚠️ Configura tu número en Configuración de Tienda</p>
           }
           <p className="text-gray-600 text-sm italic mb-6">Somos tu proveedor, tú eres el vendedor</p>
-          <a
-            href={waGenericUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-white font-bold text-sm px-6 py-3 rounded-2xl transition-colors"
-            style={{ background: "#25D366" }}
-          >
-            {WA_ICON}
-            Escríbenos por WhatsApp
-          </a>
+          {waConfigured && (
+            <a
+              href={waGenericUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-white font-bold text-sm px-6 py-3 rounded-2xl transition-colors"
+              style={{ background: "#25D366" }}
+            >
+              {WA_ICON}
+              Escríbenos por WhatsApp
+            </a>
+          )}
           <div className="border-t border-white/10 mt-8 pt-5">
             <p className="text-gray-600 text-xs">© 2026 {storeName} · Todos los derechos reservados</p>
           </div>
@@ -486,6 +521,7 @@ export default function CatalogoPublico() {
       </footer>
 
       {/* Floating WA */}
+      {waConfigured && (
       <a
         href={waUrl(`Hola ${storeName}, quiero más info sobre el catálogo mayorista`)}
         target="_blank"
@@ -494,7 +530,7 @@ export default function CatalogoPublico() {
         style={{ bottom: 24, right: 24 }}
       >
         <span className="absolute -top-11 right-0 bg-[#1A1A1A] text-white text-xs px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
-          Hablar con George
+          Hablar por WhatsApp
         </span>
         <div
           className="w-[58px] h-[58px] rounded-full flex items-center justify-center hover:scale-110 transition-transform"
@@ -505,6 +541,7 @@ export default function CatalogoPublico() {
           </svg>
         </div>
       </a>
+      )}
     </div>
   );
 }

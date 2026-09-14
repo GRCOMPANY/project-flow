@@ -30,10 +30,16 @@ export function useAutomationIntents() {
   const { companyId } = useCompany();
 
   const fetchIntents = useCallback(async () => {
+    if (!companyId) {
+      setIntents([]);
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('creative_automation_intents')
         .select('*')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -58,7 +64,7 @@ export function useAutomationIntents() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchIntents();

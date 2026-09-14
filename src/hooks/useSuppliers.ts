@@ -8,13 +8,15 @@ export function useSuppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   const fetchSuppliers = async () => {
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('suppliers')
       .select('*')
+      .eq('company_id', companyId)
       .order('name', { ascending: true });
 
     if (error) {
@@ -40,8 +42,8 @@ export function useSuppliers() {
   };
 
   useEffect(() => {
-    fetchSuppliers();
-  }, []);
+    if (!companyLoading) fetchSuppliers();
+  }, [companyId, companyLoading]);
 
   const addSupplier = async (supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => {
     const { data, error } = await supabase

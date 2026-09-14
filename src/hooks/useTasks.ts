@@ -63,7 +63,7 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
 
   // Datos para generación automática
   const { sales } = useSales();
@@ -72,6 +72,11 @@ export function useTasks() {
 
   // Cargar tareas de la base de datos
   const fetchTasks = useCallback(async () => {
+    if (!companyId) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from("tasks")
@@ -85,6 +90,7 @@ export function useTasks() {
           outcome:task_outcomes(*)
         `,
         )
+        .eq("company_id", companyId)
         .order("priority", { ascending: true })
         .order("created_at", { ascending: false });
 
@@ -151,10 +157,11 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [companyId, toast]);
 
   // Sincronizar tareas automáticas
   const syncAutomaticTasks = useCallback(async () => {
+    if (!companyId) return;
     if (syncing || (!sales.length && !products.length)) return;
 
     setSyncing(true);
@@ -163,6 +170,8 @@ export function useTasks() {
       const generatedTasks = generateAllTasks(sales, products, creatives);
 
       // 2. Obtener tareas automáticas existentes
+      //    `tasks` ya viene filtrado por company_id desde fetchTasks; las condiciones
+      //    se evalúan contra ventas/productos/creativos de esta misma empresa.
       const automaticTasks = tasks.filter((t) => t.source === "automatic");
       const existingDedupKeys = new Set(automaticTasks.map((t) => t.dedupKey).filter(Boolean));
 
@@ -209,7 +218,8 @@ export function useTasks() {
               resolved_at: new Date().toISOString(),
               resolution_notes: "Resuelta automáticamente: la condición ya no aplica",
             })
-            .eq("id", task.id);
+            .eq("id", task.id)
+            .eq("company_id", companyId);
         }
       }
 
@@ -220,7 +230,7 @@ export function useTasks() {
     } finally {
       setSyncing(false);
     }
-  }, [tasks, sales, products, creatives, syncing, fetchTasks]);
+  }, [companyId, tasks, sales, products, creatives, syncing, fetchTasks]);
 
   // Crear tarea manual
   const createTask = async (input: CreateTaskInput): Promise<boolean> => {
@@ -410,13 +420,14 @@ export function useTasks() {
 
   // Sincronizar tareas automáticas cuando cambian los datos
   useEffect(() => {
+    if (companyLoading || !companyId) return;
     if (!loading && (sales.length > 0 || products.length > 0)) {
       const timer = setTimeout(() => {
         syncAutomaticTasks();
       }, 1000); // Debounce para evitar múltiples sincronizaciones
       return () => clearTimeout(timer);
     }
-  }, [sales, products, creatives, loading]);
+  }, [companyId, companyLoading, sales, products, creatives, loading]);
 
   // Filtros útiles
   const activeTasks = useMemo(

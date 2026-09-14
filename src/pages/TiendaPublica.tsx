@@ -73,13 +73,13 @@ function HeroCarousel({
   navigate,
 }: {
   slides: Slide[];
-  waGenericUrl: string;
+  waGenericUrl: string | null;
   navigate: (to: string) => void;
 }) {
   const handleButtonClick = (boton_link: string | null) => {
     const link = (boton_link ?? "").trim();
     if (!link || link === "whatsapp") {
-      window.open(waGenericUrl, "_blank");
+      if (waGenericUrl) window.open(waGenericUrl, "_blank");
     } else if (link.startsWith("/")) {
       navigate(link);
     } else {
@@ -393,7 +393,9 @@ function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: 
     } catch (_) { /* INSERT falló — WA abre igual */ }
 
     const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(total)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+    if (waNumber) {
+      window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+    }
 
     setLoading(false);
     setDone(true);
@@ -474,9 +476,11 @@ function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: 
                 : <><WASvg /> Confirmar pedido</>
               }
             </button>
-            <p className="text-center text-xs text-gray-400 mt-3">
-              Se abrirá WhatsApp para confirmar con {storeName}
-            </p>
+            {waNumber && (
+              <p className="text-center text-xs text-gray-400 mt-3">
+                Se abrirá WhatsApp para confirmar con {storeName}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -518,7 +522,7 @@ export default function TiendaPublica() {
   });
 
   // Default company cuando no hay slug (tienda principal GRC)
-  const { data: defaultCompany } = useQuery({
+  const { data: defaultCompany, isLoading: defaultLoading } = useQuery({
     queryKey: ["tienda-default-company"],
     queryFn: async () => {
       const { data } = await db.from("companies").select("id, wa_number").eq("is_grc", true).maybeSingle();
@@ -533,6 +537,9 @@ export default function TiendaPublica() {
   const effectiveWaNum = slug && slugCompany?.wa_number ? slugCompany.wa_number : waNumber;
   const effectiveLogo  = slug && slugCompany?.logo_url  ? slugCompany.logo_url  : logoUrl;
 
+  // Sin numero configurado no se pinta ningun CTA de WhatsApp
+  const waReady = !!effectiveWaNum;
+
   const effectiveWaUrl = (msg: string) =>
     `https://wa.me/${effectiveWaNum}?text=${encodeURIComponent(msg)}`;
 
@@ -541,6 +548,9 @@ export default function TiendaPublica() {
   );
 
   const effectiveCompanyId = slugCompany?.id ?? defaultCompany?.id ?? null;
+
+  // Mientras la empresa no se resuelva no se muestra el catalogo de nadie
+  const companyResolving = slug ? slugLoading : defaultLoading;
 
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Todos");
@@ -557,39 +567,38 @@ export default function TiendaPublica() {
 
   /* ── Queries ── */
 
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["tienda-products", slug ?? "default", slugCompany?.id ?? null],
-    enabled: !slug || !slugLoading,
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ["tienda-products", effectiveCompanyId],
+    enabled: !!effectiveCompanyId,
     queryFn: async () => {
-      if (slug && !slugCompany) return [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let query: any = supabase
+      if (!effectiveCompanyId) return [];
+      const { data, error } = await db
         .from("products_seller_view")
         .select(
           "id, name, description, category, image_url, retail_price, wholesale_price, is_featured, status, created_at"
         )
         .eq("status", "activo")
+        .eq("company_id", effectiveCompanyId)
         .order("created_at", { ascending: false });
-      if (slug && slugCompany) query = query.eq("company_id", slugCompany.id);
-      const { data, error } = await query;
       if (error) throw error;
       return ((data ?? []) as Product[]).filter((p) => p.id != null);
     },
     staleTime: 2 * 60 * 1000,
   });
 
+  const isLoading = companyResolving || productsLoading;
+
   const { data: banners = [] } = useQuery({
-    queryKey: ["tienda-banners", slug ?? "default", slugCompany?.id ?? null],
-    enabled: !slug || !slugLoading,
+    queryKey: ["tienda-banners", effectiveCompanyId],
+    enabled: !!effectiveCompanyId,
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let query: any = db
+      if (!effectiveCompanyId) return [];
+      const { data } = await db
         .from("banners")
         .select("id, imagen_url, imagen_posicion, titulo, subtitulo, texto_boton, boton_link, activo, orden")
         .eq("activo", true)
+        .eq("company_id", effectiveCompanyId)
         .order("orden", { ascending: true });
-      if (slug && slugCompany) query = query.eq("company_id", slugCompany.id);
-      const { data } = await query;
       return (data ?? []) as Banner[];
     },
     staleTime: 5 * 60 * 1000,
@@ -613,9 +622,11 @@ export default function TiendaPublica() {
           {
             id: "default",
             imagen_url: null,
+            imagen_posicion: null,
             titulo: effectiveName,
             subtitulo: storeSlogan || null,
             texto_boton: "Ver productos",
+            boton_link: null,
           },
         ];
 
@@ -733,7 +744,7 @@ export default function TiendaPublica() {
         </header>
 
         {/* ══ HERO CAROUSEL ══ */}
-        <HeroCarousel slides={slides} waGenericUrl={effectiveWaGenericUrl} navigate={navigate} />
+        <HeroCarousel slides={slides} waGenericUrl={waReady ? effectiveWaGenericUrl : null} navigate={navigate} />
 
         {/* ══ CATEGORY BAR ══ */}
         <nav className="bg-white border-b border-gray-100 sticky top-16 z-40">
@@ -874,15 +885,17 @@ export default function TiendaPublica() {
                     {instagram}
                   </a>
                 )}
-                <a
-                  href={effectiveWaGenericUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
-                >
-                  <WASvg cls="w-4 h-4" />
-                  WhatsApp
-                </a>
+                {waReady && (
+                  <a
+                    href={effectiveWaGenericUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    <WASvg cls="w-4 h-4" />
+                    WhatsApp
+                  </a>
+                )}
               </div>
             </div>
 
@@ -895,15 +908,17 @@ export default function TiendaPublica() {
         </footer>
 
         {/* ══ FLOATING WA BUTTON ══ */}
-        <a
-          href={effectiveWaGenericUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Chatear por WhatsApp"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-xl hover:bg-[#1fba59] hover:scale-110 transition-all duration-200"
-        >
-          <WASvg cls="w-6 h-6" />
-        </a>
+        {waReady && (
+          <a
+            href={effectiveWaGenericUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chatear por WhatsApp"
+            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-xl hover:bg-[#1fba59] hover:scale-110 transition-all duration-200"
+          >
+            <WASvg cls="w-6 h-6" />
+          </a>
+        )}
 
       </div>
 

@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCreatives } from '@/hooks/useCreatives';
+import { useCompany } from '@/hooks/useCompany';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommandCenterNav } from '@/components/command-center/CommandCenterNav';
 import { ProductForm } from '@/components/products/ProductForm';
@@ -45,6 +46,7 @@ const STORE_KEYS = [
 
 const PaginaPublicaTab = ({ productId }: { productId: string }) => {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   type SubTab = "anuncio" | "garantias" | "badges" | "caracteristicas" | "videos" | "testimonios";
   const [subTab, setSubTab] = useState<SubTab>("anuncio");
   const [saving, setSaving] = useState(false);
@@ -59,9 +61,13 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
   );
 
   const { data: configData, isLoading: configLoading } = useQuery({
-    queryKey: ["admin-store-config-pagina"],
+    queryKey: ["admin-store-config-pagina", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data } = await db.from("store_config").select("clave,valor").in("clave", STORE_KEYS);
+      const { data } = await db.from("store_config")
+        .select("clave,valor")
+        .eq("company_id", companyId)
+        .in("clave", STORE_KEYS);
       const map: Record<string,string> = {};
       (data ?? []).forEach((r: any) => { map[r.clave] = r.valor; });
       return map;
@@ -89,8 +95,13 @@ const PaginaPublicaTab = ({ productId }: { productId: string }) => {
     }));
   }, [configData]);
 
-  const upsertConfig = (clave: string, valor: string) =>
-    db.from("store_config").upsert({ clave, valor }, { onConflict: "clave" });
+  const upsertConfig = (clave: string, valor: string) => {
+    if (!companyId) return Promise.resolve();
+    return db.from("store_config").upsert(
+      { company_id: companyId, clave, valor },
+      { onConflict: "company_id,clave" },
+    );
+  };
 
   const flash = (text: string) => { setMsg(text); setTimeout(() => setMsg(""), 2500); };
 

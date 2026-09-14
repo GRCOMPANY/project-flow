@@ -12,9 +12,11 @@ export function useProjects() {
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
+    if (!companyId) { setProjects([]); return; }
     const { data, error } = await supabase
       .from('projects')
       .select('*')
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -32,10 +34,11 @@ export function useProjects() {
     }));
 
     setProjects(mappedProjects);
-  }, []);
+  }, [companyId]);
 
   // Fetch tasks from Supabase with assigned user profile
   const fetchTasks = useCallback(async () => {
+    if (!companyId) { setTasks([]); return; }
     const { data, error } = await supabase
       .from('tasks')
       .select(`
@@ -48,6 +51,7 @@ export function useProjects() {
           created_at
         )
       `)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -76,7 +80,7 @@ export function useProjects() {
     }));
 
     setTasks(mappedTasks);
-  }, []);
+  }, [companyId]);
 
   // Initial load
   useEffect(() => {

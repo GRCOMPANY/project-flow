@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
+import { useCompany } from '@/hooks/useCompany';
 import {
   Select,
   SelectContent,
@@ -19,12 +20,33 @@ interface UserSelectProps {
 export function UserSelect({ value, onValueChange, placeholder = 'Seleccionar usuario' }: UserSelectProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const { companyId, loading: companyLoading } = useCompany();
 
   useEffect(() => {
+    if (companyLoading) return;
+    if (!companyId) { setUsers([]); setLoading(false); return; }
+
     const fetchUsers = async () => {
+      setLoading(true);
+
+      // Solo los miembros de la empresa actual. profiles no tiene company_id,
+      // así que la pertenencia se resuelve vía company_users.
+      const { data: members } = await supabase
+        .from('company_users')
+        .select('user_id')
+        .eq('company_id', companyId);
+
+      const memberIds = (members ?? []).map((m) => m.user_id);
+      if (memberIds.length === 0) {
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .in('id', memberIds)
         .order('full_name');
 
       if (!error && data) {
@@ -42,7 +64,7 @@ export function UserSelect({ value, onValueChange, placeholder = 'Seleccionar us
     };
 
     fetchUsers();
-  }, []);
+  }, [companyId, companyLoading]);
 
   const getInitials = (name: string) => {
     return name

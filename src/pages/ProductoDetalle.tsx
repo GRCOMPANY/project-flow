@@ -231,7 +231,9 @@ function OrderModal({ productId, productName, unitPrice, quantity, companyId, wa
     } catch (_) { /* INSERT falló — WA abre igual */ }
 
     const msg = `🛍 Nuevo pedido\nProducto: ${productName}\nCantidad: ${quantity}\nTotal: ${fmtCOP(total)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+    if (waNumber) {
+      window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+    }
 
     setLoading(false);
     setDone(true);
@@ -408,18 +410,20 @@ export default function ProductoDetalle() {
   });
 
   const { data: related = [] } = useQuery({
-    queryKey: ["producto-related", id, product?.category],
+    queryKey: ["producto-related", id, product?.company_id, product?.category],
     queryFn: async () => {
+      if (!product?.company_id) return [];
       const base = db
         .from("products_seller_view")
         .select("id, name, image_url, retail_price, category")
+        .eq("company_id", product.company_id)
         .neq("id", id!);
       const { data } = await (
         product?.category ? base.eq("category", product.category) : base
       ).limit(4);
       return (data ?? []) as RelatedProduct[];
     },
-    enabled: !!id && !!product,
+    enabled: !!id && !!product?.company_id,
   });
 
   /* ── Derived ── */
@@ -436,25 +440,35 @@ export default function ProductoDetalle() {
   const unitPrice = product?.retail_price ?? null;
   const totalPrice = unitPrice !== null ? unitPrice * qty : null;
 
-  /* Store-config driven content — always has values from BRAND_DEFAULTS */
-  const topbarTexto    = get("topbar_texto");
-  const garantias      = [get("garantia_1"), get("garantia_2"), get("garantia_3")];
-  const badges         = [get("badge_1"), get("badge_2"), get("badge_3")].filter(Boolean);
-  const caracteristicas = [1, 2, 3, 4, 5, 6].map((i) => {
-    const raw = get(`caracteristica_${i}` as any);
-    const [titulo, sub] = raw.split("||");
-    return { titulo: titulo?.trim() || "", sub: sub?.trim() || "" };
-  });
-  const storyTitulo    = get("story_titulo");
-  const storyTexto     = get("story_texto");
+  /* Contenido desde store_config. Los defaults son neutros/vacios, asi que
+     cada seccion se oculta si la empresa todavia no la configuro. */
+  const topbarTexto    = get("topbar_texto").trim();
+  const garantias      = [get("garantia_1"), get("garantia_2"), get("garantia_3")]
+    .map((g) => g.trim())
+    .filter(Boolean);
+  const badges         = [get("badge_1"), get("badge_2"), get("badge_3")]
+    .map((b) => b.trim())
+    .filter(Boolean);
+  const caracteristicas = [1, 2, 3, 4, 5, 6]
+    .map((i) => {
+      const raw = get(`caracteristica_${i}` as any);
+      const [titulo, sub] = raw.split("||");
+      return { titulo: titulo?.trim() || "", sub: sub?.trim() || "" };
+    })
+    .filter((c) => c.titulo || c.sub);
+  const storyTitulo    = get("story_titulo").trim();
+  const storyTexto     = get("story_texto").trim();
+
+  // Sin numero configurado no se abre ni se pinta ningun enlace wa.me
+  const waReady = !!waNumber;
 
   const openWA = () => {
-    if (!product) return;
+    if (!product || !waReady) return;
     window.open(waUrl(`Hola, quiero ${qty}x ${product.name} a ${fmt(unitPrice)}`), "_blank");
   };
 
   const openQuestion = () => {
-    if (!product) return;
+    if (!product || !waReady) return;
     window.open(waUrl(`Hola, tengo una pregunta sobre el producto "${product.name}"`), "_blank");
   };
 
@@ -482,9 +496,11 @@ export default function ProductoDetalle() {
     <div className="min-h-screen bg-white pb-24 lg:pb-0">
 
       {/* ── Top bar ── */}
-      <div className="bg-[#C1272D] text-white text-xs font-semibold text-center py-2 px-4 tracking-wide">
-        {topbarTexto}
-      </div>
+      {topbarTexto && (
+        <div className="bg-[#C1272D] text-white text-xs font-semibold text-center py-2 px-4 tracking-wide">
+          {topbarTexto}
+        </div>
+      )}
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm">
@@ -506,19 +522,23 @@ export default function ProductoDetalle() {
               )}
               <div className="hidden sm:block">
                 <p className="font-black text-gray-900 text-sm leading-none">{storeName}</p>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#C1272D]">{storeSlogan}</p>
+                {storeSlogan && (
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#C1272D]">{storeSlogan}</p>
+                )}
               </div>
             </a>
           </div>
-          <a
-            href={waGenericUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#25D366] text-white text-sm font-bold px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
-          >
-            <WASvg cls="w-4 h-4" />
-            <span className="hidden sm:inline">WhatsApp</span>
-          </a>
+          {waReady && (
+            <a
+              href={waGenericUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-[#25D366] text-white text-sm font-bold px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
+            >
+              <WASvg cls="w-4 h-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </a>
+          )}
         </div>
       </header>
 
@@ -579,15 +599,17 @@ export default function ProductoDetalle() {
 
             <div className="h-px bg-gray-100" />
 
-            {/* Garantías — siempre visibles desde store_config */}
-            <ul className="space-y-2.5">
-              {garantias.map((g, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
-                  <span className="font-black text-[#C1272D] flex-shrink-0">✓</span>
-                  {g}
-                </li>
-              ))}
-            </ul>
+            {/* Garantías — desde store_config; ocultas si no hay ninguna */}
+            {garantias.length > 0 && (
+              <ul className="space-y-2.5">
+                {garantias.map((g, i) => (
+                  <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
+                    <span className="font-black text-[#C1272D] flex-shrink-0">✓</span>
+                    {g}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {/* Cantidad */}
             <div className="flex items-center gap-3">
@@ -618,12 +640,14 @@ export default function ProductoDetalle() {
               >
                 Hacer pedido
               </button>
-              <button
-                onClick={openQuestion}
-                className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold text-sm py-3.5 rounded-2xl hover:border-gray-400 transition-colors"
-              >
-                Hacer una pregunta
-              </button>
+              {waReady && (
+                <button
+                  onClick={openQuestion}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold text-sm py-3.5 rounded-2xl hover:border-gray-400 transition-colors"
+                >
+                  Hacer una pregunta
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -632,39 +656,47 @@ export default function ProductoDetalle() {
       {/* ══════════════════════════════════════════════════════ */}
       {/* SECCIÓN 2 — STORYTELLING (siempre visible)           */}
       {/* ══════════════════════════════════════════════════════ */}
-      <section className="bg-[#0a0a0a] py-20 px-4">
-        <div className="max-w-3xl mx-auto text-center space-y-6">
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-snug">
-            {storyTitulo}
-          </p>
-          <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
-            {storyTexto}
-          </p>
-          <div className="inline-block w-12 h-0.5 bg-[#C1272D]" />
-        </div>
-      </section>
+      {(storyTitulo || storyTexto) && (
+        <section className="bg-[#0a0a0a] py-20 px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            {storyTitulo && (
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-snug">
+                {storyTitulo}
+              </p>
+            )}
+            {storyTexto && (
+              <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mx-auto">
+                {storyTexto}
+              </p>
+            )}
+            <div className="inline-block w-12 h-0.5 bg-[#C1272D]" />
+          </div>
+        </section>
+      )}
 
       {/* ══════════════════════════════════════════════════════ */}
       {/* SECCIÓN 3 — CARACTERÍSTICAS (siempre visible)        */}
       {/* ══════════════════════════════════════════════════════ */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
-            Por qué elegir este producto
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            {caracteristicas.map((c, i) => (
-              <div
-                key={i}
-                className="p-5 rounded-2xl border border-gray-100 hover:border-[#C1272D]/20 hover:shadow-sm transition-all"
-              >
-                <p className="font-bold text-gray-900 text-sm leading-snug mb-1">{c.titulo}</p>
-                {c.sub && <p className="text-xs text-gray-500 leading-relaxed">{c.sub}</p>}
-              </div>
-            ))}
+      {caracteristicas.length > 0 && (
+        <section className="py-16 px-4 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
+              Por qué elegir este producto
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+              {caracteristicas.map((c, i) => (
+                <div
+                  key={i}
+                  className="p-5 rounded-2xl border border-gray-100 hover:border-[#C1272D]/20 hover:shadow-sm transition-all"
+                >
+                  <p className="font-bold text-gray-900 text-sm leading-snug mb-1">{c.titulo}</p>
+                  {c.sub && <p className="text-xs text-gray-500 leading-relaxed">{c.sub}</p>}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ══════════════════════════════════════════════════════ */}
       {/* SECCIÓN 4 — VIDEOS (solo si hay datos)               */}
@@ -783,7 +815,7 @@ export default function ProductoDetalle() {
             )}
             <div>
               <p className="font-black text-white text-sm leading-none">{storeName}</p>
-              <p className="text-gray-500 text-xs">{storeSlogan}</p>
+              {storeSlogan && <p className="text-gray-500 text-xs">{storeSlogan}</p>}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -797,14 +829,16 @@ export default function ProductoDetalle() {
                 <Instagram className="w-4 h-4" />
               </a>
             )}
-            <a
-              href={waGenericUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-            >
-              <WASvg cls="w-4 h-4" />
-            </a>
+            {waReady && (
+              <a
+                href={waGenericUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              >
+                <WASvg cls="w-4 h-4" />
+              </a>
+            )}
           </div>
           <p className="text-gray-500 text-xs">© 2026 {storeName}</p>
         </div>
@@ -831,16 +865,18 @@ export default function ProductoDetalle() {
       </div>
 
       {/* ── Floating WA desktop ── */}
-      <a
-        href={waGenericUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 hidden lg:flex w-14 h-14 rounded-full items-center justify-center text-white shadow-xl hover:scale-110 transition-transform"
-        style={{ background: "#25D366" }}
-        title="WhatsApp"
-      >
-        <WASvg cls="w-6 h-6" />
-      </a>
+      {waReady && (
+        <a
+          href={waGenericUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-50 hidden lg:flex w-14 h-14 rounded-full items-center justify-center text-white shadow-xl hover:scale-110 transition-transform"
+          style={{ background: "#25D366" }}
+          title="WhatsApp"
+        >
+          <WASvg cls="w-6 h-6" />
+        </a>
+      )}
 
       {orderModalOpen && product && (
         <OrderModal

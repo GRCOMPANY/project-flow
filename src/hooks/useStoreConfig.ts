@@ -3,43 +3,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 
 export const BRAND_DEFAULTS = {
+  // Defaults NEUTROS a proposito. La identidad de cada empresa vive en
+  // store_config y se edita desde /tienda-config; nada de marca va aqui.
+  // Consecuencia: con estos valores la tienda publica oculta las secciones
+  // vacias y no pinta CTAs de WhatsApp (ver waConfigured).
   // ── Identidad de marca ──────────────────────────────────────
-  wa_number:        "573226421110",
-  store_name:       "GRC IMPORTACIONES",
-  store_slogan:     "Lo mejor del mundo",
+  wa_number:        "",
+  store_name:       "Mi tienda",
+  store_slogan:     "",
   store_logo_url:   "",
-  store_instagram:  "@grc.importaciones",
-  color_primario:   "#C1272D",
+  store_instagram:  "",
+  color_primario:   "#1A1A1A",
   // ── Secciones — visibilidad ("true" | "false") ───────────────
   seccion_topbar_activa:        "true",
-  topbar_texto:                 "Lo mejor del mundo, primero en Colombia · Envío gratis a Bogotá",
+  topbar_texto:                 "",
   seccion_hero_activa:          "true",
   seccion_trust_activa:         "true",
-  trust_items:                  JSON.stringify([
-    { title: "Envío a Colombia",  sub: "Todo el país"           },
-    { title: "Contra entrega",    sub: "Pagas al recibir"        },
-    { title: "Garantía GRC",      sub: "Satisfacción asegurada"  },
-    { title: "Soporte WhatsApp",  sub: "Respuesta en minutos"    },
-  ]),
+  trust_items:                  "[]",
   productos_limite:             "8",
   seccion_storytelling_activa:  "true",
-  story_titulo:                 '"En GRC no vendemos productos comunes."',
-  story_texto:                  "Buscamos lo más innovador del mundo para que tú lo tengas primero en Colombia.",
+  story_titulo:                 "",
+  story_texto:                  "",
   seccion_videos_activa:        "true",
   seccion_testimonios_activa:   "true",
   // ── Página de producto ──────────────────────────────────────
-  garantia_1:       "Entrega en Bogotá en 24 horas",
-  garantia_2:       "Pago al recibir — sin riesgo",
-  garantia_3:       "Soporte directo por WhatsApp",
-  badge_1:          "🚚 Envío gratis",
-  badge_2:          "💳 Contra entrega",
-  badge_3:          "✓ Garantía GRC",
-  caracteristica_1: "🎯 Para ti||Diseñado pensando en tu comodidad",
-  caracteristica_2: "🌿 Material premium||De las mejores fábricas del mundo",
-  caracteristica_3: "⚡ Alta durabilidad||Hecho para durar años",
-  caracteristica_4: "📦 Empaque seguro||Llega en perfectas condiciones",
-  caracteristica_5: "💬 Soporte rápido||Respondemos en minutos",
-  caracteristica_6: "💰 Precio justo||El mejor valor del mercado",
+  garantia_1:       "",
+  garantia_2:       "",
+  garantia_3:       "",
+  badge_1:          "",
+  badge_2:          "",
+  badge_3:          "",
+  caracteristica_1: "",
+  caracteristica_2: "",
+  caracteristica_3: "",
+  caracteristica_4: "",
+  caracteristica_5: "",
+  caracteristica_6: "",
 } as const;
 
 export type BrandKey = keyof typeof BRAND_DEFAULTS;

@@ -276,7 +276,7 @@ export function useProducts() {
   const checkSkuAvailable = async (sku: string, excludeId?: string): Promise<boolean> => {
     if (!sku) return true;
 
-    let query = supabase.from("products").select("id").eq("sku", sku);
+    let query = supabase.from("products").select("id").eq("sku", sku).eq("company_id", companyId);
 
     if (excludeId) {
       query = query.neq("id", excludeId);
