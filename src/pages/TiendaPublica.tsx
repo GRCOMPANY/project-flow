@@ -336,13 +336,12 @@ function FeaturedRow({
 ══════════════════════════════════════ */
 interface TiendaOrderModalProps {
   product: Product;
-  companyId: string | null;
   waNumber: string;
   storeName: string;
   onClose: () => void;
 }
 
-function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: TiendaOrderModalProps) {
+function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrderModalProps) {
   const dbModal = supabase as any;
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -351,6 +350,7 @@ function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: 
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const unitPrice = product.retail_price ?? 0;
   const total = unitPrice * qty;
@@ -360,41 +360,37 @@ function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: 
   const handleConfirm = async () => {
     if (!nombre.trim() || !telefono.trim() || !direccion.trim()) return;
     setLoading(true);
+    setSaveError(null);
 
-    const notesFull = [`Dirección: ${direccion.trim()}`, notas.trim()].filter(Boolean).join("\n");
+    // El precio, el costo, el margen y la empresa los calcula el servidor a
+    // partir de products. Aca solo van los datos del comprador.
+    const { data, error } = await dbModal.rpc("create_public_order", {
+      p_product_id: product.id,
+      p_quantity: qty,
+      p_client_name: nombre.trim(),
+      p_client_phone: telefono.trim(),
+      p_address: direccion.trim(),
+      p_notes: notas.trim() || null,
+      p_expected_unit_price: unitPrice,
+    });
 
-    try {
-      if (companyId) {
-        await dbModal.from("sales").insert({
-          company_id: companyId,
-          product_id: product.id,
-          client_name: nombre.trim(),
-          client_phone: telefono.trim(),
-          quantity: qty,
-          unit_price: unitPrice,
-          total_amount: total,
-          sales_channel: "tienda_publica",
-          operational_status: "nuevo",
-          payment_status: "pendiente",
-          order_status: "pendiente",
-          sale_type: "directa",
-          sale_source: "digital",
-          sale_date: new Date().toISOString().split("T")[0],
-          notes: notesFull,
-          cost_at_sale: 0,
-          margin_at_sale: 0,
-          margin_percent_at_sale: 0,
-          my_percentage: 100,
-          partner_percentage: 0,
-          my_profit_amount: 0,
-          partner_profit_amount: 0,
-        });
-      }
-    } catch (_) { /* INSERT falló — WA abre igual */ }
+    let confirmedTotal = total;
+    let targetWaNumber = waNumber;
 
-    const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(total)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
-    if (waNumber) {
-      window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+    if (error) {
+      // El pedido no quedo registrado. Abrimos WhatsApp igual para no perder la
+      // venta, pero se lo decimos al visitante en vez de fallar en silencio.
+      console.error("create_public_order fallo:", error);
+      setSaveError(error.message || "No pudimos registrar el pedido.");
+    } else if (data) {
+      const res = data as { total_amount: number; wa_number: string | null };
+      confirmedTotal = Number(res.total_amount) || total;
+      if (res.wa_number) targetWaNumber = res.wa_number;
+    }
+
+    const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(confirmedTotal)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
+    if (targetWaNumber) {
+      window.open(`https://wa.me/${targetWaNumber}?text=${encodeURIComponent(msg)}`, "_blank");
     }
 
     setLoading(false);
@@ -417,6 +413,12 @@ function TiendaOrderModal({ product, companyId, waNumber, storeName, onClose }: 
             <div className="text-5xl mb-4">🎉</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">¡Pedido recibido!</h3>
             <p className="text-gray-500 text-sm mb-6">Te contactaremos pronto para confirmar tu entrega.</p>
+            {saveError && (
+              <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs mb-6">
+                No pudimos guardar el pedido automaticamente, pero tus datos ya van en el
+                mensaje de WhatsApp. Envialo para confirmarlo.
+              </p>
+            )}
             <button onClick={onClose} className="w-full py-3 bg-[#C1272D] text-white font-bold rounded-xl hover:opacity-90 transition-opacity">
               Cerrar
             </button>
@@ -925,7 +927,6 @@ export default function TiendaPublica() {
       {orderProduct && (
         <TiendaOrderModal
           product={orderProduct}
-          companyId={effectiveCompanyId}
           waNumber={effectiveWaNum}
           storeName={effectiveName}
           onClose={() => setOrderProduct(null)}
