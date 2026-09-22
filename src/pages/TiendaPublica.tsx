@@ -3,6 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStoreConfig } from "@/hooks/useStoreConfig";
+import {
+  normalizePhone,
+  validatePublicOrder,
+  isValidationError,
+  type PublicOrderErrors,
+} from "@/lib/publicOrder";
 import { Search, ChevronLeft, ChevronRight, Package, Instagram } from "lucide-react";
 
 /* ══════════════════════════════════════
@@ -351,6 +357,8 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<PublicOrderErrors>({});
 
   const unitPrice = product.retail_price ?? 0;
   const total = unitPrice * qty;
@@ -358,9 +366,16 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
   const inputCls = "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#C1272D] transition-colors bg-white";
 
   const handleConfirm = async () => {
-    if (!nombre.trim() || !telefono.trim() || !direccion.trim()) return;
+    // Mismas reglas que la funcion en la base, para corregir antes de enviar.
+    const errors = validatePublicOrder({ nombre, telefono, direccion, notas, quantity: qty });
+    setFieldErrors(errors);
+    setFormError(null);
+    if (Object.keys(errors).length > 0) return;
+
     setLoading(true);
     setSaveError(null);
+
+    const phone = normalizePhone(telefono);
 
     // El precio, el costo, el margen y la empresa los calcula el servidor a
     // partir de products. Aca solo van los datos del comprador.
@@ -368,18 +383,26 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
       p_product_id: product.id,
       p_quantity: qty,
       p_client_name: nombre.trim(),
-      p_client_phone: telefono.trim(),
+      p_client_phone: phone,
       p_address: direccion.trim(),
       p_notes: notas.trim() || null,
       p_expected_unit_price: unitPrice,
     });
 
+    // Validacion del servidor: el visitante puede corregir. No se cierra el
+    // formulario ni se abre WhatsApp con datos que la funcion ya rechazo.
+    if (error && isValidationError(error)) {
+      setFormError(error.message || "Revisa los datos del pedido.");
+      setLoading(false);
+      return;
+    }
+
     let confirmedTotal = total;
     let targetWaNumber = waNumber;
 
     if (error) {
-      // El pedido no quedo registrado. Abrimos WhatsApp igual para no perder la
-      // venta, pero se lo decimos al visitante en vez de fallar en silencio.
+      // Fallo transitorio: el pedido no quedo registrado, pero abrimos WhatsApp
+      // igual para no perder la venta, y lo decimos en pantalla.
       console.error("create_public_order fallo:", error);
       setSaveError(error.message || "No pudimos registrar el pedido.");
     } else if (data) {
@@ -388,7 +411,7 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
       if (res.wa_number) targetWaNumber = res.wa_number;
     }
 
-    const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(confirmedTotal)}\nCliente: ${nombre.trim()}\nTeléfono: ${telefono.trim()}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
+    const msg = `🛍 Nuevo pedido\nProducto: ${product.name ?? ""}\nCantidad: ${qty}\nTotal: ${fmtCOP(confirmedTotal)}\nCliente: ${nombre.trim()}\nTeléfono: ${phone}\nDirección: ${direccion.trim()}${notas.trim() ? `\nNotas: ${notas.trim()}` : ""}`;
     if (targetWaNumber) {
       window.open(`https://wa.me/${targetWaNumber}?text=${encodeURIComponent(msg)}`, "_blank");
     }
@@ -410,13 +433,19 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
 
         {done ? (
           <div className="p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">¡Pedido recibido!</h3>
-            <p className="text-gray-500 text-sm mb-6">Te contactaremos pronto para confirmar tu entrega.</p>
+            <div className="text-5xl mb-4">{saveError ? "📲" : "🎉"}</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {saveError ? "Envía el mensaje para confirmar" : "¡Pedido recibido!"}
+            </h3>
+            <p className="text-gray-500 text-sm mb-6">
+              {saveError
+                ? "Abrimos WhatsApp con tus datos."
+                : "Te contactaremos pronto para confirmar tu entrega."}
+            </p>
             {saveError && (
               <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs mb-6">
-                No pudimos guardar el pedido automaticamente, pero tus datos ya van en el
-                mensaje de WhatsApp. Envialo para confirmarlo.
+                No pudimos registrar el pedido automáticamente. Envía el mensaje de
+                WhatsApp que acabamos de abrir para que quede confirmado.
               </p>
             )}
             <button onClick={onClose} className="w-full py-3 bg-[#C1272D] text-white font-bold rounded-xl hover:opacity-90 transition-opacity">
@@ -453,24 +482,35 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nombre completo *</label>
                 <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre completo" className={inputCls} />
+                {fieldErrors.nombre && <p className="text-xs text-red-600 mt-1">{fieldErrors.nombre}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Teléfono *</label>
                 <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="3XX XXX XXXX" className={inputCls} />
+                {fieldErrors.telefono && <p className="text-xs text-red-600 mt-1">{fieldErrors.telefono}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Dirección de entrega *</label>
                 <input type="text" value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle, número, barrio, ciudad" className={inputCls} />
+                {fieldErrors.direccion && <p className="text-xs text-red-600 mt-1">{fieldErrors.direccion}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notas (opcional)</label>
                 <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Instrucciones, color, talla..." rows={2} className={`${inputCls} resize-none`} />
+                {fieldErrors.notas && <p className="text-xs text-red-600 mt-1">{fieldErrors.notas}</p>}
               </div>
+              {fieldErrors.quantity && <p className="text-xs text-red-600 mt-1">{fieldErrors.quantity}</p>}
             </div>
+
+            {formError && (
+              <p className="mt-4 text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs">
+                {formError}
+              </p>
+            )}
 
             <button
               onClick={handleConfirm}
-              disabled={loading || !nombre.trim() || !telefono.trim() || !direccion.trim()}
+              disabled={loading}
               className="mt-6 w-full flex items-center justify-center gap-2.5 py-4 bg-[#C1272D] text-white font-bold text-base rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
