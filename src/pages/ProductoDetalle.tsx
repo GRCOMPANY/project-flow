@@ -444,7 +444,15 @@ export default function ProductoDetalle() {
   const { data: orderCompany } = useQuery({
     queryKey: ["producto-order-company", product?.company_id],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("id, wa_number").eq("id", product!.company_id!).maybeSingle();
+      const { data, error } = await db
+        .from("companies")
+        .select("id, wa_number")
+        .eq("id", product!.company_id!)
+        .maybeSingle();
+      if (error) {
+        console.error("producto: fallo la busqueda de la empresa del pedido", error);
+        throw error;
+      }
       return (data as { id: string; wa_number: string | null } | null) ?? null;
     },
     enabled: !!product?.company_id,

@@ -191,15 +191,24 @@ export default function CatalogoPublico() {
 
   // El catalogo es publico y no lleva slug: la empresa se resuelve por el flag is_grc.
   // Si no hay empresa resuelta no se muestran productos de nadie.
-  const { data: storeCompany, isLoading: companyLoading } = useQuery({
+  const {
+    data: storeCompany,
+    isLoading: companyLoading,
+    isError: companyFailed,
+    refetch: refetchCompany,
+  } = useQuery({
     queryKey: ["catalogo-company"],
     queryFn: async () => {
-      const { data } = await db
+      const { data, error } = await db
         .from("companies")
         .select("id")
         .eq("is_grc", true)
         .eq("activo", true)
         .maybeSingle();
+      if (error) {
+        console.error("catalogo: fallo la busqueda de la empresa", error);
+        throw error;
+      }
       return (data as { id: string } | null) ?? null;
     },
     staleTime: 10 * 60 * 1000,
@@ -416,6 +425,18 @@ export default function CatalogoPublico() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-3xl aspect-[3/4] animate-pulse" />
             ))}
+          </div>
+        ) : companyFailed ? (
+          <div className="text-center py-24">
+            <Package className="w-14 h-14 mx-auto text-gray-200 mb-4" />
+            <p className="font-bold text-xl text-[#1A1A1A] mb-1">No pudimos cargar el catálogo</p>
+            <p className="text-gray-400 text-sm mb-5">Hubo un problema al consultar los datos.</p>
+            <button
+              onClick={() => refetchCompany()}
+              className="bg-[#C1272D] text-white font-bold px-6 py-2.5 rounded-full text-sm hover:bg-[#B71C1C] transition-colors"
+            >
+              Reintentar
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-24">

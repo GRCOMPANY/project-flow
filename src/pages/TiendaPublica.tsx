@@ -535,7 +535,9 @@ function TiendaOrderModal({ product, waNumber, storeName, onClose }: TiendaOrder
 ══════════════════════════════════════ */
 export default function TiendaPublica() {
   const navigate = useNavigate();
-  const { slug } = useParams<{ slug?: string }>();
+  const { slug: rawSlug } = useParams<{ slug?: string }>();
+  // Normalizado: /tienda/GRC y /tienda/ grc resuelven igual que /tienda/grc.
+  const slug = rawSlug?.trim().toLowerCase() || undefined;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
@@ -548,15 +550,26 @@ export default function TiendaPublica() {
   } = useStoreConfig();
 
   // ── Slug company lookup ──
-  const { data: slugCompany, isLoading: slugLoading } = useQuery({
+  const {
+    data: slugCompany,
+    isLoading: slugLoading,
+    isError: slugFailed,
+    refetch: refetchSlugCompany,
+  } = useQuery({
     queryKey: ["tienda-slug-company", slug],
     queryFn: async () => {
-      const { data } = await db
+      const { data, error } = await db
         .from("companies")
         .select("id, name, wa_number, logo_url, color_primario")
         .eq("slug", slug)
         .eq("activo", true)
         .maybeSingle();
+      // Propagar el fallo en vez de devolver null: si no se distingue "no existe"
+      // de "la consulta fallo", cualquier error termina mostrando un 404 enganoso.
+      if (error) {
+        console.error("tienda: fallo la busqueda de la empresa por slug", { slug, error });
+        throw error;
+      }
       return (data as { id: string; name: string; wa_number: string | null; logo_url: string | null; color_primario: string | null } | null) ?? null;
     },
     enabled: !!slug,
@@ -564,10 +577,23 @@ export default function TiendaPublica() {
   });
 
   // Default company cuando no hay slug (tienda principal GRC)
-  const { data: defaultCompany, isLoading: defaultLoading } = useQuery({
+  const {
+    data: defaultCompany,
+    isLoading: defaultLoading,
+    isError: defaultFailed,
+    refetch: refetchDefaultCompany,
+  } = useQuery({
     queryKey: ["tienda-default-company"],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("id, wa_number").eq("is_grc", true).maybeSingle();
+      const { data, error } = await db
+        .from("companies")
+        .select("id, wa_number")
+        .eq("is_grc", true)
+        .maybeSingle();
+      if (error) {
+        console.error("tienda: fallo la busqueda de la empresa principal", error);
+        throw error;
+      }
       return (data as { id: string; wa_number: string | null } | null) ?? null;
     },
     enabled: !slug,
@@ -694,7 +720,27 @@ export default function TiendaPublica() {
   const scrollToCatalog = () =>
     catalogRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  // 404 for unknown slugs
+  // La consulta fallo: no sabemos si la tienda existe. Distinto de un 404.
+  const companyLookupFailed = slug ? slugFailed : defaultFailed;
+  if (companyLookupFailed) {
+    return (
+      <div className="min-h-screen bg-[#F8F8F8] flex flex-col items-center justify-center px-4 text-center">
+        <Package className="w-16 h-16 text-gray-200 mb-4" />
+        <h1 className="text-2xl font-black text-[#111] mb-2">No pudimos cargar la tienda</h1>
+        <p className="text-gray-400 text-sm mb-6">
+          Hubo un problema al consultar los datos. Reintenta en un momento.
+        </p>
+        <button
+          onClick={() => (slug ? refetchSlugCompany() : refetchDefaultCompany())}
+          className="bg-[#C1272D] text-white font-bold px-6 py-2.5 rounded-full text-sm hover:bg-[#A01E22] transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // 404 real: la consulta funciono y no hay ninguna tienda con ese slug.
   if (slug && !slugLoading && slugCompany === null) {
     return (
       <div className="min-h-screen bg-[#F8F8F8] flex flex-col items-center justify-center px-4 text-center">
